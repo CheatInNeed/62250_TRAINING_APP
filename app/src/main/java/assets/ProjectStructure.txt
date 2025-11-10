@@ -1,0 +1,60 @@
+com.example.gymlocker/
+ ├── data/
+ │    ├── entity/
+ │    │    ├── Contains.kt
+ │    │    ├── ExerciseLog.kt
+ │    │    ├── Exercises.kt
+ │    │    ├── Has.kt
+ │    │    ├── MuscleGroup.kt
+ │    │    ├── Sets.kt
+ │    │    ├── User.kt
+ │    │    └── Workout.kt
+ │    │
+ │    ├── dao/
+ │    │    ├── ContainsDao.kt
+ │    │    ├── ExerciseLogDao.kt
+ │    │    ├── ExercisesDao.kt
+ │    │    ├── HasDao.kt
+ │    │    ├── MuscleGroupDao.kt
+ │    │    ├── SetsDao.kt
+ │    │    ├── UserDao.kt
+ │    │    └── WorkoutDao.kt
+ │    │
+ │    ├── database/
+ │    │    └── AppDatabase.kt
+ │    │
+ │    └── repository/
+ │         ├── ContainsRepository.kt
+ │         ├── ExerciseLogRepository.kt
+ │         ├── ExercisesRepository.kt
+ │         ├── HasRepository.kt
+ │         ├── MuscleGroupRepository.kt
+ │         ├── SetsRepository.kt
+ │         ├── UserRepository.kt
+ │         └── WorkoutRepository.kt
+ │
+ ├── ui/
+ │    ├── home/
+ │    │    └── HomeScreen.kt
+ │    ├── workout/
+ │    │    ├── WorkoutScreen.kt
+ │    │    └── WorkoutDetailScreen.kt
+ │    ├── exercise/
+ │    │    ├── ExerciseListScreen.kt
+ │    │    └── ExerciseDetailScreen.kt
+ │    └── theme/
+ │         ├── Color.kt
+ │         ├── Theme.kt
+ │         └── Type.kt
+ │
+ ├── viewmodel/
+ │    ├── ContainsViewModel.kt
+ │    ├── ExerciseLogViewModel.kt
+ │    ├── ExercisesViewModel.kt
+ │    ├── HasViewModel.kt
+ │    ├── MuscleGroupViewModel.kt
+ │    ├── SetsViewModel.kt
+ │    ├── UserViewModel.kt
+ │    └── WorkoutViewModel.kt
+ │
+ └── MainActivity.kt
