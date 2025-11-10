@@ -24,14 +24,13 @@ com.example.gymlocker/
  │    │    └── AppDatabase.kt
  │    │
  │    └── repository/
- │         ├── ContainsRepository.kt
- │         ├── ExerciseLogRepository.kt
- │         ├── ExercisesRepository.kt
- │         ├── HasRepository.kt
- │         ├── MuscleGroupRepository.kt
- │         ├── SetsRepository.kt
  │         ├── UserRepository.kt
- │         └── WorkoutRepository.kt
+ │         ├── WorkoutRepository.kt
+ │         ├── ExerciseRepository.kt
+ │         ├── ExerciseLogRepository.kt
+ │         ├── SetRepository.kt
+ │         ├── MuscleGroupRepository.kt
+ │         └── WorkoutPlanRepository.kt
  │
  ├── ui/
  │    ├── home/
