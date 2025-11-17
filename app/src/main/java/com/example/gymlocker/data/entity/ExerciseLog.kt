@@ -1,4 +1,19 @@
 package com.example.gymlocker.data.entity
 
-class ExerciseLog {
-}
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "exercise_logs",
+        foreignKeys = [ForeignKey(entity = Exercises::class,
+                                  parentColumns = ["exerciseId"],
+                                  childColumns = ["exerciseId"],
+                                  onDelete = ForeignKey.CASCADE)])
+data class ExerciseLog(
+    @PrimaryKey(autoGenerate = true)
+    val logId: Long = 0,
+    val exerciseId: Long,
+    val reps: Int,
+    val weight: Int,
+    val date: String
+)
