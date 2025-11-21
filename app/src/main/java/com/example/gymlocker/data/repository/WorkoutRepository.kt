@@ -24,9 +24,17 @@ class WorkoutRepository(
         workoutExerciseCrossRefDao.insert(WorkoutExerciseCrossRef(workoutId, exerciseId))
     }
 
+    suspend fun removeExerciseFromWorkout(workoutId: Long, exerciseId: Long) {
+        workoutExerciseCrossRefDao.delete(WorkoutExerciseCrossRef(workoutId, exerciseId))
+    }
+
     fun getSetsForExercise(exerciseId: Long): Flow<List<Sets>> = setsDao.getSetsForExercise(exerciseId)
 
     suspend fun addSetToExercise(set: Sets) {
         setsDao.insert(set)
+    }
+
+    suspend fun updateSet(set: Sets) {
+        setsDao.update(set)
     }
 }

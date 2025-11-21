@@ -54,6 +54,14 @@ class WorkoutViewModel @Inject constructor(private val workoutRepository: Workou
         }
     }
 
+    fun removeExerciseFromWorkout(exercise: Exercises) {
+        _workoutExercises.value = _workoutExercises.value - exercise
+        viewModelScope.launch {
+            val workoutId = _currentWorkout.value?.workoutId ?: return@launch
+            workoutRepository.removeExerciseFromWorkout(workoutId, exercise.exerciseId)
+        }
+    }
+
     fun addSet(exerciseId: Long) {
         viewModelScope.launch {
             val newSet = Sets(setNumber = (_sets.value[exerciseId]?.size ?: 0) + 1, previous = "-", kg = 0, reps = 0, isCompleted = false, exerciseId = exerciseId)
@@ -61,6 +69,20 @@ class WorkoutViewModel @Inject constructor(private val workoutRepository: Workou
             val newSets = _sets.value.toMutableMap()
             newSets[exerciseId] = newSets.getOrDefault(exerciseId, emptyList()) + newSet
             _sets.value = newSets
+        }
+    }
+
+    fun updateSet(set: Sets) {
+        viewModelScope.launch {
+            workoutRepository.updateSet(set)
+            val newSets = _sets.value.toMutableMap()
+            val setList = newSets[set.exerciseId]?.toMutableList() ?: return@launch
+            val index = setList.indexOfFirst { it.setId == set.setId }
+            if (index != -1) {
+                setList[index] = set
+                newSets[set.exerciseId] = setList
+                _sets.value = newSets
+            }
         }
     }
 }
