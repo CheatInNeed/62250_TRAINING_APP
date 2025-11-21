@@ -11,7 +11,7 @@ import com.example.gymlocker.data.entity.WorkoutExerciseCrossRef
 import kotlinx.coroutines.flow.Flow
 
 class WorkoutRepository(
-    private val workoutDao: WorkoutDao, 
+    private val workoutDao: WorkoutDao,
     private val exerciseDao: ExerciseDao,
     private val setsDao: SetsDao,
     private val workoutExerciseCrossRefDao: WorkoutExerciseCrossRefDao
@@ -28,7 +28,7 @@ class WorkoutRepository(
         workoutExerciseCrossRefDao.delete(WorkoutExerciseCrossRef(workoutId, exerciseId))
     }
 
-    fun getSetsForExercise(exerciseId: Long): Flow<List<Sets>> = setsDao.getSetsForExercise(exerciseId)
+    fun getSetsForExercise(workoutId: Long, exerciseId: Long): Flow<List<Sets>> = setsDao.getSetsForExercise(workoutId, exerciseId)
 
     suspend fun addSetToExercise(set: Sets) {
         setsDao.insert(set)

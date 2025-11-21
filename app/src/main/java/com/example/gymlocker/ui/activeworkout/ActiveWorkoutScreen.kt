@@ -63,7 +63,7 @@ fun ActiveWorkoutScreen(navController: NavController, workoutViewModel: WorkoutV
     val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
     val workoutExercises by workoutViewModel.workoutExercises.collectAsState()
-    val sets by workoutViewModel.sets.collectAsState()
+    val currentWorkout by workoutViewModel.currentWorkout.collectAsState()
 
     LaunchedEffect(Unit) {
         activeWorkoutViewModel.startTimer()
@@ -163,11 +163,11 @@ fun ActiveWorkoutScreen(navController: NavController, workoutViewModel: WorkoutV
                         }
                     }
                 } else {
-                    items(workoutExercises) { exercise ->
+                    items(workoutExercises, key = { it.exerciseId }) { exercise ->
                         ExerciseItem(
                             exercise = exercise, 
-                            sets = sets[exercise.exerciseId] ?: emptyList(), 
-                            onAddSet = { workoutViewModel.addSet(exercise.exerciseId) },
+                            workoutViewModel = workoutViewModel,
+                            onAddSet = { currentWorkout?.let { workoutViewModel.addSet(it.workoutId, exercise.exerciseId) } },
                             onRemoveExercise = { workoutViewModel.removeExerciseFromWorkout(exercise) },
                             onUpdateSet = { workoutViewModel.updateSet(it) }
                         )
@@ -192,8 +192,17 @@ fun ActiveWorkoutScreen(navController: NavController, workoutViewModel: WorkoutV
 }
 
 @Composable
-fun ExerciseItem(exercise: Exercises, sets: List<Sets>, onAddSet: () -> Unit, onRemoveExercise: () -> Unit, onUpdateSet: (Sets) -> Unit) {
+fun ExerciseItem(
+    exercise: Exercises, 
+    workoutViewModel: WorkoutViewModel,
+    onAddSet: () -> Unit, 
+    onRemoveExercise: () -> Unit, 
+    onUpdateSet: (Sets) -> Unit
+) {
+    val currentWorkout by workoutViewModel.currentWorkout.collectAsState()
+    val sets by workoutViewModel.getSetsForExercise(currentWorkout?.workoutId ?: 0, exercise.exerciseId).collectAsState(initial = emptyList())
     var showMenu by remember { mutableStateOf(false) }
+    
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

@@ -5,10 +5,16 @@ import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "sets",
-        foreignKeys = [ForeignKey(entity = Exercises::class,
-                                  parentColumns = ["exerciseId"],
-                                  childColumns = ["exerciseId"],
-                                  onDelete = ForeignKey.CASCADE)])
+        foreignKeys = [
+            ForeignKey(entity = Exercises::class,
+                       parentColumns = ["exerciseId"],
+                       childColumns = ["exerciseId"],
+                       onDelete = ForeignKey.CASCADE),
+            ForeignKey(entity = Workout::class,
+                       parentColumns = ["workoutId"],
+                       childColumns = ["workoutId"],
+                       onDelete = ForeignKey.CASCADE)
+        ])
 data class Sets(
     @PrimaryKey(autoGenerate = true)
     val setId: Long = 0,
@@ -17,5 +23,6 @@ data class Sets(
     val kg: Int,
     val reps: Int,
     val isCompleted: Boolean,
-    val exerciseId: Long
+    val exerciseId: Long,
+    val workoutId: Long
 )

@@ -20,6 +20,6 @@ interface SetsDao {
     @Delete
     suspend fun delete(sets: Sets)
 
-    @Query("SELECT * FROM sets WHERE exerciseId = :exerciseId")
-    fun getSetsForExercise(exerciseId: Long): Flow<List<Sets>>
+    @Query("SELECT * FROM sets WHERE workoutId = :workoutId AND exerciseId = :exerciseId")
+    fun getSetsForExercise(workoutId: Long, exerciseId: Long): Flow<List<Sets>>
 }

@@ -7,9 +7,11 @@ import com.example.gymlocker.data.entity.Sets
 import com.example.gymlocker.data.entity.Workout
 import com.example.gymlocker.data.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,9 +26,6 @@ class WorkoutViewModel @Inject constructor(private val workoutRepository: Workou
 
     private val _workoutExercises = MutableStateFlow<List<Exercises>>(emptyList())
     val workoutExercises: StateFlow<List<Exercises>> = _workoutExercises.asStateFlow()
-
-    private val _sets = MutableStateFlow<Map<Long, List<Sets>>>(emptyMap())
-    val sets: StateFlow<Map<Long, List<Sets>>> = _sets.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -62,27 +61,30 @@ class WorkoutViewModel @Inject constructor(private val workoutRepository: Workou
         }
     }
 
-    fun addSet(exerciseId: Long) {
+    fun addSet(workoutId: Long, exerciseId: Long) {
         viewModelScope.launch {
-            val newSet = Sets(setNumber = (_sets.value[exerciseId]?.size ?: 0) + 1, previous = "-", kg = 0, reps = 0, isCompleted = false, exerciseId = exerciseId)
+            val currentSets = workoutRepository.getSetsForExercise(workoutId, exerciseId).first()
+            val newSetNumber = currentSets.size + 1
+            val newSet = Sets(
+                setNumber = newSetNumber, 
+                previous = "-", 
+                kg = 0, 
+                reps = 0, 
+                isCompleted = false, 
+                exerciseId = exerciseId, 
+                workoutId = workoutId
+            )
             workoutRepository.addSetToExercise(newSet)
-            val newSets = _sets.value.toMutableMap()
-            newSets[exerciseId] = newSets.getOrDefault(exerciseId, emptyList()) + newSet
-            _sets.value = newSets
         }
     }
 
     fun updateSet(set: Sets) {
         viewModelScope.launch {
             workoutRepository.updateSet(set)
-            val newSets = _sets.value.toMutableMap()
-            val setList = newSets[set.exerciseId]?.toMutableList() ?: return@launch
-            val index = setList.indexOfFirst { it.setId == set.setId }
-            if (index != -1) {
-                setList[index] = set
-                newSets[set.exerciseId] = setList
-                _sets.value = newSets
-            }
         }
+    }
+
+    fun getSetsForExercise(workoutId: Long, exerciseId: Long): Flow<List<Sets>> {
+        return workoutRepository.getSetsForExercise(workoutId, exerciseId)
     }
 }

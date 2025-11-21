@@ -11,7 +11,7 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
 
 @Database(entities = [User::class, Workout::class, MuscleGroup::class, Exercises::class, WorkoutExerciseCrossRef::class, ExerciseLog::class, Sets::class],
-          version = 1,
+          version = 2, // Bumped version number
           exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
@@ -33,7 +33,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "gym_locker_database"
-                ).addCallback(object : RoomDatabase.Callback() {
+                )
+                .fallbackToDestructiveMigration() // Strategy for version change
+                .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
                         Executors.newSingleThreadExecutor().execute {
