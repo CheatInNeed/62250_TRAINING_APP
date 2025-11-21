@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
@@ -16,6 +18,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,22 +39,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.entity.Exercises
+import com.example.gymlocker.data.entity.Sets
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.WorkoutViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActiveWorkoutScreen(navController: NavController, viewModel: ActiveWorkoutViewModel = viewModel()) {
+fun ActiveWorkoutScreen(navController: NavController, workoutViewModel: WorkoutViewModel = hiltViewModel(), activeWorkoutViewModel: ActiveWorkoutViewModel = hiltViewModel()) {
     var showAddExerciseSheet by remember { mutableStateOf(false) }
-    val elapsedTime by viewModel.elapsedTime.collectAsState()
+    val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
+    val workoutExercises by workoutViewModel.workoutExercises.collectAsState()
+    val sets by workoutViewModel.sets.collectAsState()
 
     LaunchedEffect(Unit) {
-        viewModel.startTimer()
+        activeWorkoutViewModel.startTimer()
     }
 
     if (showDiscardDialog) {
@@ -60,7 +69,7 @@ fun ActiveWorkoutScreen(navController: NavController, viewModel: ActiveWorkoutVi
             text = { Text("Are you sure you want to discard this workout? All progress will be lost.") },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.discardWorkout()
+                    activeWorkoutViewModel.discardWorkout()
                     showDiscardDialog = false
                     navController.navigate("home") { popUpTo("home") { inclusive = true } }
                 }) {
@@ -123,20 +132,28 @@ fun ActiveWorkoutScreen(navController: NavController, viewModel: ActiveWorkoutVi
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Timer: ${viewModel.formatTime(elapsedTime)}")
+                Text("Timer: ${activeWorkoutViewModel.formatTime(elapsedTime)}")
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), progress = 0f)
             }
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No exercises added yet.")
-                    Text("Start by adding your first exercise.")
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { showAddExerciseSheet = true }) {
-                        Text("Add Exercise")
+            if (workoutExercises.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("No exercises added yet.")
+                        Text("Start by adding your first exercise.")
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { showAddExerciseSheet = true }) {
+                            Text("Add Exercise")
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(modifier = Modifier.padding(16.dp)) {
+                    items(workoutExercises) { exercise ->
+                        ExerciseItem(exercise = exercise, sets = sets[exercise.exerciseId] ?: emptyList(), onAddSet = { workoutViewModel.addSet(exercise.exerciseId) })
                     }
                 }
             }
@@ -144,7 +161,41 @@ fun ActiveWorkoutScreen(navController: NavController, viewModel: ActiveWorkoutVi
     }
 
     if (showAddExerciseSheet) {
-        AddExerciseSheet(onDismiss = { showAddExerciseSheet = false })
+        AddExerciseSheet(onDismiss = { showAddExerciseSheet = false }, onAddExercises = { workoutViewModel.addExercisesToWorkout(it) })
+    }
+}
+
+@Composable
+fun ExerciseItem(exercise: Exercises, sets: List<Sets>, onAddSet: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = exercise.name)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(text = "SET")
+                Text(text = "PREVIOUS")
+                Text(text = "KG")
+                Text(text = "REPS")
+                Text(text = "✓")
+            }
+            sets.forEach { set ->
+                SetItem(set = set)
+            }
+            Button(onClick = onAddSet) {
+                Text("Add Set")
+            }
+        }
+    }
+}
+
+@Composable
+fun SetItem(set: Sets) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(text = set.setNumber.toString())
+        Text(text = set.previous)
+        Text(text = set.kg.toString())
+        Text(text = set.reps.toString())
+        Checkbox(checked = set.isCompleted, onCheckedChange = { /* TODO */ })
     }
 }
 
