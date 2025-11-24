@@ -1,36 +1,36 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -71,8 +70,10 @@ fun ActiveWorkoutScreen(
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard Workout?") },
-            text = { Text("Are you sure you want to discard this workout? All progress will be lost.") },
+            title = { Text("Discard workout?") },
+            text = {
+                Text("Are you sure you want to discard this workout? All progress will be lost.")
+            },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.discardWorkout()
@@ -106,7 +107,7 @@ fun ActiveWorkoutScreen(
                         Text("Discard")
                     }
                     Button(
-                        onClick = { /* TODO: Finish workout & maybe mark as completed */ },
+                        onClick = { /* TODO: finish workout & save log */ },
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text("Finish")
@@ -116,17 +117,21 @@ fun ActiveWorkoutScreen(
         },
         bottomBar = {
             BottomAppBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                NavigationBar(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    IconButton(onClick = { navController.navigate("home") }) {
-                        Icon(Icons.Filled.Home, contentDescription = "Home")
-                    }
-                    IconButton(onClick = { /* TODO: Navigate to profile */ }) {
-                        Icon(Icons.Filled.Person, contentDescription = "Profile")
-                    }
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { navController.navigate("home") },
+                        icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
+                        label = { Text("Home") }
+                    )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { /* TODO: profile */ },
+                        icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
+                        label = { Text("Profile") }
+                    )
                 }
             }
         }
@@ -136,23 +141,26 @@ fun ActiveWorkoutScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Top: timer + progress
+            // Timer + progress
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Timer: ${viewModel.formatTime(elapsedTime)}")
+                Text(
+                    text = "Timer: ${viewModel.formatTime(elapsedTime)}",
+                    style = MaterialTheme.typography.titleMedium
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    progress = 0f // du kan senere bruge dette til fx volume/progress
+                    progress = 0f,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // Midten: Liste af øvelser
             if (activeExercises.isEmpty()) {
+                // Tom state
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -176,6 +184,12 @@ fun ActiveWorkoutScreen(
                         ActiveWorkoutExerciseItem(
                             exercise = exercise,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
+                            onDeleteSet = { setNumber ->
+                                viewModel.deleteSet(exercise.exerciseId, setNumber)
+                            },
+                            onDeleteExercise = {
+                                viewModel.deleteExercise(exercise.exerciseId)
+                            },
                             onWeightChange = { setNumber, text ->
                                 val value = text.toIntOrNull() ?: 0
                                 viewModel.updateSetWeight(exercise.exerciseId, setNumber, value)
@@ -190,6 +204,7 @@ fun ActiveWorkoutScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
+
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
@@ -215,44 +230,115 @@ fun ActiveWorkoutScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutExerciseItem(
     exercise: ActiveExerciseState,
     onAddSet: () -> Unit,
-    onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
-    onRepsChange: (setNumber: Int, newReps: String) -> Unit,
-    onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit
+    onDeleteSet: (Int) -> Unit,
+    onDeleteExercise: () -> Unit,
+    onWeightChange: (Int, String) -> Unit,
+    onRepsChange: (Int, String) -> Unit,
+    onToggleDone: (Int, Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
-        Text(
-            text = exercise.exerciseName,
-            style = MaterialTheme.typography.titleMedium
-        )
+        // Header med navn + 3-priks menu
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = exercise.exerciseName,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            var showMenu by remember { mutableStateOf(false) }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Filled.MoreVert,
+                        contentDescription = "Exercise menu"
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Delete exercise", color = Color.Red) },
+                        onClick = {
+                            showMenu = false
+                            onDeleteExercise()
+                        }
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Header-rækken: SET / PREVIOUS / KG / REPS / Done
+        // Header-rækken
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("SET", modifier = Modifier.weight(0.5f))
             Text("PREVIOUS", modifier = Modifier.weight(1f))
-            Text("KG", modifier = Modifier.weight(0.7f))
-            Text("REPS", modifier = Modifier.weight(0.7f))
-            Text("✓", modifier = Modifier.weight(0.4f))
+            Text("KG", modifier = Modifier.weight(0.7f), textAlign = TextAlign.Center)
+            Text("REPS", modifier = Modifier.weight(0.7f), textAlign = TextAlign.Center)
+            Text("✓", modifier = Modifier.weight(0.4f), textAlign = TextAlign.Center)
         }
+
         Spacer(modifier = Modifier.height(4.dp))
 
+        // Alle sæt med swipe-to-delete
         exercise.sets.forEach { set ->
-            ExerciseSetRow(
-                set = set,
-                onWeightChange = { onWeightChange(set.setNumber, it) },
-                onRepsChange = { onRepsChange(set.setNumber, it) },
-                onToggleDone = { onToggleDone(set.setNumber, it) }
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = { value ->
+                    if (value == SwipeToDismissBoxValue.EndToStart) {
+                        onDeleteSet(set.setNumber)
+                        true
+                    } else {
+                        false
+                    }
+                }
+            )
+
+            SwipeToDismissBox(
+                state = dismissState,
+                enableDismissFromStartToEnd = false,
+                enableDismissFromEndToStart = true,
+                backgroundContent = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .background(Color.Red.copy(alpha = 0.7f))
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Text(
+                            text = "Delete set",
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                },
+                content = {
+                    ExerciseSetRow(
+                        set = set,
+                        onWeightChange = { onWeightChange(set.setNumber, it) },
+                        onRepsChange = { onRepsChange(set.setNumber, it) },
+                        onToggleDone = { onToggleDone(set.setNumber, it) }
+                    )
+                }
             )
         }
 
@@ -273,19 +359,14 @@ fun ExerciseSetRow(
     onRepsChange: (String) -> Unit,
     onToggleDone: (Boolean) -> Unit
 ) {
-    val rowModifier = if (set.isDone) {
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .background(Color(0x8834C759))
-    } else {
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    }
+    val backgroundColor = if (set.isDone) Color(0x8834C759) else Color.White
 
     Row(
-        modifier = rowModifier,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)   // ← ENS HØJDE
+            .background(backgroundColor)
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -298,59 +379,42 @@ fun ExerciseSetRow(
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center
         )
-        val weightAndRepsInputFieldTransparancyModifier: Float = 0.15f;
 
-        // KG input
-        Box(
+        val inputBg = Color.Gray.copy(alpha = 0.18f)
+
+        TextField(
+            value = if (set.weight == 0) "" else set.weight.toString(),
+            onValueChange = onWeightChange,
             modifier = Modifier
                 .weight(0.9f)
                 .padding(horizontal = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            TextField(
-                value = if (set.weight == 0) "" else set.weight.toString(),
-                onValueChange = onWeightChange,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    focusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    disabledContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    errorContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
-                )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                unfocusedContainerColor = inputBg,
+                focusedContainerColor = inputBg,
+                errorContainerColor = inputBg,
+                disabledContainerColor = inputBg,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent
             )
-        }
+        )
 
-        // REPS input
-        Box(
+        TextField(
+            value = if (set.reps == 0) "" else set.reps.toString(),
+            onValueChange = onRepsChange,
             modifier = Modifier
                 .weight(0.9f)
                 .padding(horizontal = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            TextField(
-                value = if (set.reps == 0) "" else set.reps.toString(),
-                onValueChange = onRepsChange,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    focusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    disabledContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    errorContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
-                )
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                unfocusedContainerColor = inputBg,
+                focusedContainerColor = inputBg,
+                errorContainerColor = inputBg,
+                disabledContainerColor = inputBg,
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent
             )
-        }
+        )
 
         Checkbox(
             checked = set.isDone,
@@ -361,15 +425,3 @@ fun ExerciseSetRow(
 }
 
 
-@Preview(showBackground = true)
-@Composable
-fun ActiveWorkoutScreenPreview() {
-    GymLockerTheme {
-        ActiveWorkoutScreen(
-            navController = rememberNavController(),
-            viewModel = ActiveWorkoutViewModel.provideFactory(
-                context = androidx.compose.ui.platform.LocalContext.current
-            ).create(ActiveWorkoutViewModel::class.java)
-        )
-    }
-}

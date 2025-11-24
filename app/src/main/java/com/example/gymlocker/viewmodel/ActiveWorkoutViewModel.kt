@@ -174,6 +174,36 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    fun deleteSet(exerciseId: Long, setNumber: Int) {
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId == exerciseId) {
+                val filtered = ex.sets
+                    .filterNot { it.setNumber == setNumber }
+                    .sortedBy { it.setNumber }
+                val renumbered = filtered.mapIndexed { index, set ->
+                    set.copy(setNumber = index + 1)
+                }
+                ex.copy(sets = renumbered)
+            } else ex
+        }
+
+        viewModelScope.launch {
+            exerciseLogDao.deleteLogsForSet(exerciseId, setNumber)
+        }
+
+        refreshPreviousForExercise(exerciseId)
+    }
+
+    fun deleteExercise(exerciseId: Long) {
+        _activeExercises.value = _activeExercises.value.filterNot {
+            it.exerciseId == exerciseId
+        }
+
+        viewModelScope.launch {
+            exerciseLogDao.deleteLogsForExercise(exerciseId)
+        }
+    }
+
     private fun refreshPreviousForExercise(exerciseId: Long) {
         val thisSessionId = currentSessionId
         viewModelScope.launch {

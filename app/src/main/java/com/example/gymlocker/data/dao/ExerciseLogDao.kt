@@ -23,4 +23,10 @@ interface ExerciseLogDao {
         """
     )
     suspend fun getLogsForExerciseOrdered(exerciseId: Long): List<ExerciseLog>
+
+    @Query("DELETE FROM exercise_logs WHERE exerciseId = :exerciseId AND setNumber = :setNumber")
+    suspend fun deleteLogsForSet(exerciseId: Long, setNumber: Int)
+
+    @Query("DELETE FROM exercise_logs WHERE exerciseId = :exerciseId")
+    suspend fun deleteLogsForExercise(exerciseId: Long)
 }
