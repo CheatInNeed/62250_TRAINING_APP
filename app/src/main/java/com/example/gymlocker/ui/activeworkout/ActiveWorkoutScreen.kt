@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.activeworkout
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -269,32 +273,85 @@ fun ExerciseSetRow(
     onRepsChange: (String) -> Unit,
     onToggleDone: (Boolean) -> Unit
 ) {
-    Row(
-        modifier = Modifier
+    val rowModifier = if (set.isDone) {
+        Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .background(Color(0x8834C759))
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+    }
+
+    Row(
+        modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = set.setNumber.toString(),
-            modifier = Modifier.weight(0.5f)
+            modifier = Modifier.weight(0.5f),
+            textAlign = TextAlign.Center
         )
         Text(
             text = set.previous ?: "-",
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center
         )
-        TextField(
-            value = if (set.weight == 0) "" else set.weight.toString(),
-            onValueChange = onWeightChange,
-            modifier = Modifier.weight(0.7f),
-            singleLine = true
-        )
-        TextField(
-            value = if (set.reps == 0) "" else set.reps.toString(),
-            onValueChange = onRepsChange,
-            modifier = Modifier.weight(0.7f),
-            singleLine = true
-        )
+        val weightAndRepsInputFieldTransparancyModifier: Float = 0.15f;
+
+        // KG input
+        Box(
+            modifier = Modifier
+                .weight(0.9f)
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            TextField(
+                value = if (set.weight == 0) "" else set.weight.toString(),
+                onValueChange = onWeightChange,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(.9f),
+                colors = TextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+                    focusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+                    disabledContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+                    errorContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent
+                )
+            )
+        }
+
+        // REPS input
+        Box(
+            modifier = Modifier
+                .weight(0.9f)
+                .padding(horizontal = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            TextField(
+                value = if (set.reps == 0) "" else set.reps.toString(),
+                onValueChange = onRepsChange,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(.9f),
+                colors = TextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+                    focusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+                    disabledContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+                    errorContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
+
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent
+                )
+            )
+        }
+
         Checkbox(
             checked = set.isDone,
             onCheckedChange = onToggleDone,
@@ -302,6 +359,7 @@ fun ExerciseSetRow(
         )
     }
 }
+
 
 @Preview(showBackground = true)
 @Composable
