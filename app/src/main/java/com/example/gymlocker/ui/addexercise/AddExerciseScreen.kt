@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.addexercise
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,37 +21,38 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.gymlocker.data.Exercise
+import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.data.entity.Exercises
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddExerciseSheet(onDismiss: () -> Unit) {
+fun AddExerciseSheet(
+    onDismiss: () -> Unit,
+    onExerciseSelected: (Exercises) -> Unit
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val recentExercises = remember {
-        listOf(
-            Exercise("Bench Press", "Chest")
-        )
-    }
-    val allExercises = remember {
-        listOf(
-            Exercise("Squat", "Legs"),
-            Exercise("Deadlift", "Back"),
-            Exercise("Overhead Press", "Shoulders"),
-            Exercise("Barbell Row", "Back"),
-            Exercise("Pull-up", "Back"),
-            Exercise("Bicep Curl", "Arms"),
-            Exercise("Bench Press", "Chest")
-        ).distinct()
-    }
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+
+    val allExercises by db.exerciseDao()
+        .getAllExercises()
+        .collectAsState(initial = emptyList())
+
     var searchQuery by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
     ) {
-        Column(modifier = Modifier.padding(16.dp).fillMaxHeight()) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxHeight()
+        ) {
             Text("Add Exercise")
             Spacer(modifier = Modifier.height(16.dp))
             TextField(
@@ -60,35 +62,24 @@ fun AddExerciseSheet(onDismiss: () -> Unit) {
                 placeholder = { Text("Search for an exercise") }
             )
             Spacer(modifier = Modifier.height(16.dp))
+
+            val filtered = if (searchQuery.isBlank()) {
+                allExercises
+            } else {
+                allExercises.filter {
+                    it.name.contains(searchQuery, ignoreCase = true)
+                }
+            }
+
             LazyColumn {
-                val isSearching = searchQuery.isNotBlank()
-
-                if (isSearching) {
-                    val filteredExercises = (recentExercises + allExercises).distinct().filter {
-                        it.name.contains(searchQuery, ignoreCase = true)
-                    }
-                    items(filteredExercises) { exercise ->
-                        ExerciseListItem(exercise = exercise)
-                    }
-                } else {
-                    if (recentExercises.isNotEmpty()) {
-                        item {
-                            Text("Recent Exercises:", modifier = Modifier.padding(bottom = 8.dp))
+                items(filtered) { exercise ->
+                    ExerciseListItem(
+                        exercise = exercise,
+                        onClick = {
+                            onExerciseSelected(exercise)
+                            onDismiss()
                         }
-                        items(recentExercises) {
-                            ExerciseListItem(exercise = it)
-                        }
-                    }
-
-                    val otherExercises = allExercises.filter { it !in recentExercises }
-                    if (otherExercises.isNotEmpty()) {
-                        item {
-                            Text("All Exercises:", modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
-                        }
-                        items(otherExercises) {
-                            ExerciseListItem(exercise = it)
-                        }
-                    }
+                    )
                 }
             }
         }
@@ -96,14 +87,21 @@ fun AddExerciseSheet(onDismiss: () -> Unit) {
 }
 
 @Composable
-fun ExerciseListItem(exercise: Exercise) {
-    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+fun ExerciseListItem(
+    exercise: Exercises,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable(onClick = onClick)
+    ) {
         Row(modifier = Modifier.padding(16.dp)) {
-            // Placeholder for icon
             Text(text = "💪", modifier = Modifier.padding(end = 16.dp))
             Column {
                 Text(text = exercise.name)
-                Text(text = exercise.muscleGroup)
+                // Hvis du vil, kan du senere slå muskelgruppen op via muscleGroupId
             }
         }
     }

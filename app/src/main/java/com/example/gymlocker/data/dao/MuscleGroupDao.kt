@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface MuscleGroupDao {
     @Insert
-    suspend fun insert(muscleGroup: MuscleGroup)
+    suspend fun insert(muscleGroup: MuscleGroup): Long
 
     @Query("SELECT * FROM muscle_groups")
     fun getAllMuscleGroups(): Flow<List<MuscleGroup>>

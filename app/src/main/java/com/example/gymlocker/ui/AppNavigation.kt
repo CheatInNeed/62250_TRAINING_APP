@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -13,7 +14,11 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel()
+    val context = LocalContext.current
+
+    val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel(
+        factory = ActiveWorkoutViewModel.provideFactory(context)
+    )
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") { HomeScreen(navController, activeWorkoutViewModel) }

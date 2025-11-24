@@ -13,4 +13,14 @@ interface ExerciseLogDao {
 
     @Query("SELECT * FROM exercise_logs WHERE exerciseId = :exerciseId")
     fun getLogsForExercise(exerciseId: Long): Flow<List<ExerciseLog>>
+
+    // Bruges af ActiveWorkoutViewModel til at finde "previous"
+    @Query(
+        """
+        SELECT * FROM exercise_logs 
+        WHERE exerciseId = :exerciseId 
+        ORDER BY sessionId DESC, setNumber ASC
+        """
+    )
+    suspend fun getLogsForExerciseOrdered(exerciseId: Long): List<ExerciseLog>
 }
