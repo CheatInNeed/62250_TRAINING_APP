@@ -17,6 +17,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun muscleGroupDao(): MuscleGroupDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun exerciseLogDao(): ExerciseLogDao
+    abstract fun userWorkoutCrossRefDao(): UserWorkoutCrossRefDao
 
     companion object {
         @Volatile

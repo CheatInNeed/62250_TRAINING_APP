@@ -11,10 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.ui.theme.GymLockerTheme
 
 @Composable
-fun WorkoutScreen() {
+fun WorkoutScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -22,7 +24,7 @@ fun WorkoutScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Button(onClick = { /* TODO: Start empty workout */ }) {
+        Button(onClick = { navController.navigate("new_workout") }) {
             Text("Start Empty Workout")
         }
     }
@@ -32,6 +34,6 @@ fun WorkoutScreen() {
 @Composable
 fun WorkoutScreenPreview() {
     GymLockerTheme {
-        WorkoutScreen()
+        WorkoutScreen(rememberNavController())
     }
 }

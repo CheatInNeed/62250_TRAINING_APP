@@ -13,4 +13,7 @@ interface ExerciseLogDao {
 
     @Query("SELECT * FROM exercise_logs WHERE exerciseId = :exerciseId")
     fun getLogsForExercise(exerciseId: Long): Flow<List<ExerciseLog>>
+
+    @Query("SELECT * FROM exercise_logs WHERE exerciseId = :exerciseId ORDER BY date DESC LIMIT 1")
+    fun getLatestLogForExercise(exerciseId: Long): Flow<ExerciseLog?>
 }
