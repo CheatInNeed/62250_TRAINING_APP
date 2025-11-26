@@ -60,6 +60,7 @@ dependencies {
     // ViewModel & LiveData (Jetpack Lifecycle)
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.6")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.6")
 
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")

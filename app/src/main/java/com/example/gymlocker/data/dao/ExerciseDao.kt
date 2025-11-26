@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ExerciseDao {
     @Insert
-    suspend fun insert(exercise: Exercises)
+    suspend fun insert(exercise: Exercises): Long
 
     @Query("SELECT * FROM exercises")
     fun getAllExercises(): Flow<List<Exercises>>
+
+    @Query("SELECT * FROM exercises WHERE name = :name")
+    fun getExerciseByName(name: String): Flow<Exercises?>
 }
