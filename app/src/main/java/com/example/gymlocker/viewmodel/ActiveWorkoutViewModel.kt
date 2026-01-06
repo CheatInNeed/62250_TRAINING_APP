@@ -55,6 +55,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val db by lazy { AppDatabase.getDatabase(appContext) }
     private val exerciseLogDao by lazy { db.exerciseLogDao() }
 
+    fun completedWorkouts() = exerciseLogDao.getWorkoutSummaries()
+
     fun startTimer() {
         if (timerJob?.isActive == true) return
         if (currentSessionId == null) {
