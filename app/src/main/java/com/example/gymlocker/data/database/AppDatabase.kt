@@ -4,8 +4,23 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.gymlocker.data.dao.*
-import com.example.gymlocker.data.entity.*
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.gymlocker.data.dao.ExerciseDao
+import com.example.gymlocker.data.dao.ExerciseLogDao
+import com.example.gymlocker.data.dao.MuscleGroupDao
+import com.example.gymlocker.data.dao.PerformedSetDao
+import com.example.gymlocker.data.dao.UserDao
+import com.example.gymlocker.data.dao.WorkoutDao
+import com.example.gymlocker.data.entity.ExerciseLog
+import com.example.gymlocker.data.entity.Exercises
+import com.example.gymlocker.data.entity.MuscleGroup
+import com.example.gymlocker.data.entity.PerformedSet
+import com.example.gymlocker.data.entity.User
+import com.example.gymlocker.data.entity.Workout
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
 
 @Database(
     entities = [
@@ -13,10 +28,11 @@ import com.example.gymlocker.data.entity.*
         Workout::class,
         MuscleGroup::class,
         Exercises::class,
-        WorkoutExerciseCrossRef::class,
-        ExerciseLog::class
+        ExerciseLog::class,
+        PerformedSet::class
     ],
-    version = 2,                // <-- bump version
+    version = 1,
+    // ✅ Avoid Room kapt failing unless you ALSO configure room.schemaLocation in Gradle.
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,106 +42,147 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun muscleGroupDao(): MuscleGroupDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun exerciseLogDao(): ExerciseLogDao
+    abstract fun performedSetDao(): PerformedSetDao
 
     companion object {
-        @Volatile
-        private var INSTANCE: AppDatabase? = null
+        @Volatile private var INSTANCE: AppDatabase? = null
+        private const val DB_NAME = "gymlocker.db"
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "gym_locker_database"
-                )
-                    .fallbackToDestructiveMigration()   // wipe ved schema-ændringer (ok i dev)
-                    .build()
+
+                // ✅ Always rebuild DB from scratch on every app start
+                deleteDatabaseFiles(context, DB_NAME)
+
+                val instance =
+                    Room.databaseBuilder(
+                        context.applicationContext,
+                        AppDatabase::class.java,
+                        DB_NAME
+                    )
+                        .fallbackToDestructiveMigration()
+                        .addCallback(SeedCallback())
+                        .build()
+
                 INSTANCE = instance
                 instance
             }
         }
 
-        /**
-         * Kald denne en enkelt gang ved app-start for at lægge nogle standardøvelser i DB.
-         */
-        suspend fun prepopulate(context: Context) {
-            val db = getDatabase(context)
-            val exerciseDao = db.exerciseDao()
-            val muscleGroupDao = db.muscleGroupDao()
+        private fun deleteDatabaseFiles(context: Context, dbName: String) {
+            // Main DB
+            context.deleteDatabase(dbName)
 
-            if (exerciseDao.countExercises() > 0) return
-
-            // Opret muskelgrupper
-            val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
-            val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
-            val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
-            val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
-            val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
-
-            // Nogle standardøvelser – samme som dine hardcodede
-            exerciseDao.insert(
-                Exercises(
-                    name = "Bench Press",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = true,
-                    muscleGroupId = chestId
-                )
-            )
-            exerciseDao.insert(
-                Exercises(
-                    name = "Squat",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = true,
-                    muscleGroupId = legsId
-                )
-            )
-            exerciseDao.insert(
-                Exercises(
-                    name = "Deadlift",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = false,
-                    muscleGroupId = backId
-                )
-            )
-            exerciseDao.insert(
-                Exercises(
-                    name = "Overhead Press",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = false,
-                    muscleGroupId = shouldersId
-                )
-            )
-            exerciseDao.insert(
-                Exercises(
-                    name = "Barbell Row",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = false,
-                    muscleGroupId = backId
-                )
-            )
-            exerciseDao.insert(
-                Exercises(
-                    name = "Pull-up",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = false,
-                    muscleGroupId = backId
-                )
-            )
-            exerciseDao.insert(
-                Exercises(
-                    name = "Bicep Curl",
-                    startWeight = 0,
-                    startReps = 0,
-                    isRecent = false,
-                    muscleGroupId = armsId
-                )
-            )
+            // Room sidecar files (best-effort cleanup)
+            val dbFile = context.getDatabasePath(dbName)
+            val shm = File(dbFile.path + "-shm")
+            val wal = File(dbFile.path + "-wal")
+            if (shm.exists()) shm.delete()
+            if (wal.exists()) wal.delete()
         }
+    }
+
+    private class SeedCallback : Callback() {
+        override fun onCreate(db: SupportSQLiteDatabase) {
+            super.onCreate(db)
+            INSTANCE?.let { database ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    database.seedIfEmpty()
+                }
+            }
+        }
+    }
+    /**
+     * Only inserts seed data if the DB looks empty.
+     * Adjust the count() calls to match your DAO APIs.
+     */
+    private suspend fun seedIfEmpty() {
+        // If your DAOs don’t have these count methods, either add them or change the condition.
+        val userDao = userDao()
+        val exerciseDao = exerciseDao()
+        val muscleGroupDao = muscleGroupDao()
+
+        // --- Guard: don't seed twice ---
+        // If you don't have countUsers/countExercises, remove these checks and just seed.
+        val usersCount = runCatching { userDao.countUsers() }.getOrNull()
+        val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull()
+
+        if ((usersCount != null && usersCount > 0) || (exercisesCount != null && exercisesCount > 0)) return
+
+        // --- Seed user ---
+        // Prefer letting Room autogenerate ID unless you *need* userId=1.
+        userDao.insert(User(name = "Default User", height = 0, weight = 0))
+
+        // --- Seed muscle groups ---
+        val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
+        val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
+        val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
+        val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
+        val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
+
+        // --- Seed exercises ---
+        exerciseDao.insert(
+            Exercises(
+                name = "Bench Press",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = true,
+                muscleGroupId = chestId
+            )
+        )
+        exerciseDao.insert(
+            Exercises(
+                name = "Squat",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = true,
+                muscleGroupId = legsId
+            )
+        )
+        exerciseDao.insert(
+            Exercises(
+                name = "Deadlift",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = backId
+            )
+        )
+        exerciseDao.insert(
+            Exercises(
+                name = "Overhead Press",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = shouldersId
+            )
+        )
+        exerciseDao.insert(
+            Exercises(
+                name = "Barbell Row",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = backId
+            )
+        )
+        exerciseDao.insert(
+            Exercises(
+                name = "Pull-up",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = backId
+            )
+        )
+        exerciseDao.insert(
+            Exercises(
+                name = "Bicep Curl",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = armsId
+            )
+        )
     }
 }

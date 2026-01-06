@@ -183,12 +183,11 @@ fun ActiveWorkoutScreen(
                             exercise = exercise,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onWeightChange = { setNumber, text ->
-                                val value = text.toIntOrNull() ?: 0
-                                viewModel.updateSetWeight(exercise.exerciseId, setNumber, value)
+
+                                viewModel.updateSetWeight(exercise.exerciseId, setNumber, text)
                             },
                             onRepsChange = { setNumber, text ->
-                                val value = text.toIntOrNull() ?: 0
-                                viewModel.updateSetReps(exercise.exerciseId, setNumber, value)
+                                viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                             },
                             onToggleDone = { setNumber, checked ->
                                 viewModel.toggleSetDone(exercise.exerciseId, setNumber, checked)
