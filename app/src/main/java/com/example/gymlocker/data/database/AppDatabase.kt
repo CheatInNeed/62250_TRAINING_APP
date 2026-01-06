@@ -51,7 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
 
-                // ✅ Always rebuild DB from scratch on every app start
+                // For testing ONLY //TODO: REMOVE BEFORE LAUNCH
                 deleteDatabaseFiles(context, DB_NAME)
 
                 val instance =
