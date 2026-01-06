@@ -1,67 +1,43 @@
 package com.example.gymlocker.data.dao
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import com.example.gymlocker.data.entity.ExerciseLog
 import kotlinx.coroutines.flow.Flow
 
-
-data class WorkoutSummary(
-    val sessionId: Long,
-    val date: String,
-    val exerciseCount: Int
-)
-
 @Dao
 interface ExerciseLogDao {
-    @Insert
-    suspend fun insert(exerciseLog: ExerciseLog)
 
-    @Update
-    suspend fun update(exerciseLog: ExerciseLog)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(log: ExerciseLog): Long
 
-    @Delete
-    suspend fun delete(exerciseLog: ExerciseLog)
-
-    @Query("DELETE FROM exercise_logs WHERE logId = :logId")
-    suspend fun deleteById(logId: Long)
-
-    @Query("""
-        SELECT * FROM exercise_logs 
-        WHERE exerciseId = :exerciseId
-    """)
-    fun getLogsForExercise(exerciseId: Long): Flow<List<ExerciseLog>>
-
-    @Query("""
-    SELECT 
-        sessionId AS sessionId,
-        MAX(date) AS date,
-        COUNT(DISTINCT exerciseId) AS exerciseCount
-    FROM exercise_logs
-    GROUP BY sessionId
-    ORDER BY sessionId DESC
-""")
-    fun getWorkoutSummaries(): kotlinx.coroutines.flow.Flow<List<WorkoutSummary>>
-
-    @Query("""
-        SELECT * FROM exercise_logs 
-        WHERE exerciseId = :exerciseId 
-        ORDER BY sessionId DESC, setNumber ASC
-    """)
-    suspend fun getLogsForExerciseOrdered(exerciseId: Long): List<ExerciseLog>
-
-    @Query("""
-    DELETE FROM exercise_logs 
-    WHERE exerciseId = :exerciseId AND sessionId = :sessionId
-""")
-    suspend fun deleteLogsForExerciseInSession(exerciseId: Long, sessionId: Long)
-
-    // Find log for et set i en given session (så vi kan update/delete korrekt)
-    @Query("""
-        SELECT * FROM exercise_logs
-        WHERE exerciseId = :exerciseId 
-          AND sessionId = :sessionId
-          AND setNumber = :setNumber
+    @Query(
+        """
+        SELECT id FROM exercise_log 
+        WHERE workoutId = :workoutId AND exerciseId = :exerciseId
         LIMIT 1
-    """)
-    suspend fun getLogForSet(exerciseId: Long, sessionId: Long, setNumber: Int): ExerciseLog?
+        """
+    )
+    suspend fun getLogId(workoutId: Long, exerciseId: Long): Long?
+
+    /**
+     * Ensures the (workout, exercise) log exists and returns its id.
+     */
+    suspend fun getOrCreateLogId(workoutId: Long, exerciseId: Long): Long {
+        val existing = getLogId(workoutId, exerciseId)
+        if (existing != null) return existing
+
+        val insertedId = insert(ExerciseLog(workoutId = workoutId, exerciseId = exerciseId))
+        // If another coroutine inserted it first, IGNORE returns -1
+        return if (insertedId > 0) insertedId else getLogId(workoutId, exerciseId)
+            ?: error("ExerciseLog insert raced but row not found afterwards.")
+    }
+
+    @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
+    fun observeLogsForWorkout(workoutId: Long): Flow<List<ExerciseLog>>
+
+    @Query("DELETE FROM exercise_log WHERE workoutId = :workoutId")
+    suspend fun deleteLogsForWorkout(workoutId: Long)
 }
