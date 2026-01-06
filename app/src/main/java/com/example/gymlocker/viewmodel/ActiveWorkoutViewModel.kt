@@ -5,9 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.Exercises
-import com.example.gymlocker.data.entity.PerformedSet
-import com.example.gymlocker.data.entity.Workout
+import com.example.gymlocker.data.entity.*
+import com.example.gymlocker.data.entity.template.*
+import com.example.gymlocker.data.dao.*
+import com.example.gymlocker.data.dao.template.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +40,13 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val db by lazy { AppDatabase.getDatabase(appContext) }
     private val workoutDao by lazy { db.workoutDao() }
     private val exerciseLogDao by lazy { db.exerciseLogDao() }
+    private val exerciseDao by lazy { db.exerciseDao() }
     private val performedSetDao by lazy { db.performedSetDao() }
+
+    private val workoutTemplateDao by lazy { db.workoutTemplateDao() }
+    private val templateExerciseDao by lazy { db.templateExerciseDao() }
+    private val templateSetDao by lazy { db.templateSetDao() }
+
 
     private var timerJob: Job? = null
 
@@ -283,4 +290,119 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
     }
+    fun saveWorkoutAsTemplate(
+        workoutId: Long,
+        templateName: String,
+        userId: Long,
+        date: String
+    ) {
+        viewModelScope.launch {
+            // 1) Create template root
+            val templateId = workoutTemplateDao.insert(
+                WorkoutTemplate(
+                    name = templateName,
+                    date = date,
+                    userId = userId
+                )
+            )
+
+            // 2) Read workout structure
+            val logs = exerciseLogDao.getLogsForWorkoutOnce(workoutId)
+
+            // 3) Copy each ExerciseLog -> TemplateExercise and its sets
+            for (log in logs) {
+                val templateExerciseId = templateExerciseDao.insert(
+                    TemplateExercise(
+                        templateId = templateId,
+                        exerciseId = log.exerciseId
+                    )
+                )
+
+                // If IGNORE caused "already exists", you’d need to fetch id.
+                // But templateName+userId is unique, and this is a fresh template,
+                // so templateExerciseId should be > 0.
+                if (templateExerciseId <= 0) continue
+
+                val sets = performedSetDao.getSetsForLogOnce(log.id)
+                val templateSets = sets.map { s ->
+                    TemplateSet(
+                        templateExerciseId = templateExerciseId,
+                        setNumber = s.setNumber,
+                        weight = s.weight,
+                        reps = s.reps
+                    )
+                }
+                templateSetDao.insertAll(templateSets)
+            }
+        }
+    }
+    fun startWorkoutFromTemplate(
+        templateId: Long,
+        userId: Long,
+        date: String,
+        nameOverride: String? = null
+    ) {
+        viewModelScope.launch {
+            // 1) Load template structure
+            val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
+                ?: return@launch
+
+            // 2) Create new workout
+            val newWorkoutId = workoutDao.insert(
+                Workout(
+                    date = date,
+                    name = nameOverride ?: tpl.template.name,
+                    userId = userId
+                )
+            )
+
+            currentWorkoutId = newWorkoutId
+
+            // 3) Reset UI state (start fresh with template content)
+            _activeExercises.value = emptyList()
+
+            // 4) For each template exercise, create ExerciseLog and copy sets to PerformedSet
+            for (tex in tpl.exercises) {
+                val exerciseId = tex.templateExercise.exerciseId
+
+                // For UI: you probably want the exercise name.
+                // You already have ExerciseDao in the VM - fetch name:
+                val ex = exerciseDao.getById(exerciseId) // you may need to add this DAO method if missing
+                val exName = ex?.name ?: "Exercise #$exerciseId"
+
+                // Update UI state
+                val uiSets = tex.sets.map { s ->
+                    ExerciseSetState(
+                        setNumber = s.setNumber,
+                        weight = s.weight.toInt(),
+                        reps = s.reps,
+                        isDone = false
+                    )
+                }
+
+                _activeExercises.value = _activeExercises.value + ActiveExerciseState(
+                    exerciseId = exerciseId,
+                    exerciseName = exName,
+                    sets = uiSets.toMutableList()
+                )
+
+                // DB: ensure ExerciseLog exists
+                val logId = exerciseLogDao.getOrCreateLogId(newWorkoutId, exerciseId)
+
+                // Copy sets into performed_set
+                for (s in tex.sets) {
+                    performedSetDao.insert(
+                        PerformedSet(
+                            exerciseLogId = logId,
+                            setNumber = s.setNumber,
+                            weight = s.weight,
+                            reps = s.reps,
+                            isCompleted = false
+                        )
+                    )
+                }
+            }
+        }
+    }
+
 }

@@ -187,6 +187,7 @@ fun ActiveWorkoutScreen(
                                 viewModel.updateSetWeight(exercise.exerciseId, setNumber, text)
                             },
                             onRepsChange = { setNumber, text ->
+
                                 viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                             },
                             onToggleDone = { setNumber, checked ->

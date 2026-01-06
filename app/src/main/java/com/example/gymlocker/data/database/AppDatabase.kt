@@ -40,6 +40,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun exerciseLogDao(): ExerciseLogDao
     abstract fun performedSetDao(): PerformedSetDao
+    abstract fun workoutLogDao(): WorkoutLogDao
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun templateExerciseDao(): TemplateExerciseDao
+    abstract fun templateSetDao(): TemplateSetDao
+
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
