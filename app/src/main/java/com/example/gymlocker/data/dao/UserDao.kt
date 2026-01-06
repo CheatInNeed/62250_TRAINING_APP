@@ -13,4 +13,7 @@ interface UserDao {
 
     @Query("SELECT * FROM users WHERE userId = :userId")
     fun getUser(userId: Long): Flow<User>
+
+    @Query("SELECT COUNT(*) FROM users")
+    suspend fun countUsers(): Int
 }

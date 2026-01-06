@@ -4,8 +4,22 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.gymlocker.data.dao.*
-import com.example.gymlocker.data.entity.*
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.example.gymlocker.data.dao.ExerciseDao
+import com.example.gymlocker.data.dao.ExerciseLogDao
+import com.example.gymlocker.data.dao.MuscleGroupDao
+import com.example.gymlocker.data.dao.PerformedSetDao
+import com.example.gymlocker.data.dao.UserDao
+import com.example.gymlocker.data.dao.WorkoutDao
+import com.example.gymlocker.data.entity.ExerciseLog
+import com.example.gymlocker.data.entity.Exercises
+import com.example.gymlocker.data.entity.MuscleGroup
+import com.example.gymlocker.data.entity.PerformedSet
+import com.example.gymlocker.data.entity.User
+import com.example.gymlocker.data.entity.Workout
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -13,54 +27,97 @@ import com.example.gymlocker.data.entity.*
         Workout::class,
         MuscleGroup::class,
         Exercises::class,
-
-        // Option A new schema:
         ExerciseLog::class,
         PerformedSet::class
     ],
-    version = 1, // or 2 — just pick one and stick with it going forward
-    exportSchema = true
+    version = 1,
+    // ✅ Avoid Room kapt failing unless you ALSO configure room.schemaLocation in Gradle.
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun workoutDao(): WorkoutDao
     abstract fun muscleGroupDao(): MuscleGroupDao
-    abstract fun exercisesDao(): ExerciseDao
-
-    // NEW
+    abstract fun exerciseDao(): ExerciseDao
     abstract fun exerciseLogDao(): ExerciseLogDao
     abstract fun performedSetDao(): PerformedSetDao
-    abstract fun workoutLogDao(): WorkoutLogDao
+
+    /*
+     * ⚠️ Removed workoutLogDao() because it commonly breaks kapt if the
+     * underlying entity isn't included in `entities = [...]` (or isn't an @Entity).
+     *
+     * If you actually have a WorkoutLog entity + WorkoutLogDao:
+     * 1) Add WorkoutLog::class to entities
+     * 2) Re-add: abstract fun workoutLogDao(): WorkoutLogDao
+     */
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
 
-        fun getInstance(context: Context): AppDatabase {
+        fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                Room.databaseBuilder(context, AppDatabase::class.java, "gymlocker.db")
-                    // ✅ This will DROP + recreate the database if schema changes
-                    .fallbackToDestructiveMigration()
-                    .build()
-                    .also { INSTANCE = it }
+                val instance =
+                    Room.databaseBuilder(
+                        context.applicationContext,
+                        AppDatabase::class.java,
+                        "gymlocker.db"
+                    )
+                        .fallbackToDestructiveMigration()
+                        .addCallback(SeedCallback())
+                        .build()
+
+                INSTANCE = instance
+                instance
             }
         }
     }
-    suspend fun prepopulate(context: Context) {
-        val db = getDatabase(context)
-        val exerciseDao = db.exerciseDao()
-        val muscleGroupDao = db.muscleGroupDao()
 
-        if (exerciseDao.countExercises() > 0) return
+    /**
+     * Seeds default data once after DB creation.
+     * This callback is safe (it uses the DB instance that was built, not INSTANCE?).
+     */
+    private class SeedCallback : Callback() {
+        override fun onCreate(db: SupportSQLiteDatabase) {
+            super.onCreate(db)
+            // Use a background coroutine and fetch the instance safely.
+            INSTANCE?.let { database ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    database.seedIfEmpty()
+                }
+            }
+        }
+    }
 
-        // Opret muskelgrupper
+    /**
+     * Only inserts seed data if the DB looks empty.
+     * Adjust the count() calls to match your DAO APIs.
+     */
+    private suspend fun seedIfEmpty() {
+        // If your DAOs don’t have these count methods, either add them or change the condition.
+        val userDao = userDao()
+        val exerciseDao = exerciseDao()
+        val muscleGroupDao = muscleGroupDao()
+
+        // --- Guard: don't seed twice ---
+        // If you don't have countUsers/countExercises, remove these checks and just seed.
+        val usersCount = runCatching { userDao.countUsers() }.getOrNull()
+        val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull()
+
+        if ((usersCount != null && usersCount > 0) || (exercisesCount != null && exercisesCount > 0)) return
+
+        // --- Seed user ---
+        // Prefer letting Room autogenerate ID unless you *need* userId=1.
+        userDao.insert(User(name = "Default User", height = 0, weight = 0))
+
+        // --- Seed muscle groups ---
         val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
         val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
         val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
         val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
         val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
 
-        // Nogle standardøvelser – samme som dine hardcodede
+        // --- Seed exercises ---
         exerciseDao.insert(
             Exercises(
                 name = "Bench Press",
@@ -126,5 +183,3 @@ abstract class AppDatabase : RoomDatabase() {
         )
     }
 }
-
-

@@ -9,13 +9,14 @@ import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.AppNavigation
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import kotlinx.coroutines.launch
+import com.example.gymlocker.data.dao.*
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         lifecycleScope.launch {
-            AppDatabase.prepopulate(applicationContext)
+            //AppDatabase.prepopulate(applicationContext)
         }
 
         enableEdgeToEdge()

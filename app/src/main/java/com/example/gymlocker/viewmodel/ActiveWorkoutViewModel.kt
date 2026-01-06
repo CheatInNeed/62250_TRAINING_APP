@@ -5,8 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.ExerciseLog
 import com.example.gymlocker.data.entity.Exercises
+import com.example.gymlocker.data.entity.PerformedSet
+import com.example.gymlocker.data.entity.Workout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Ét sæt (1 række i din tabel)
+// Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
     val setNumber: Int,
     val weight: Int = 0,
@@ -35,7 +36,14 @@ data class ActiveExerciseState(
 
 class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
-    // --- Timer/state ---
+    private val db by lazy { AppDatabase.getDatabase(appContext) }
+    private val workoutDao by lazy { db.workoutDao() }
+    private val exerciseLogDao by lazy { db.exerciseLogDao() }
+    private val performedSetDao by lazy { db.performedSetDao() }
+
+    private var timerJob: Job? = null
+
+    private var currentWorkoutId: Long? = null
 
     private val _elapsedTime = MutableStateFlow(0L)
     val elapsedTime: StateFlow<Long> = _elapsedTime.asStateFlow()
@@ -43,97 +51,48 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val _isWorkoutInProgress = MutableStateFlow(false)
     val isWorkoutInProgress: StateFlow<Boolean> = _isWorkoutInProgress.asStateFlow()
 
-    private var timerJob: Job? = null
-
-    // --- Workout state ---
-
     private val _activeExercises = MutableStateFlow<List<ActiveExerciseState>>(emptyList())
     val activeExercises: StateFlow<List<ActiveExerciseState>> = _activeExercises.asStateFlow()
 
-    private var currentSessionId: Long? = null
+    /**
+     * Used by HomeScreen:
+     * val completedWorkouts by activeWorkoutViewModel.completedWorkouts().collectAsState(...)
+     */
+    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
 
-    private val db by lazy { AppDatabase.getDatabase(appContext) }
-    private val exerciseLogDao by lazy { db.exerciseLogDao() }
-
-    fun completedWorkouts() = exerciseLogDao.getWorkoutSummaries()
+    // --- Timer/state ---
 
     fun startTimer() {
         if (timerJob?.isActive == true) return
-        if (currentSessionId == null) {
-            currentSessionId = System.currentTimeMillis()
-        }
         _isWorkoutInProgress.value = true
         timerJob = viewModelScope.launch {
             while (true) {
                 delay(1000)
-                _elapsedTime.value++
+                _elapsedTime.value = _elapsedTime.value + 1
             }
         }
     }
 
     fun stopTimer() {
         timerJob?.cancel()
+        timerJob = null
     }
 
     fun discardWorkout() {
+        viewModelScope.launch {
+            // If we already created a Workout row, delete it (CASCADE will remove logs/sets)
+            currentWorkoutId?.let { workoutDao.deleteById(it) }
+            resetLocalState()
+        }
+    }
+
+    private fun resetLocalState() {
         stopTimer()
         _elapsedTime.value = 0
         _isWorkoutInProgress.value = false
         _activeExercises.value = emptyList()
-        currentSessionId = null
+        currentWorkoutId = null
     }
-
-    fun finishWorkout() {
-        val sessionId = currentSessionId ?: System.currentTimeMillis().also { currentSessionId = it }
-
-        viewModelScope.launch {
-            // Gem alle indtastede sets (også selvom user ikke trykkede "done")
-            val dateString = SimpleDateFormat(
-                "yyyy-MM-dd HH:mm:ss",
-                Locale.getDefault()
-            ).format(Date())
-
-            val snapshot = _activeExercises.value
-
-            snapshot.forEach { ex ->
-                ex.sets.forEach { set ->
-                    // Kun gem meningsfulde rækker
-                    if (set.reps > 0 && set.weight > 0) {
-                        val existing = exerciseLogDao.getLogForSet(ex.exerciseId, sessionId, set.setNumber)
-
-                        if (existing == null) {
-                            exerciseLogDao.insert(
-                                ExerciseLog(
-                                    exerciseId = ex.exerciseId,
-                                    sessionId = sessionId,
-                                    setNumber = set.setNumber,
-                                    reps = set.reps,
-                                    weight = set.weight,
-                                    date = dateString
-                                )
-                            )
-                        } else {
-                            exerciseLogDao.update(
-                                existing.copy(
-                                    reps = set.reps,
-                                    weight = set.weight,
-                                    date = dateString
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Luk workout (det her er grunden til at "Resume Workout" baren forsvinder)
-            stopTimer()
-            _elapsedTime.value = 0
-            _isWorkoutInProgress.value = false
-            _activeExercises.value = emptyList()
-            currentSessionId = null
-        }
-    }
-
 
     fun formatTime(seconds: Long): String {
         val minutes = seconds / 60
@@ -141,12 +100,37 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         return "$minutes min $remainingSeconds sec"
     }
 
-    // --- Øvelses-håndtering ---
+    // --- Core: Option A persistence helpers ---
+
+    private suspend fun ensureWorkoutExists(): Long {
+        val existing = currentWorkoutId
+        if (existing != null) return existing
+
+        // You currently have no login/user selection; we rely on the seeded default userId = 1
+        val userId = 1L
+
+        val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val name = "Workout $dateString"
+
+        val workoutId = workoutDao.insert(
+            Workout(
+                date = dateString,
+                name = name,
+                userId = userId
+            )
+        )
+
+        currentWorkoutId = workoutId
+        return workoutId
+    }
+
+    private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
+        return ex.sets.filter { it.reps > 0 && it.weight > 0 }
+    }
+
+    // --- Exercise handling ---
 
     fun addExercise(exercise: Exercises) {
-        if (currentSessionId == null) {
-            currentSessionId = System.currentTimeMillis()
-        }
         val existing = _activeExercises.value
         if (existing.any { it.exerciseId == exercise.exerciseId }) return
 
@@ -155,155 +139,148 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             exerciseName = exercise.name
         )
 
-        refreshPreviousForExercise(exercise.exerciseId)
+        // Create the Workout + ExerciseLog lazily (so it’s ready for set saving)
+        viewModelScope.launch {
+            val workoutId = ensureWorkoutExists()
+            exerciseLogDao.getOrCreateLogId(workoutId, exercise.exerciseId)
+        }
     }
 
     fun removeExercise(exerciseId: Long) {
-        val sessionId = currentSessionId ?: return
+        _activeExercises.value = _activeExercises.value.filterNot { it.exerciseId == exerciseId }
 
         viewModelScope.launch {
-            // Slet logs (kun for den aktive workout/session)
-            exerciseLogDao.deleteLogsForExerciseInSession(exerciseId, sessionId)
-
-            // Fjern øvelsen fra UI-state
-            _activeExercises.value = _activeExercises.value.filterNot { it.exerciseId == exerciseId }
+            val workoutId = currentWorkoutId ?: return@launch
+            val logId = exerciseLogDao.getLogId(workoutId, exerciseId) ?: return@launch
+            performedSetDao.deleteSetsForLog(logId)
+            exerciseLogDao.deleteById(logId)
         }
     }
 
     fun addSet(exerciseId: Long) {
-        _activeExercises.value = _activeExercises.value.map { ex ->
-            if (ex.exerciseId == exerciseId) {
+        val current = _activeExercises.value
+        val updated = current.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else {
                 val nextNumber = (ex.sets.maxOfOrNull { it.setNumber } ?: 0) + 1
                 ex.copy(sets = ex.sets + ExerciseSetState(setNumber = nextNumber))
-            } else ex
+            }
         }
-        refreshPreviousForExercise(exerciseId)
+        _activeExercises.value = updated
     }
 
-    fun updateSetWeight(exerciseId: Long, setNumber: Int, newWeight: Int) {
+    fun updateSetWeight(exerciseId: Long, setNumber: Int, weight: String) {
+        val w = weight.toIntOrNull() ?: 0
         _activeExercises.value = _activeExercises.value.map { ex ->
-            if (ex.exerciseId == exerciseId) {
-                ex.copy(sets = ex.sets.map {
-                    if (it.setNumber == setNumber) it.copy(weight = newWeight) else it
-                })
-            } else ex
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    if (s.setNumber == setNumber) s.copy(weight = w) else s
+                }
+            )
         }
     }
 
-    fun updateSetReps(exerciseId: Long, setNumber: Int, newReps: Int) {
+    fun updateSetReps(exerciseId: Long, setNumber: Int, reps: String) {
+        val r = reps.toIntOrNull() ?: 0
         _activeExercises.value = _activeExercises.value.map { ex ->
-            if (ex.exerciseId == exerciseId) {
-                ex.copy(sets = ex.sets.map {
-                    if (it.setNumber == setNumber) it.copy(reps = newReps) else it
-                })
-            } else ex
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    if (s.setNumber == setNumber) s.copy(reps = r) else s
+                }
+            )
         }
     }
 
     fun toggleSetDone(exerciseId: Long, setNumber: Int, isDone: Boolean) {
-        val sessionId = currentSessionId ?: System.currentTimeMillis().also { currentSessionId = it }
-
-        val exercise = _activeExercises.value.firstOrNull { it.exerciseId == exerciseId } ?: return
-        val setBefore = exercise.sets.firstOrNull { it.setNumber == setNumber } ?: return
+        val before = _activeExercises.value.firstOrNull { it.exerciseId == exerciseId } ?: return
+        val setBefore = before.sets.firstOrNull { it.setNumber == setNumber } ?: return
 
         _activeExercises.value = _activeExercises.value.map { ex ->
-            if (ex.exerciseId == exerciseId) {
-                ex.copy(sets = ex.sets.map {
-                    if (it.setNumber == setNumber) it.copy(isDone = isDone) else it
-                })
-            } else ex
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    if (s.setNumber == setNumber) s.copy(isDone = isDone) else s
+                }
+            )
         }
 
+        // Persist immediately (if meaningful)
         viewModelScope.launch {
-            if (isDone) {
+            val workoutId = ensureWorkoutExists()
+            val logId = exerciseLogDao.getOrCreateLogId(workoutId, exerciseId)
 
-                if (setBefore.reps <= 0 || setBefore.weight <= 0) {
-                    return@launch
-                }
-
-                val dateString = SimpleDateFormat(
-                    "yyyy-MM-dd HH:mm:ss",
-                    Locale.getDefault()
-                ).format(Date())
-
-                val existing = exerciseLogDao.getLogForSet(exerciseId, sessionId, setNumber)
-
-                if (existing == null) {
-                    exerciseLogDao.insert(
-                        ExerciseLog(
-                            exerciseId = exerciseId,
-                            sessionId = sessionId,
-                            setNumber = setNumber,
-                            reps = setBefore.reps,
-                            weight = setBefore.weight,
-                            date = dateString
-                        )
-                    )
-                } else {
-                    exerciseLogDao.update(
-                        existing.copy(
-                            reps = setBefore.reps,
-                            weight = setBefore.weight,
-                            date = dateString
-                        )
-                    )
-                }
-            } else {
-                val existing = exerciseLogDao.getLogForSet(exerciseId, sessionId, setNumber)
-                if (existing != null) {
-                    exerciseLogDao.delete(existing)
-                }
-            }
-
-            refreshPreviousForExercise(exerciseId)
-        }
-    }
-
-    // 🔑 DEN MANGLENDE FUNKTION
-    private fun refreshPreviousForExercise(exerciseId: Long) {
-        viewModelScope.launch {
-            val logs = exerciseLogDao.getLogsForExerciseOrdered(exerciseId)
-            if (logs.isEmpty()) return@launch
-
-            // VIGTIGT: "previous" skal være sidste session FØR den nuværende workout-session
-            val excludeSessionId = currentSessionId
-
-            // logs er sorteret: sessionId DESC, setNumber ASC
-            val sessionIdsInOrder = logs.map { it.sessionId }.distinct()
-
-            val previousSessionId = sessionIdsInOrder.firstOrNull { it != excludeSessionId }
-                ?: return@launch
-
-            val previousSets = logs
-                .filter { it.sessionId == previousSessionId }
-                .associateBy(
-                    { it.setNumber },
-                    { "${it.weight}x${it.reps}" }
+            // Only save meaningful sets (weight+reps)
+            if (setBefore.reps > 0 && setBefore.weight > 0) {
+                performedSetDao.upsertByNumber(
+                    exerciseLogId = logId,
+                    setNumber = setNumber,
+                    weight = setBefore.weight.toFloat(),
+                    reps = setBefore.reps,
+                    isCompleted = isDone
                 )
-
-            _activeExercises.value = _activeExercises.value.map { ex ->
-                if (ex.exerciseId == exerciseId) {
-                    ex.copy(
-                        sets = ex.sets.map { set ->
-                            set.copy(previous = previousSets[set.setNumber])
-                        }
-                    )
-                } else ex
             }
         }
     }
 
+    fun finishWorkout() {
+        viewModelScope.launch {
+            val workoutId = currentWorkoutId
+
+            // If user never added any exercises/sets, just reset without creating junk
+            if (workoutId == null) {
+                resetLocalState()
+                return@launch
+            }
+
+            val snapshot = _activeExercises.value
+
+            // Persist snapshot into (exercise_log + performed_set)
+            snapshot.forEach { ex ->
+                val sets = meaningfulSets(ex)
+
+                // If no meaningful sets for that exercise, remove the log (don’t count it as completed)
+                if (sets.isEmpty()) {
+                    exerciseLogDao.getLogId(workoutId, ex.exerciseId)?.let { logId ->
+                        performedSetDao.deleteSetsForLog(logId)
+                        exerciseLogDao.deleteById(logId)
+                    }
+                    return@forEach
+                }
+
+                val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
+
+                // Replace sets for this log with the current snapshot
+                performedSetDao.deleteSetsForLog(logId)
+                sets.forEach { s ->
+                    performedSetDao.insert(
+                        PerformedSet(
+                            exerciseLogId = logId,
+                            setNumber = s.setNumber,
+                            weight = s.weight.toFloat(),
+                            reps = s.reps,
+                            isCompleted = s.isDone
+                        )
+                    )
+                }
+            }
+
+            // Reset local state after saving
+            resetLocalState()
+        }
+    }
+
+    // --- Factory ---
 
     companion object {
-        fun provideFactory(context: Context): ViewModelProvider.Factory =
-            object : ViewModelProvider.Factory {
+        fun provideFactory(context: Context): ViewModelProvider.Factory {
+            return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    if (modelClass.isAssignableFrom(ActiveWorkoutViewModel::class.java)) {
-                        return ActiveWorkoutViewModel(context.applicationContext) as T
-                    }
-                    throw IllegalArgumentException("Unknown ViewModel class")
+                    return ActiveWorkoutViewModel(context.applicationContext) as T
                 }
             }
+        }
     }
 }
