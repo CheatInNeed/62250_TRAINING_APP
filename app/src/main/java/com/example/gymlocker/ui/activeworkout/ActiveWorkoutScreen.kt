@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -191,7 +192,8 @@ fun ActiveWorkoutScreen(
                             },
                             onToggleDone = { setNumber, checked ->
                                 viewModel.toggleSetDone(exercise.exerciseId, setNumber, checked)
-                            }
+                            },
+                            onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -226,17 +228,56 @@ fun ActiveWorkoutExerciseItem(
     onAddSet: () -> Unit,
     onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
-    onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit
+    onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit,
+    onDeleteExercise: () -> Unit = {}
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Remove exercise?") },
+            text = { Text("Are you sure you want to remove this exercise from the workout?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteExercise()
+                    showDeleteConfirm = false
+                }) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
-        Text(
-            text = exercise.exerciseName,
-            style = MaterialTheme.typography.titleMedium
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = exercise.exerciseName,
+                style = MaterialTheme.typography.titleMedium
+            )
+            TextButton(
+                onClick = { showDeleteConfirm = true },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Delete")
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         // Header-rækken: SET / PREVIOUS / KG / REPS / Done
@@ -270,6 +311,7 @@ fun ActiveWorkoutExerciseItem(
         }
     }
 }
+
 
 @Composable
 fun ExerciseSetRow(

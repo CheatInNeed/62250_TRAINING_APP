@@ -55,6 +55,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val db by lazy { AppDatabase.getDatabase(appContext) }
     private val exerciseLogDao by lazy { db.exerciseLogDao() }
 
+    fun completedWorkouts() = exerciseLogDao.getWorkoutSummaries()
+
     fun startTimer() {
         if (timerJob?.isActive == true) return
         if (currentSessionId == null) {
@@ -154,6 +156,18 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         )
 
         refreshPreviousForExercise(exercise.exerciseId)
+    }
+
+    fun removeExercise(exerciseId: Long) {
+        val sessionId = currentSessionId ?: return
+
+        viewModelScope.launch {
+            // Slet logs (kun for den aktive workout/session)
+            exerciseLogDao.deleteLogsForExerciseInSession(exerciseId, sessionId)
+
+            // Fjern øvelsen fra UI-state
+            _activeExercises.value = _activeExercises.value.filterNot { it.exerciseId == exerciseId }
+        }
     }
 
     fun addSet(exerciseId: Long) {

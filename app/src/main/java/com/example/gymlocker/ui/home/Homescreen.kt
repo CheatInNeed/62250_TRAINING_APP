@@ -44,6 +44,9 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorkoutViewModel) {
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
     val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
+    val completedWorkouts by activeWorkoutViewModel
+        .completedWorkouts()
+        .collectAsState(initial = emptyList())
 
     Scaffold(
         topBar = {
@@ -106,7 +109,7 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             Spacer(modifier = Modifier.height(16.dp))
             StatsCard()
             Spacer(modifier = Modifier.height(16.dp))
-            CompletedWorkoutsCard()
+            CompletedWorkoutsCard(completedWorkouts)
         }
     }
 }
@@ -124,13 +127,20 @@ fun StatsCard() {
 }
 
 @Composable
-fun CompletedWorkoutsCard() {
+fun CompletedWorkoutsCard(workouts: List<com.example.gymlocker.data.dao.WorkoutSummary>) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Completed Workouts")
             Spacer(modifier = Modifier.height(8.dp))
-            // Placeholder for the list of recent exercises
-            Text("No completed workouts yet.", textAlign = TextAlign.Center)
+
+            if (workouts.isEmpty()) {
+                Text("No completed workouts yet.", textAlign = TextAlign.Center)
+            } else {
+                // Vis fx de seneste 5
+                workouts.take(5).forEach { w ->
+                    Text("• ${w.date}  –  ${w.exerciseCount} exercises")
+                }
+            }
         }
     }
 }
