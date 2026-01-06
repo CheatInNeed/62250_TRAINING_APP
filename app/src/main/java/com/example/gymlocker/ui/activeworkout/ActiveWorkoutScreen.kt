@@ -106,7 +106,13 @@ fun ActiveWorkoutScreen(
                         Text("Discard")
                     }
                     Button(
-                        onClick = { /* TODO: Finish workout & maybe mark as completed */ },
+                        onClick = {
+                            viewModel.stopTimer()
+                            // Her kan I evt. lave en "finalize session" hvis I senere vil gemme workout meta
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        },
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text("Finish")

@@ -35,7 +35,7 @@ data class ActiveExerciseState(
 
 class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
-    // --- Timer/state fra din oprindelige VM ---
+    // --- Timer/state ---
 
     private val _elapsedTime = MutableStateFlow(0L)
     val elapsedTime: StateFlow<Long> = _elapsedTime.asStateFlow()
@@ -45,7 +45,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     private var timerJob: Job? = null
 
-    // --- Ny state: aktive øvelser + session ---
+    // --- Workout state ---
 
     private val _activeExercises = MutableStateFlow<List<ActiveExerciseState>>(emptyList())
     val activeExercises: StateFlow<List<ActiveExerciseState>> = _activeExercises.asStateFlow()
@@ -94,14 +94,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             currentSessionId = System.currentTimeMillis()
         }
         val existing = _activeExercises.value
-        if (existing.any { it.exerciseId == exercise.exerciseId }) {
-            return // allerede tilføjet
-        }
-        val newList = existing + ActiveExerciseState(
+        if (existing.any { it.exerciseId == exercise.exerciseId }) return
+
+        _activeExercises.value = existing + ActiveExerciseState(
             exerciseId = exercise.exerciseId,
             exerciseName = exercise.name
         )
-        _activeExercises.value = newList
 
         refreshPreviousForExercise(exercise.exerciseId)
     }
@@ -119,8 +117,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     fun updateSetWeight(exerciseId: Long, setNumber: Int, newWeight: Int) {
         _activeExercises.value = _activeExercises.value.map { ex ->
             if (ex.exerciseId == exerciseId) {
-                ex.copy(sets = ex.sets.map { set ->
-                    if (set.setNumber == setNumber) set.copy(weight = newWeight) else set
+                ex.copy(sets = ex.sets.map {
+                    if (it.setNumber == setNumber) it.copy(weight = newWeight) else it
                 })
             } else ex
         }
@@ -129,8 +127,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     fun updateSetReps(exerciseId: Long, setNumber: Int, newReps: Int) {
         _activeExercises.value = _activeExercises.value.map { ex ->
             if (ex.exerciseId == exerciseId) {
-                ex.copy(sets = ex.sets.map { set ->
-                    if (set.setNumber == setNumber) set.copy(reps = newReps) else set
+                ex.copy(sets = ex.sets.map {
+                    if (it.setNumber == setNumber) it.copy(reps = newReps) else it
                 })
             } else ex
         }
@@ -140,69 +138,95 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         val sessionId = currentSessionId ?: System.currentTimeMillis().also { currentSessionId = it }
 
         val exercise = _activeExercises.value.firstOrNull { it.exerciseId == exerciseId } ?: return
-        val set = exercise.sets.firstOrNull { it.setNumber == setNumber } ?: return
+        val setBefore = exercise.sets.firstOrNull { it.setNumber == setNumber } ?: return
 
         _activeExercises.value = _activeExercises.value.map { ex ->
             if (ex.exerciseId == exerciseId) {
-                ex.copy(sets = ex.sets.map { s ->
-                    if (s.setNumber == setNumber) s.copy(isDone = isDone) else s
+                ex.copy(sets = ex.sets.map {
+                    if (it.setNumber == setNumber) it.copy(isDone = isDone) else it
                 })
             } else ex
         }
 
-        if (isDone) {
-            viewModelScope.launch {
-                val now = System.currentTimeMillis()
+        viewModelScope.launch {
+            if (isDone) {
+
+                if (setBefore.reps <= 0 || setBefore.weight <= 0) {
+                    return@launch
+                }
+
                 val dateString = SimpleDateFormat(
                     "yyyy-MM-dd HH:mm:ss",
                     Locale.getDefault()
-                ).format(Date(now))
+                ).format(Date())
 
-                val log = ExerciseLog(
-                    exerciseId = exerciseId,
-                    sessionId = sessionId,
-                    setNumber = setNumber,
-                    reps = set.reps,
-                    weight = set.weight,
-                    date = dateString
-                )
-                exerciseLogDao.insert(log)
+                val existing = exerciseLogDao.getLogForSet(exerciseId, sessionId, setNumber)
 
-                // Opdater "previous" efter vi har logget
-                refreshPreviousForExercise(exerciseId)
-            }
-        }
-    }
-
-    private fun refreshPreviousForExercise(exerciseId: Long) {
-        val thisSessionId = currentSessionId
-        viewModelScope.launch {
-            val logs = exerciseLogDao.getLogsForExerciseOrdered(exerciseId)
-            val previousSessionId = logs.firstOrNull { it.sessionId != thisSessionId }?.sessionId
-
-            if (previousSessionId == null) {
-                // Ingen tidligere workouts for denne øvelse
-                _activeExercises.value = _activeExercises.value.map { ex ->
-                    if (ex.exerciseId == exerciseId) {
-                        ex.copy(sets = ex.sets.map { it.copy(previous = null) })
-                    } else ex
+                if (existing == null) {
+                    exerciseLogDao.insert(
+                        ExerciseLog(
+                            exerciseId = exerciseId,
+                            sessionId = sessionId,
+                            setNumber = setNumber,
+                            reps = setBefore.reps,
+                            weight = setBefore.weight,
+                            date = dateString
+                        )
+                    )
+                } else {
+                    exerciseLogDao.update(
+                        existing.copy(
+                            reps = setBefore.reps,
+                            weight = setBefore.weight,
+                            date = dateString
+                        )
+                    )
                 }
             } else {
-                val previousLogs = logs.filter { it.sessionId == previousSessionId }
-                val previousMap = previousLogs.associate { log ->
-                    log.setNumber to "${log.weight}x${log.reps}"
+                val existing = exerciseLogDao.getLogForSet(exerciseId, sessionId, setNumber)
+                if (existing != null) {
+                    exerciseLogDao.delete(existing)
                 }
+            }
 
-                _activeExercises.value = _activeExercises.value.map { ex ->
-                    if (ex.exerciseId == exerciseId) {
-                        ex.copy(sets = ex.sets.map { set ->
-                            set.copy(previous = previousMap[set.setNumber])
-                        })
-                    } else ex
-                }
+            refreshPreviousForExercise(exerciseId)
+        }
+    }
+
+    // 🔑 DEN MANGLENDE FUNKTION
+    private fun refreshPreviousForExercise(exerciseId: Long) {
+        viewModelScope.launch {
+            val logs = exerciseLogDao.getLogsForExerciseOrdered(exerciseId)
+            if (logs.isEmpty()) return@launch
+
+            // VIGTIGT: "previous" skal være sidste session FØR den nuværende workout-session
+            val excludeSessionId = currentSessionId
+
+            // logs er sorteret: sessionId DESC, setNumber ASC
+            val sessionIdsInOrder = logs.map { it.sessionId }.distinct()
+
+            val previousSessionId = sessionIdsInOrder.firstOrNull { it != excludeSessionId }
+                ?: return@launch
+
+            val previousSets = logs
+                .filter { it.sessionId == previousSessionId }
+                .associateBy(
+                    { it.setNumber },
+                    { "${it.weight}x${it.reps}" }
+                )
+
+            _activeExercises.value = _activeExercises.value.map { ex ->
+                if (ex.exerciseId == exerciseId) {
+                    ex.copy(
+                        sets = ex.sets.map { set ->
+                            set.copy(previous = previousSets[set.setNumber])
+                        }
+                    )
+                } else ex
             }
         }
     }
+
 
     companion object {
         fun provideFactory(context: Context): ViewModelProvider.Factory =
