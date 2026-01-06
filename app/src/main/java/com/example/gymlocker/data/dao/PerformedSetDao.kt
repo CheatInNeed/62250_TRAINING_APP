@@ -71,4 +71,13 @@ interface PerformedSetDao {
         """
     )
     suspend fun deleteSetsForWorkout(workoutId: Long)
+
+    @Query(
+        """
+    DELETE FROM performed_set
+    WHERE exerciseLogId = :exerciseLogId
+      AND setNumber = :setNumber
+    """
+    )
+    suspend fun deleteSetByNumber(exerciseLogId: Long, setNumber: Int)
 }
