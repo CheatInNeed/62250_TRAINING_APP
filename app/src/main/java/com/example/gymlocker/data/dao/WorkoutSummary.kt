@@ -1,0 +1,7 @@
+package com.example.gymlocker.data.dao
+
+data class WorkoutSummary(
+    val workoutId: Long,
+    val date: String,
+    val exerciseCount: Int
+)
