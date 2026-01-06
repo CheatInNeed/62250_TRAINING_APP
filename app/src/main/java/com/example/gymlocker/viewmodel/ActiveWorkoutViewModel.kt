@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -44,6 +46,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private var timerJob: Job? = null
 
     private var currentWorkoutId: Long? = null
+
+    private val workoutCreateMutex = Mutex()
 
     private val _elapsedTime = MutableStateFlow(0L)
     val elapsedTime: StateFlow<Long> = _elapsedTime.asStateFlow()
@@ -102,14 +106,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     // --- Core: Option A persistence helpers ---
 
-    private suspend fun ensureWorkoutExists(): Long {
+    private suspend fun ensureWorkoutExists(): Long = workoutCreateMutex.withLock {
         val existing = currentWorkoutId
         if (existing != null) return existing
 
-        // You currently have no login/user selection; we rely on the seeded default userId = 1
         val userId = 1L
-
-        val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(Date())
         val name = "Workout $dateString"
 
         val workoutId = workoutDao.insert(
@@ -121,7 +123,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         )
 
         currentWorkoutId = workoutId
-        return workoutId
+        workoutId
     }
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
