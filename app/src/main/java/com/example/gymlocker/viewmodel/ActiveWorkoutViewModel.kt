@@ -81,6 +81,58 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         currentSessionId = null
     }
 
+    fun finishWorkout() {
+        val sessionId = currentSessionId ?: System.currentTimeMillis().also { currentSessionId = it }
+
+        viewModelScope.launch {
+            // Gem alle indtastede sets (også selvom user ikke trykkede "done")
+            val dateString = SimpleDateFormat(
+                "yyyy-MM-dd HH:mm:ss",
+                Locale.getDefault()
+            ).format(Date())
+
+            val snapshot = _activeExercises.value
+
+            snapshot.forEach { ex ->
+                ex.sets.forEach { set ->
+                    // Kun gem meningsfulde rækker
+                    if (set.reps > 0 && set.weight > 0) {
+                        val existing = exerciseLogDao.getLogForSet(ex.exerciseId, sessionId, set.setNumber)
+
+                        if (existing == null) {
+                            exerciseLogDao.insert(
+                                ExerciseLog(
+                                    exerciseId = ex.exerciseId,
+                                    sessionId = sessionId,
+                                    setNumber = set.setNumber,
+                                    reps = set.reps,
+                                    weight = set.weight,
+                                    date = dateString
+                                )
+                            )
+                        } else {
+                            exerciseLogDao.update(
+                                existing.copy(
+                                    reps = set.reps,
+                                    weight = set.weight,
+                                    date = dateString
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Luk workout (det her er grunden til at "Resume Workout" baren forsvinder)
+            stopTimer()
+            _elapsedTime.value = 0
+            _isWorkoutInProgress.value = false
+            _activeExercises.value = emptyList()
+            currentSessionId = null
+        }
+    }
+
+
     fun formatTime(seconds: Long): String {
         val minutes = seconds / 60
         val remainingSeconds = seconds % 60
