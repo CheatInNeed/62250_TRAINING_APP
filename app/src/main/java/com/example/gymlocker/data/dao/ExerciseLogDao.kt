@@ -49,6 +49,12 @@ interface ExerciseLogDao {
     """)
     suspend fun getLogsForExerciseOrdered(exerciseId: Long): List<ExerciseLog>
 
+    @Query("""
+    DELETE FROM exercise_logs 
+    WHERE exerciseId = :exerciseId AND sessionId = :sessionId
+""")
+    suspend fun deleteLogsForExerciseInSession(exerciseId: Long, sessionId: Long)
+
     // Find log for et set i en given session (så vi kan update/delete korrekt)
     @Query("""
         SELECT * FROM exercise_logs
