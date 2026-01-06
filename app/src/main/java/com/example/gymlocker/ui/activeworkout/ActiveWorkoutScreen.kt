@@ -107,8 +107,7 @@ fun ActiveWorkoutScreen(
                     }
                     Button(
                         onClick = {
-                            viewModel.stopTimer()
-                            // Her kan I evt. lave en "finalize session" hvis I senere vil gemme workout meta
+                            viewModel.finishWorkout()
                             navController.navigate("home") {
                                 popUpTo("home") { inclusive = true }
                             }
