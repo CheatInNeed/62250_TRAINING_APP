@@ -12,6 +12,8 @@ import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
+
 @Database(
     entities = [
         User::class,
@@ -39,30 +41,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseLogDao(): ExerciseLogDao
     abstract fun performedSetDao(): PerformedSetDao
 
-    // ✅ Template DAOs
-    abstract fun workoutTemplateDao(): WorkoutTemplateDao
-    abstract fun templateExerciseDao(): TemplateExerciseDao
-    abstract fun templateSetDao(): TemplateSetDao
-
-    /*
-     * ⚠️ Removed workoutLogDao() because it commonly breaks kapt if the
-     * underlying entity isn't included in `entities = [...]` (or isn't an @Entity).
-     *
-     * If you actually have a WorkoutLog entity + WorkoutLogDao:
-     * 1) Add WorkoutLog::class to entities
-     * 2) Re-add: abstract fun workoutLogDao(): WorkoutLogDao
-     */
-
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
+        private const val DB_NAME = "gymlocker.db"
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+
+                // ✅ Always rebuild DB from scratch on every app start
+                deleteDatabaseFiles(context, DB_NAME)
+
                 val instance =
                     Room.databaseBuilder(
                         context.applicationContext,
                         AppDatabase::class.java,
-                        "gymlocker.db"
+                        DB_NAME
                     )
                         .fallbackToDestructiveMigration()
                         .addCallback(SeedCallback())
@@ -71,6 +64,18 @@ abstract class AppDatabase : RoomDatabase() {
                 INSTANCE = instance
                 instance
             }
+        }
+
+        private fun deleteDatabaseFiles(context: Context, dbName: String) {
+            // Main DB
+            context.deleteDatabase(dbName)
+
+            // Room sidecar files (best-effort cleanup)
+            val dbFile = context.getDatabasePath(dbName)
+            val shm = File(dbFile.path + "-shm")
+            val wal = File(dbFile.path + "-wal")
+            if (shm.exists()) shm.delete()
+            if (wal.exists()) wal.delete()
         }
     }
 
