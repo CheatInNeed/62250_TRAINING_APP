@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -109,7 +110,10 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             Spacer(modifier = Modifier.height(16.dp))
             StatsCard()
             Spacer(modifier = Modifier.height(16.dp))
-            CompletedWorkoutsCard(completedWorkouts)
+            CompletedWorkoutsCard(
+                workouts = completedWorkouts,
+                onViewHistoryClick = { navController.navigate("workoutHistory") }
+            )
         }
     }
 }
@@ -127,7 +131,10 @@ fun StatsCard() {
 }
 
 @Composable
-fun CompletedWorkoutsCard(workouts: List<com.example.gymlocker.data.dao.WorkoutSummary>) {
+fun CompletedWorkoutsCard(
+    workouts: List<com.example.gymlocker.data.dao.WorkoutSummary>,
+    onViewHistoryClick: () -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Completed Workouts")
@@ -139,6 +146,14 @@ fun CompletedWorkoutsCard(workouts: List<com.example.gymlocker.data.dao.WorkoutS
                 // Vis fx de seneste 5
                 workouts.take(5).forEach { w ->
                     Text("• ${w.date}  –  ${w.exerciseCount} exercises")
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(
+                    onClick = onViewHistoryClick,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Workout History")
                 }
             }
         }
