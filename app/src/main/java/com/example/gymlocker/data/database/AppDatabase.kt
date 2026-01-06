@@ -20,6 +20,7 @@ import com.example.gymlocker.data.entity.Workout
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.File
 
 @Database(
     entities = [
@@ -43,25 +44,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseLogDao(): ExerciseLogDao
     abstract fun performedSetDao(): PerformedSetDao
 
-    /*
-     * ⚠️ Removed workoutLogDao() because it commonly breaks kapt if the
-     * underlying entity isn't included in `entities = [...]` (or isn't an @Entity).
-     *
-     * If you actually have a WorkoutLog entity + WorkoutLogDao:
-     * 1) Add WorkoutLog::class to entities
-     * 2) Re-add: abstract fun workoutLogDao(): WorkoutLogDao
-     */
-
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
+        private const val DB_NAME = "gymlocker.db"
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+
+                // ✅ Always rebuild DB from scratch on every app start
+                deleteDatabaseFiles(context, DB_NAME)
+
                 val instance =
                     Room.databaseBuilder(
                         context.applicationContext,
                         AppDatabase::class.java,
-                        "gymlocker.db"
+                        DB_NAME
                     )
                         .fallbackToDestructiveMigration()
                         .addCallback(SeedCallback())
@@ -71,16 +68,23 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
+
+        private fun deleteDatabaseFiles(context: Context, dbName: String) {
+            // Main DB
+            context.deleteDatabase(dbName)
+
+            // Room sidecar files (best-effort cleanup)
+            val dbFile = context.getDatabasePath(dbName)
+            val shm = File(dbFile.path + "-shm")
+            val wal = File(dbFile.path + "-wal")
+            if (shm.exists()) shm.delete()
+            if (wal.exists()) wal.delete()
+        }
     }
 
-    /**
-     * Seeds default data once after DB creation.
-     * This callback is safe (it uses the DB instance that was built, not INSTANCE?).
-     */
     private class SeedCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            // Use a background coroutine and fetch the instance safely.
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     database.seedIfEmpty()
@@ -88,7 +92,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
     }
-
     /**
      * Only inserts seed data if the DB looks empty.
      * Adjust the count() calls to match your DAO APIs.
