@@ -5,22 +5,13 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.gymlocker.data.dao.ExerciseDao
-import com.example.gymlocker.data.dao.ExerciseLogDao
-import com.example.gymlocker.data.dao.MuscleGroupDao
-import com.example.gymlocker.data.dao.PerformedSetDao
-import com.example.gymlocker.data.dao.UserDao
-import com.example.gymlocker.data.dao.WorkoutDao
-import com.example.gymlocker.data.entity.ExerciseLog
-import com.example.gymlocker.data.entity.Exercises
-import com.example.gymlocker.data.entity.MuscleGroup
-import com.example.gymlocker.data.entity.PerformedSet
-import com.example.gymlocker.data.entity.User
-import com.example.gymlocker.data.entity.Workout
+import com.example.gymlocker.data.dao.*
+import com.example.gymlocker.data.dao.template.*
+import com.example.gymlocker.data.entity.*
+import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
 @Database(
     entities = [
         User::class,
@@ -28,9 +19,14 @@ import kotlinx.coroutines.launch
         MuscleGroup::class,
         Exercises::class,
         ExerciseLog::class,
-        PerformedSet::class
+        PerformedSet::class,
+
+        // ✅ Templates (Option A)
+        WorkoutTemplate::class,
+        TemplateExercise::class,
+        TemplateSet::class
     ],
-    version = 1,
+    version = 2,
     // ✅ Avoid Room kapt failing unless you ALSO configure room.schemaLocation in Gradle.
     exportSchema = false
 )
@@ -42,6 +38,11 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun exerciseLogDao(): ExerciseLogDao
     abstract fun performedSetDao(): PerformedSetDao
+
+    // ✅ Template DAOs
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun templateExerciseDao(): TemplateExerciseDao
+    abstract fun templateSetDao(): TemplateSetDao
 
     /*
      * ⚠️ Removed workoutLogDao() because it commonly breaks kapt if the

@@ -1,0 +1,24 @@
+package com.example.gymlocker.data.dao.template
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.example.gymlocker.data.entity.template.*
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface TemplateExerciseDao {
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(row: TemplateExercise): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(rows: List<TemplateExercise>): List<Long>
+
+    @Query("SELECT * FROM template_exercise WHERE templateId = :templateId ORDER BY id ASC")
+    fun observeByTemplate(templateId: Long): Flow<List<TemplateExercise>>
+
+    @Query("SELECT * FROM template_exercise WHERE templateId = :templateId ORDER BY id ASC")
+    suspend fun getByTemplateOnce(templateId: Long): List<TemplateExercise>
+}

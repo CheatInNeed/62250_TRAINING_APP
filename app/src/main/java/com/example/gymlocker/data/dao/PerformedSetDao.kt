@@ -71,4 +71,8 @@ interface PerformedSetDao {
         """
     )
     suspend fun deleteSetsForWorkout(workoutId: Long)
+
+    @Query("SELECT * FROM performed_set WHERE exerciseLogId = :exerciseLogId ORDER BY setNumber ASC")
+    suspend fun getSetsForLogOnce(exerciseLogId: Long): List<PerformedSet>
+
 }
