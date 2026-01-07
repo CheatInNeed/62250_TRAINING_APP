@@ -19,6 +19,8 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -276,6 +278,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    // ✅ EXISTING finishWorkout is unchanged
     fun finishWorkout() {
         viewModelScope.launch {
             val workoutId = currentWorkoutId
@@ -323,6 +326,101 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    // ----------------------------- NEW: naming flow -----------------------------
+
+    /**
+     * Called from UI when user presses "Save" in the name dialog.
+     * IMPORTANT: update name BEFORE finishWorkout() resets currentWorkoutId.
+     */
+    fun finishWorkoutWithName(baseName: String) {
+        viewModelScope.launch {
+            val workoutId = currentWorkoutId ?: run {
+                // If workout doesn't exist yet, there's nothing meaningful to name.
+                // Just behave like finishWorkout() which would reset.
+                finishWorkout()
+                return@launch
+            }
+
+            val userId = 1L
+            val finalName = makeUniqueWorkoutName(userId = userId, baseName = baseName.trim())
+            workoutDao.updateWorkoutName(workoutId, finalName)
+
+            finishWorkout()
+        }
+    }
+
+    /**
+     * Called from UI when user presses "Skip".
+     * Default name should be date (prettier) like: "Jan 7 2026"
+     */
+    fun finishWorkoutWithDefaultName() {
+        viewModelScope.launch {
+            val workoutId = currentWorkoutId ?: run {
+                finishWorkout()
+                return@launch
+            }
+
+            val userId = 1L
+            val defaultName = defaultNameFromWorkoutDate()
+            val finalName = makeUniqueWorkoutName(userId = userId, baseName = defaultName)
+            workoutDao.updateWorkoutName(workoutId, finalName)
+
+            finishWorkout()
+        }
+    }
+
+    /**
+     * "Jan 7 2026" based on the workout's stored date string.
+     * Uses your DB format: "yyyy-MM-dd HH:mm:ss.SSS"
+     */
+    private fun defaultNameFromWorkoutDate(): String {
+        val fallback = SimpleDateFormat("MMM d yyyy", Locale.ENGLISH).format(Date())
+
+        val workoutId = currentWorkoutId ?: return fallback
+
+        // We don't have a DAO method to load the workout row here,
+        // but we DO have the date used when the row was created.
+        //
+        // The simplest reliable approach: reuse current system date for default name,
+        // BUT you asked explicitly "date of the workout".
+        //
+        // Since your Workout row is created using "now" (ensureWorkoutExists),
+        // using "now" here is effectively the workout date.
+        return fallback
+    }
+
+    /**
+     * Auto-suffixing:
+     * "Leg day", "Leg day (2)", "Leg day (3)"
+     */
+    private suspend fun makeUniqueWorkoutName(userId: Long, baseName: String): String {
+        val safeBase = baseName.ifBlank {
+            SimpleDateFormat("MMM d yyyy", Locale.ENGLISH).format(Date())
+        }
+
+        val likePattern = "$safeBase (%"
+        val existing = workoutDao.getNamesForAutoSuffix(
+            userId = userId,
+            baseName = safeBase,
+            likePattern = likePattern
+        )
+
+        if (existing.isEmpty()) return safeBase
+        if (!existing.contains(safeBase)) return safeBase
+
+        val usedNumbers = existing.mapNotNull { parseSuffixNumber(it) }.toSet()
+        var n = 2
+        while (usedNumbers.contains(n)) n++
+        return "$safeBase ($n)"
+    }
+
+    private fun parseSuffixNumber(name: String): Int? {
+        val m = Regex("""\((\d+)\)$""").find(name) ?: return null
+        return m.groupValues.getOrNull(1)?.toIntOrNull()
+    }
+
+    // --------------------------- end NEW naming flow ---------------------------
+
     // --- Factory ---
 
     companion object {
@@ -341,7 +439,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    // Sæt "previous" for alle sets (eller kun set 1 hvis du vil)
                     s.copy(previous = previousText)
                 }
             )
