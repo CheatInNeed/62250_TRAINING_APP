@@ -28,21 +28,23 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.gymlocker.data.dao.WorkoutSummary
+import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +54,31 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+
+    // --- NEW: Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    val exerciseLogDao = remember { db.exerciseLogDao() }
+
+    // Same date format as Workout.date in your DB: "yyyy-MM-dd HH:mm:ss.SSS"
+    val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
+
+    val today = LocalDate.now()
+    val startOfWeek = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
+    val endOfWeek = startOfWeek.plusDays(6)
+
+    val startInclusive = startOfWeek.atStartOfDay().format(formatter)
+    val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
+
+    // IMPORTANT: requires this DAO method:
+    // fun observeCompletedWorkoutCountInRange(startInclusive: String, endInclusive: String): Flow<Int>
+    val workoutsThisWeek by exerciseLogDao
+        .observeCompletedWorkoutCountInRange(
+            startInclusive = startInclusive,
+            endInclusive = endInclusive
+        )
+        .collectAsState(initial = 0)
+    // ---------------------------------------------------------------------------------------------
 
     Scaffold(
         topBar = {
@@ -111,6 +138,12 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             }) {
                 Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Weekly consistency (AC: show 0 if none)
+            WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
+
             Spacer(modifier = Modifier.height(16.dp))
             StatsCard()
             Spacer(modifier = Modifier.height(16.dp))
@@ -118,6 +151,17 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 workouts = completedWorkouts,
                 onViewHistoryClick = { navController.navigate("workoutHistory") }
             )
+        }
+    }
+}
+
+@Composable
+fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("This week", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("$workoutsThisWeek workouts this week")
         }
     }
 }
