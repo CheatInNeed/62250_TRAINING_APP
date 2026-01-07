@@ -107,6 +107,12 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
             }
             Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = {
+                navController.navigate("createTemplate")
+            }) {
+                Text("Opret nyt template")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
             StatsCard()
             Spacer(modifier = Modifier.height(16.dp))
             CompletedWorkoutsCard(completedWorkouts)

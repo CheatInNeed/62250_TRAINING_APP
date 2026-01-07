@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.ui.activeworkout.ActiveWorkoutScreen
 import com.example.gymlocker.ui.home.HomeScreen
+import com.example.gymlocker.ui.template.CreateTemplateScreen
 import com.example.gymlocker.ui.workout.WorkoutScreen
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 
@@ -24,5 +25,6 @@ fun AppNavigation() {
         composable("home") { HomeScreen(navController, activeWorkoutViewModel) }
         composable("workout") { WorkoutScreen(navController) }
         composable("activeWorkout") { ActiveWorkoutScreen(navController, activeWorkoutViewModel) }
+        composable("createTemplate") { CreateTemplateScreen(navController) }
     }
 }
