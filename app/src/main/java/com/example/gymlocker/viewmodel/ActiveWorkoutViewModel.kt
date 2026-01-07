@@ -33,6 +33,7 @@ data class ExerciseSetState(
 data class ActiveExerciseState(
     val exerciseId: Long,
     val exerciseName: String,
+    val muscleGroupId: Long,
     val sets: List<ExerciseSetState> = listOf(ExerciseSetState(setNumber = 1))
 )
 
@@ -138,7 +139,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
         _activeExercises.value = existing + ActiveExerciseState(
             exerciseId = exercise.exerciseId,
-            exerciseName = exercise.name
+            exerciseName = exercise.name,
+            muscleGroupId = exercise.muscleGroupId
         )
 
         viewModelScope.launch {
@@ -358,5 +360,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 }
             )
         }
+    }
+
+    suspend fun getMuscleGroupName(id: Long): String {
+        return db.muscleGroupDao().getNameById(id) ?: "Unknown"
     }
 }

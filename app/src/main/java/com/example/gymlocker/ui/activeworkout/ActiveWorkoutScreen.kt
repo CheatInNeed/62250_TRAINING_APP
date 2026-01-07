@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +71,7 @@ fun ActiveWorkoutScreen(
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.startTimer()
@@ -201,7 +203,8 @@ fun ActiveWorkoutScreen(
                             onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
-                            }
+                            },
+                            onOpenDetails = { detailExercise = exercise }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -218,6 +221,15 @@ fun ActiveWorkoutScreen(
                 }
             }
         }
+    }
+
+    detailExercise?.let { ex ->
+        ExerciseDetailsDialog(
+            exerciseName = ex.exerciseName,
+            muscleGroupId = ex.muscleGroupId,
+            viewModel = viewModel,
+            onDismiss = { detailExercise = null }
+        )
     }
 
     if (showAddExerciseSheet) {
@@ -238,7 +250,8 @@ fun ActiveWorkoutExerciseItem(
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
     onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit,
     onDeleteExercise: () -> Unit = {},
-    onDeleteSet: (setNumber: Int) -> Unit = {}
+    onDeleteSet: (setNumber: Int) -> Unit = {},
+    onOpenDetails: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -302,7 +315,8 @@ fun ActiveWorkoutExerciseItem(
         ) {
             Text(
                 text = exercise.exerciseName,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.clickable { onOpenDetails() }
             )
             Box {
                 IconButton(onClick = { showMenu = true }) {
@@ -314,7 +328,19 @@ fun ActiveWorkoutExerciseItem(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Delete exercise") },
+                        text = {
+                            Text(
+                                "Delete exercise",
+                                color = Color.Red
+                            )
+                       },
+                        /*leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },*/
                         onClick = {
                             showMenu = false
                             showDeleteConfirm = true
@@ -323,7 +349,12 @@ fun ActiveWorkoutExerciseItem(
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
-                            text = { Text("Delete sets") },
+                            text = {
+                                Text(
+                                    "Delete sets"
+                                    //color = Color.Red
+                                )
+                           },
                             onClick = {
                                 showMenu = false
                                 deleteSetsMode = true
@@ -506,4 +537,27 @@ fun ActiveWorkoutScreenPreview() {
             ).create(ActiveWorkoutViewModel::class.java)
         )
     }
+}
+
+@Composable
+fun ExerciseDetailsDialog(
+    exerciseName: String,
+    muscleGroupId: Long,
+    viewModel: ActiveWorkoutViewModel,
+    onDismiss: () -> Unit
+) {
+    var muscleGroupName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(muscleGroupId) {
+        muscleGroupName = viewModel.getMuscleGroupName(muscleGroupId) // laver vi lige nedenfor
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(exerciseName) },
+        text = { Text("Muscle group: ${muscleGroupName ?: "Loading..."}") },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
 }
