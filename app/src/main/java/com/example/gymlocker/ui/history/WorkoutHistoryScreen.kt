@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.data.dao.WorkoutSummary
-import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
@@ -41,9 +41,9 @@ enum class HistoryViewMode {
 @Composable
 fun WorkoutHistoryScreen(
     navController: NavController,
-    activeWorkoutViewModel: ActiveWorkoutViewModel
+    viewModel: WorkoutHistoryViewModel
 ) {
-    val workouts by activeWorkoutViewModel
+    val workouts by viewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
 
@@ -81,9 +81,13 @@ fun WorkoutHistoryScreen(
                 }
             } else {
                 if (viewMode == HistoryViewMode.LIST) {
-                    WorkoutList(workouts)
+                    WorkoutList(workouts, onWorkoutClick = { workoutId ->
+                        navController.navigate("workoutDetail/$workoutId")
+                    })
                 } else {
-                    WorkoutCalendar(workouts)
+                    WorkoutCalendar(workouts, onWorkoutClick = { workoutId ->
+                        navController.navigate("workoutDetail/$workoutId")
+                    })
                 }
             }
         }
@@ -91,12 +95,16 @@ fun WorkoutHistoryScreen(
 }
 
 @Composable
-fun WorkoutList(workouts: List<WorkoutSummary>) {
+fun WorkoutList(
+    workouts: List<WorkoutSummary>,
+    onWorkoutClick: (Long) -> Unit
+) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(workouts) { workout ->
             ListItem(
                 headlineContent = { Text(workout.date) },
-                supportingContent = { Text("${workout.exerciseCount} exercises") }
+                supportingContent = { Text("${workout.exerciseCount} exercises") },
+                modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
             )
             HorizontalDivider()
         }
@@ -104,7 +112,10 @@ fun WorkoutList(workouts: List<WorkoutSummary>) {
 }
 
 @Composable
-fun WorkoutCalendar(workouts: List<WorkoutSummary>) {
+fun WorkoutCalendar(
+    workouts: List<WorkoutSummary>,
+    onWorkoutClick: (Long) -> Unit
+) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
     
@@ -162,7 +173,8 @@ fun WorkoutCalendar(workouts: List<WorkoutSummary>) {
                                 }
                                 Text("Workout at $time") 
                             },
-                            supportingContent = { Text("${workout.exerciseCount} exercises") }
+                            supportingContent = { Text("${workout.exerciseCount} exercises") },
+                            modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
                         )
                         HorizontalDivider()
                     }
