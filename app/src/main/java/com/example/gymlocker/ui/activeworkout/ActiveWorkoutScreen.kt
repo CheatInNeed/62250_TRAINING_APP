@@ -58,6 +58,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +106,7 @@ fun ActiveWorkoutScreen(
             TopAppBar(
                 title = { Text("Active Workout") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },

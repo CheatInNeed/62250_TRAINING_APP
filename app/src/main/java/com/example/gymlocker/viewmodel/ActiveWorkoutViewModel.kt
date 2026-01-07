@@ -143,6 +143,16 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             muscleGroupId = exercise.muscleGroupId
         )
 
+        viewModelScope.launch {
+            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
+                exercise.exerciseId,
+                1,
+                currentWorkoutId
+            )
+            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
+            setPreviousForOneSet(exercise.exerciseId, 1, prevText)
+        }
+
         // Create the Workout + ExerciseLog lazily (so it’s ready for set saving)
         viewModelScope.launch {
             val workoutId = ensureWorkoutExists()
@@ -171,6 +181,21 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
         _activeExercises.value = updated
+
+        val newSetNumber = updated
+            .first { it.exerciseId == exerciseId }
+            .sets
+            .maxOf { it.setNumber }
+
+        viewModelScope.launch {
+            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
+                exerciseId,
+                newSetNumber,
+                currentWorkoutId
+            )
+            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
+            setPreviousForOneSet(exerciseId, newSetNumber, prevText)
+        }
     }
 
     fun removeSet(exerciseId: Long, setNumber: Int) {
@@ -308,6 +333,32 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     return ActiveWorkoutViewModel(context.applicationContext) as T
                 }
             }
+        }
+    }
+
+    private fun setPreviousForExercise(exerciseId: Long, previousText: String?) {
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    // Sæt "previous" for alle sets (eller kun set 1 hvis du vil)
+                    s.copy(previous = previousText)
+                }
+            )
+        }
+    }
+
+    private fun formatPrevious(weight: Float, reps: Int): String =
+        "${weight.toInt()} kg x $reps"
+
+    private fun setPreviousForOneSet(exerciseId: Long, setNumber: Int, previousText: String?) {
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    if (s.setNumber == setNumber) s.copy(previous = previousText) else s
+                }
+            )
         }
     }
 

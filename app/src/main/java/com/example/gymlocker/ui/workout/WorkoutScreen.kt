@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.ui.theme.GymLockerTheme
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +39,7 @@ fun WorkoutScreen(navController: NavController) {
             TopAppBar(
                 title = { Text("Workout") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
