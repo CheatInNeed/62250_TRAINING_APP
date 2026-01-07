@@ -44,4 +44,18 @@ interface ExerciseLogDao {
     @Query("DELETE FROM exercise_log WHERE id = :logId")
     suspend fun deleteById(logId: Long)
 
+    @Query(
+        """
+    SELECT COUNT(DISTINCT w.workoutId)
+    FROM workouts w
+    JOIN exercise_log el ON el.workoutId = w.workoutId
+    WHERE w.date >= :startInclusive
+      AND w.date <= :endInclusive
+    """
+    )
+    fun observeCompletedWorkoutCountInRange(
+        startInclusive: String,
+        endInclusive: String
+    ): Flow<Int>
+
 }
