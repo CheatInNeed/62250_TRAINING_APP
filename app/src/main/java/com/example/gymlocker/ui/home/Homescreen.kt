@@ -39,13 +39,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.LaunchedEffect
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,14 +120,7 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             }
             Spacer(modifier = Modifier.height(16.dp))
             TemplatesCard(templates) { templateId ->
-                val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                activeWorkoutViewModel.startWorkoutFromTemplate(
-                    templateId = templateId,
-                    userId = 1L,
-                    date = dateString
-                )
-                // TODO; Needs to navigate to a different template screen
-                navController.navigate("activeWorkout")
+                navController.navigate("templateDetail/$templateId")
             }
             Spacer(modifier = Modifier.height(16.dp))
             StatsCard()

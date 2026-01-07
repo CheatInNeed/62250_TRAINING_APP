@@ -12,6 +12,7 @@ import com.example.gymlocker.ui.activeworkout.ActiveWorkoutScreen
 import com.example.gymlocker.ui.history.WorkoutHistoryScreen
 import com.example.gymlocker.ui.home.HomeScreen
 import com.example.gymlocker.ui.template.CreateTemplateScreen
+import com.example.gymlocker.ui.template.TemplateDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutScreen
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
@@ -42,6 +43,13 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: 0L
             WorkoutDetailScreen(workoutId, navController, historyViewModel)
+        }
+        composable(
+            route = "templateDetail/{templateId}",
+            arguments = listOf(navArgument("templateId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val templateId = backStackEntry.arguments?.getLong("templateId") ?: 0L
+            TemplateDetailScreen(templateId, navController, activeWorkoutViewModel)
         }
     }
 }

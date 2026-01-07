@@ -76,6 +76,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
      */
     fun observeTemplates(userId: Long = 1L) = workoutTemplateDao.observeTemplates(userId)
 
+    /**
+     * Fetch a specific template with its exercises for the detail screen.
+     */
+    suspend fun getTemplateWithExercises(templateId: Long) =
+        workoutTemplateDao.getTemplateWithExercises(templateId)
+
     // --- Timer/state ---
 
     fun startTimer() {
