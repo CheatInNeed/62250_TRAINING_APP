@@ -72,6 +72,7 @@ fun ActiveWorkoutScreen(
     val activeExercises by viewModel.activeExercises.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
+    var showQuickFinishWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.startTimer()
@@ -100,6 +101,29 @@ fun ActiveWorkoutScreen(
             }
         )
     }
+    if (showQuickFinishWarning) {
+        AlertDialog(
+            onDismissRequest = { showQuickFinishWarning = false },
+            title = { Text("Finish workout?") },
+            text = { Text("You are about to finish a workout under 1 minute!") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showQuickFinishWarning = false
+                    viewModel.finishWorkout()
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showQuickFinishWarning = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -116,6 +140,12 @@ fun ActiveWorkoutScreen(
                     }
                     Button(
                         onClick = {
+                            // Pop-up prio over unfinished sets: warn first
+                            if (elapsedTime < 60) {
+                                showQuickFinishWarning = true
+                                return@Button
+                            }
+
                             viewModel.finishWorkout()
                             navController.navigate("home") {
                                 popUpTo("home") { inclusive = true }
