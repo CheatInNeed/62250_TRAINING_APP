@@ -80,4 +80,22 @@ interface PerformedSetDao {
     """
     )
     suspend fun deleteSetByNumber(exerciseLogId: Long, setNumber: Int)
+
+    @Query(
+        """
+    SELECT ps.* FROM performed_set ps
+    JOIN exercise_log el ON el.id = ps.exerciseLogId
+    JOIN workouts w ON w.workoutId = el.workoutId
+    WHERE el.exerciseId = :exerciseId
+      AND ps.setNumber = :setNumber
+      AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+    ORDER BY w.date DESC
+    LIMIT 1
+    """
+    )
+    suspend fun getLatestSetForExerciseAndNumberExcludingWorkout(
+        exerciseId: Long,
+        setNumber: Int,
+        excludeWorkoutId: Long?
+    ): PerformedSet?
 }
