@@ -38,6 +38,13 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.LaunchedEffect
+import com.example.gymlocker.data.entity.template.WorkoutTemplate
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +54,10 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+
+    // Observe templates for default user (1L)
+    val templatesFlow = activeWorkoutViewModel.observeTemplates(1L)
+    val templates by templatesFlow.collectAsState(initial = emptyList())
 
     Scaffold(
         topBar = {
@@ -113,6 +124,17 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 Text("Opret nyt template")
             }
             Spacer(modifier = Modifier.height(16.dp))
+            TemplatesCard(templates) { templateId ->
+                val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                activeWorkoutViewModel.startWorkoutFromTemplate(
+                    templateId = templateId,
+                    userId = 1L,
+                    date = dateString
+                )
+                // TODO; Needs to navigate to a different template screen
+                navController.navigate("activeWorkout")
+            }
+            Spacer(modifier = Modifier.height(16.dp))
             StatsCard()
             Spacer(modifier = Modifier.height(16.dp))
             CompletedWorkoutsCard(completedWorkouts)
@@ -145,6 +167,32 @@ fun CompletedWorkoutsCard(workouts: List<com.example.gymlocker.data.dao.WorkoutS
                 // Vis fx de seneste 5
                 workouts.take(5).forEach { w ->
                     Text("• ${w.date}  –  ${w.exerciseCount} exercises")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TemplatesCard(templates: List<WorkoutTemplate>, onStartFromTemplate: (Long) -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Templates")
+            Spacer(modifier = Modifier.height(8.dp))
+            if (templates.isEmpty()) {
+                Text("No templates yet.")
+            } else {
+                templates.take(5).forEach { t ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onStartFromTemplate(t.templateId) }
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(t.name)
+                        Text(t.date)
+                    }
                 }
             }
         }

@@ -192,5 +192,63 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = armsId
             )
         )
+
+        seedDummyTemplates(userId = 1L)
+
     }
+
+    private suspend fun seedDummyTemplates(userId: Long) {
+        val workoutTemplateDao = workoutTemplateDao()
+        val templateExerciseDao = templateExerciseDao()
+        val templateSetDao = templateSetDao()
+        val exerciseDao = exerciseDao()
+
+        suspend fun exId(name: String): Long =
+            exerciseDao.getExerciseIdByName(name)
+                ?: error("Missing exercise '$name' - did seed exercises run?")
+
+        suspend fun addExerciseWithSets(
+            templateId: Long,
+            exerciseName: String,
+            sets: List<Pair<Float, Int>>
+        ) {
+            val templateExerciseId = templateExerciseDao.insert(
+                TemplateExercise(
+                    templateId = templateId,
+                    exerciseId = exId(exerciseName)
+                )
+            )
+
+            sets.forEachIndexed { index, (weight, reps) ->
+                templateSetDao.insert(
+                    TemplateSet(
+                        templateExerciseId = templateExerciseId,
+                        setNumber = index + 1,
+                        weight = weight,
+                        reps = reps
+                    )
+                )
+            }
+        }
+
+        val pushId = workoutTemplateDao.insert(
+            WorkoutTemplate(date = "2026-01-07", name = "Push (Dummy)", userId = userId)
+        )
+        val pullId = workoutTemplateDao.insert(
+            WorkoutTemplate(date = "2026-01-07", name = "Pull (Dummy)", userId = userId)
+        )
+        val legsId = workoutTemplateDao.insert(
+            WorkoutTemplate(date = "2026-01-07", name = "Legs (Dummy)", userId = userId)
+        )
+
+        addExerciseWithSets(pushId, "Bench Press", listOf(60f to 10, 70f to 8, 75f to 6))
+        addExerciseWithSets(pushId, "Overhead Press", listOf(30f to 10, 35f to 8, 40f to 6))
+        addExerciseWithSets(pushId, "Bicep Curl", listOf(12f to 12, 14f to 10, 16f to 8))
+
+        addExerciseWithSets(pullId, "Barbell Row", listOf(50f to 10, 60f to 8, 65f to 6))
+        addExerciseWithSets(pullId, "Pull-up", listOf(0f to 8, 0f to 8, 0f to 6))
+
+        addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
+    }
+
 }

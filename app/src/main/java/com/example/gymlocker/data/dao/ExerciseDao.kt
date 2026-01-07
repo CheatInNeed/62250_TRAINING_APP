@@ -19,4 +19,8 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercises WHERE exerciseId = :id LIMIT 1")
     suspend fun getById(id: Long): Exercises?
+
+    @Query("SELECT exerciseId FROM exercises WHERE name = :name LIMIT 1")
+    suspend fun getExerciseIdByName(name: String): Long?
+
 }

@@ -67,6 +67,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
      */
     fun completedWorkouts() = workoutDao.getWorkoutSummaries()
 
+    /**
+     * Home screen templates: observe seeded/user templates for the default user (1L).
+     */
+    fun observeTemplates(userId: Long = 1L) = workoutTemplateDao.observeTemplates(userId)
+
     // --- Timer/state ---
 
     fun startTimer() {
