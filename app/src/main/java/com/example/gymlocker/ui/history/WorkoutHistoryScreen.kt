@@ -32,6 +32,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 enum class HistoryViewMode {
     LIST, CALENDAR
@@ -54,7 +55,7 @@ fun WorkoutHistoryScreen(
             TopAppBar(
                 title = { Text("Workout History") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
