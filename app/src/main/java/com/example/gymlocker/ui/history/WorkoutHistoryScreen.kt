@@ -38,6 +38,21 @@ enum class HistoryViewMode {
     LIST, CALENDAR
 }
 
+/**
+ * ✅ Pretty date:
+ * Input: "yyyy-MM-dd HH:mm:ss.SSS"
+ * Output: "Jan 7 2026"
+ */
+private fun prettyWorkoutDate(raw: String): String {
+    return try {
+        val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        val output = DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH)
+        LocalDateTime.parse(raw, input).format(output)
+    } catch (e: Exception) {
+        raw
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutHistoryScreen(
@@ -61,7 +76,8 @@ fun WorkoutHistoryScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        viewMode = if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR else HistoryViewMode.LIST
+                        viewMode =
+                            if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR else HistoryViewMode.LIST
                     }) {
                         Icon(
                             imageVector = if (viewMode == HistoryViewMode.LIST) Icons.Default.DateRange else Icons.AutoMirrored.Filled.List,
@@ -82,13 +98,19 @@ fun WorkoutHistoryScreen(
                 }
             } else {
                 if (viewMode == HistoryViewMode.LIST) {
-                    WorkoutList(workouts, onWorkoutClick = { workoutId ->
-                        navController.navigate("workoutDetail/$workoutId")
-                    })
+                    WorkoutList(
+                        workouts = workouts,
+                        onWorkoutClick = { workoutId ->
+                            navController.navigate("workoutDetail/$workoutId")
+                        }
+                    )
                 } else {
-                    WorkoutCalendar(workouts, onWorkoutClick = { workoutId ->
-                        navController.navigate("workoutDetail/$workoutId")
-                    })
+                    WorkoutCalendar(
+                        workouts = workouts,
+                        onWorkoutClick = { workoutId ->
+                            navController.navigate("workoutDetail/$workoutId")
+                        }
+                    )
                 }
             }
         }
@@ -102,9 +124,13 @@ fun WorkoutList(
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(workouts) { workout ->
+            val prettyDate = prettyWorkoutDate(workout.date)
+
             ListItem(
-                headlineContent = { Text(workout.date) },
-                supportingContent = { Text("${workout.exerciseCount} exercises") },
+                // ✅ "name - Jan 7 2026 - X exercises"
+                headlineContent = {
+                    Text("${workout.name} - $prettyDate - ${workout.exerciseCount} exercises")
+                },
                 modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
             )
             HorizontalDivider()
@@ -119,7 +145,7 @@ fun WorkoutCalendar(
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
-    
+
     val workoutsByDate = remember(workouts) {
         workouts.groupBy {
             try {
@@ -137,25 +163,33 @@ fun WorkoutCalendar(
             currentMonth = currentMonth,
             onMonthChange = { currentMonth = it }
         )
+
         CalendarGrid(
             currentMonth = currentMonth,
             workoutsByDate = workoutsByDate,
             selectedDate = selectedDate,
             onDateSelected = { selectedDate = it }
         )
-        
+
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        
+
         val displayDate = selectedDate
         if (displayDate != null) {
             val dayWorkouts = workoutsByDate[displayDate] ?: emptyList()
+
             Text(
                 text = displayDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy")),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
+
             if (dayWorkouts.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
                         text = "No workouts on this day.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -165,16 +199,22 @@ fun WorkoutCalendar(
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(dayWorkouts) { workout ->
+                        val time = try {
+                            LocalDateTime.parse(workout.date, formatter)
+                                .format(DateTimeFormatter.ofPattern("HH:mm"))
+                        } catch (e: Exception) {
+                            null
+                        }
+
+                        // ✅ show name + time + exercise count
+                        val line = if (time != null) {
+                            "${workout.name} - $time - ${workout.exerciseCount} exercises"
+                        } else {
+                            "${workout.name} - ${workout.exerciseCount} exercises"
+                        }
+
                         ListItem(
-                            headlineContent = { 
-                                val time = try {
-                                    LocalDateTime.parse(workout.date, formatter).format(DateTimeFormatter.ofPattern("HH:mm"))
-                                } catch (e: Exception) {
-                                    "Workout"
-                                }
-                                Text("Workout at $time") 
-                            },
-                            supportingContent = { Text("${workout.exerciseCount} exercises") },
+                            headlineContent = { Text(line) },
                             modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
                         )
                         HorizontalDivider()
@@ -239,9 +279,9 @@ fun CalendarGrid(
                 )
             }
         }
-        
+
         val totalCells = ((firstDayOfMonth + daysInMonth + 6) / 7) * 7
-        
+
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
             modifier = Modifier.height(240.dp),
@@ -254,7 +294,7 @@ fun CalendarGrid(
                     val hasWorkout = workoutsByDate.containsKey(date)
                     val isSelected = date == selectedDate
                     val isToday = date == LocalDate.now()
-                    
+
                     Box(
                         modifier = Modifier
                             .aspectRatio(1f)

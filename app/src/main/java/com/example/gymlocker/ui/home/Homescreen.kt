@@ -39,12 +39,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +58,7 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
         .completedWorkouts()
         .collectAsState(initial = emptyList())
 
-    // --- NEW: Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
+    // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
     val exerciseLogDao = remember { db.exerciseLogDao() }
@@ -70,8 +73,6 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
-    // IMPORTANT: requires this DAO method:
-    // fun observeCompletedWorkoutCountInRange(startInclusive: String, endInclusive: String): Flow<Int>
     val workoutsThisWeek by exerciseLogDao
         .observeCompletedWorkoutCountInRange(
             startInclusive = startInclusive,
@@ -81,9 +82,7 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     // ---------------------------------------------------------------------------------------------
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Home") })
-        },
+        topBar = { TopAppBar(title = { Text("Home") }) },
         bottomBar = {
             Column {
                 if (isWorkoutInProgress) {
@@ -141,12 +140,14 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Weekly consistency (AC: show 0 if none)
             WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
 
             Spacer(modifier = Modifier.height(16.dp))
+
             StatsCard()
+
             Spacer(modifier = Modifier.height(16.dp))
+
             CompletedWorkoutsCard(
                 workouts = completedWorkouts,
                 onViewHistoryClick = { navController.navigate("workoutHistory") }
@@ -172,15 +173,29 @@ fun StatsCard() {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Stats")
             Spacer(modifier = Modifier.height(8.dp))
-            // Placeholder for the graph
             Text("Graph will be here")
         }
     }
 }
 
+/**
+ * ✅ Pretty date:
+ * Input: "yyyy-MM-dd HH:mm:ss.SSS"
+ * Output: "Jan 7 2026"
+ */
+private fun prettyWorkoutDate(raw: String): String {
+    return try {
+        val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        val output = DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH)
+        LocalDateTime.parse(raw, input).format(output)
+    } catch (e: Exception) {
+        raw // fallback
+    }
+}
+
 @Composable
 fun CompletedWorkoutsCard(
-    workouts: List<com.example.gymlocker.data.dao.WorkoutSummary>,
+    workouts: List<WorkoutSummary>,
     onViewHistoryClick: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -191,8 +206,10 @@ fun CompletedWorkoutsCard(
             if (workouts.isEmpty()) {
                 Text("No completed workouts yet.", textAlign = TextAlign.Center)
             } else {
+                // Show latest 5
                 workouts.take(5).forEach { w ->
-                    Text("• ${w.date}  –  ${w.exerciseCount} exercises")
+                    val prettyDate = prettyWorkoutDate(w.date)
+                    Text("• ${w.name} - $prettyDate - ${w.exerciseCount} exercises")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
