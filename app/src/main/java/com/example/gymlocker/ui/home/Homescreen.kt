@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 
@@ -98,7 +99,7 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(onClick = { 
+            Button(onClick = {
                 if (isWorkoutInProgress) {
                     navController.navigate("activeWorkout")
                 } else {
@@ -132,7 +133,7 @@ fun StatsCard() {
 
 @Composable
 fun CompletedWorkoutsCard(
-    workouts: List<com.example.gymlocker.data.dao.WorkoutSummary>,
+    workouts: List<WorkoutSummary>,
     onViewHistoryClick: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -143,11 +144,12 @@ fun CompletedWorkoutsCard(
             if (workouts.isEmpty()) {
                 Text("No completed workouts yet.", textAlign = TextAlign.Center)
             } else {
-                // Vis fx de seneste 5
+                // Show latest 5
                 workouts.take(5).forEach { w ->
-                    Text("• ${w.date}  –  ${w.exerciseCount} exercises")
+                    // ✅ Name + date (and keep count if you want)
+                    Text("• ${w.name}  —  ${w.date}  (${w.exerciseCount} exercises)")
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(
                     onClick = onViewHistoryClick,

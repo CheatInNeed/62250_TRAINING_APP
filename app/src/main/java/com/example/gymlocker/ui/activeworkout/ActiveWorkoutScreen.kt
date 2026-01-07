@@ -59,7 +59,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
-
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +73,15 @@ fun ActiveWorkoutScreen(
     val activeExercises by viewModel.activeExercises.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
+
+    // ✅ New: workout naming dialog state
+    var showNameDialog by remember { mutableStateOf(false) }
+    var workoutNameText by remember { mutableStateOf("") }
+
+    // Default name = date (yyyy-MM-dd)
+    val defaultWorkoutName = remember {
+        LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.startTimer()
@@ -101,6 +111,75 @@ fun ActiveWorkoutScreen(
         )
     }
 
+    // ✅ New: Name workout dialog shown after pressing Finish
+    if (showNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showNameDialog = false },
+            title = { Text("Name your workout") },
+            text = {
+                Column {
+                    Text(
+                        text = "Give this workout a name (optional).",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TextField(
+                        value = workoutNameText,
+                        onValueChange = { workoutNameText = it },
+                        singleLine = true,
+                        placeholder = { Text("e.g. Legs, Push day, Upper body…") }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Skip will save it as: $defaultWorkoutName",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                // "Save" (typed name) — allowed only when not blank
+                Button(
+                    onClick = {
+                        viewModel.finishWorkout(workoutNameText)
+                        showNameDialog = false
+                        workoutNameText = ""
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
+                        }
+                    },
+                    enabled = workoutNameText.trim().isNotEmpty()
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // ✅ Skip button => use default name (date)
+                    TextButton(
+                        onClick = {
+                            viewModel.finishWorkout(defaultWorkoutName)
+                            showNameDialog = false
+                            workoutNameText = ""
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        }
+                    ) {
+                        Text("Skip")
+                    }
+
+                    // Cancel just closes the dialog
+                    TextButton(onClick = { showNameDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -116,10 +195,8 @@ fun ActiveWorkoutScreen(
                     }
                     Button(
                         onClick = {
-                            viewModel.finishWorkout()
-                            navController.navigate("home") {
-                                popUpTo("home") { inclusive = true }
-                            }
+                            // ✅ Instead of immediately finishing, show naming popup
+                            showNameDialog = true
                         },
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
@@ -191,7 +268,6 @@ fun ActiveWorkoutScreen(
                             exercise = exercise,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onWeightChange = { setNumber, text ->
-
                                 viewModel.updateSetWeight(exercise.exerciseId, setNumber, text)
                             },
                             onRepsChange = { setNumber, text ->
@@ -281,27 +357,24 @@ fun ActiveWorkoutExerciseItem(
 
     //TODO Måske fedt at have
 
-/*
-    if (pendingDeleteSetNumber != null) {
-        AlertDialog(
-            onDismissRequest = { pendingDeleteSetNumber = null },
-            title = { Text("Delete set?") },
-            text = { Text("Are you sure you want to delete this set?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDeleteSet(pendingDeleteSetNumber!!)
-                    pendingDeleteSetNumber = null
-                }) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingDeleteSetNumber = null }) { Text("Cancel") }
-            }
-        )
-    }
-
- */
-
-
+    /*
+        if (pendingDeleteSetNumber != null) {
+            AlertDialog(
+                onDismissRequest = { pendingDeleteSetNumber = null },
+                title = { Text("Delete set?") },
+                text = { Text("Are you sure you want to delete this set?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onDeleteSet(pendingDeleteSetNumber!!)
+                        pendingDeleteSetNumber = null
+                    }) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteSetNumber = null }) { Text("Cancel") }
+                }
+            )
+        }
+     */
 
     Column(
         modifier = Modifier
@@ -333,14 +406,7 @@ fun ActiveWorkoutExerciseItem(
                                 "Delete exercise",
                                 color = Color.Red
                             )
-                       },
-                        /*leadingIcon = {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        },*/
+                        },
                         onClick = {
                             showMenu = false
                             showDeleteConfirm = true
@@ -349,12 +415,7 @@ fun ActiveWorkoutExerciseItem(
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
-                            text = {
-                                Text(
-                                    "Delete sets"
-                                    //color = Color.Red
-                                )
-                           },
+                            text = { Text("Delete sets") },
                             onClick = {
                                 showMenu = false
                                 deleteSetsMode = true
@@ -392,10 +453,12 @@ fun ActiveWorkoutExerciseItem(
             ExerciseSetRow(
                 set = set,
                 deleteMode = deleteSetsMode,
-                onDelete = { onDeleteSet(set.setNumber)
+                onDelete = {
+                    onDeleteSet(set.setNumber)
                     if (exercise.sets.size <= 2) {
                         deleteSetsMode = false
-                } },
+                    }
+                },
                 onWeightChange = { onWeightChange(set.setNumber, it) },
                 onRepsChange = { onRepsChange(set.setNumber, it) },
                 onToggleDone = { onToggleDone(set.setNumber, it) }
@@ -411,7 +474,6 @@ fun ActiveWorkoutExerciseItem(
         }
     }
 }
-
 
 @Composable
 fun ExerciseSetRow(
@@ -452,7 +514,7 @@ fun ExerciseSetRow(
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center
         )
-        val weightAndRepsInputFieldTransparancyModifier: Float = 0.15f;
+        val weightAndRepsInputFieldTransparancyModifier: Float = 0.15f
 
         // KG input
         Box(
@@ -524,7 +586,6 @@ fun ExerciseSetRow(
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

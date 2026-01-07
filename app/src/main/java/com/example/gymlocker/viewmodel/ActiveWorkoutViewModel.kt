@@ -275,8 +275,45 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
     }
+    private suspend fun makeUniqueWorkoutNameForUser(userId: Long, baseNameRaw: String): String {
+        val baseName = baseNameRaw.trim()
 
-    fun finishWorkout() {
+        // If user entered nothing meaningful, fallback to whatever name the workout already has.
+        // (We'll just not update in that case, handled by caller)
+        if (baseName.isBlank()) return baseName
+
+        // Room "LIKE" pattern: "Base (" then anything after
+        val likePattern = "$baseName (%"
+
+        val existingNames = workoutDao.getNamesForAutoSuffix(
+            userId = userId,
+            baseName = baseName,
+            likePattern = likePattern
+        )
+
+        // If baseName itself is not taken, we can use it as-is.
+        if (existingNames.none { it == baseName }) return baseName
+
+        // Parse suffix numbers: "Base (2)", "Base (3)" ...
+        val regex = Regex("^${Regex.escape(baseName)} \\((\\d+)\\)$")
+
+        val used = mutableSetOf<Int>()
+        used.add(1) // baseName itself is taken -> treat as suffix 1 used
+
+        existingNames.forEach { n ->
+            val m = regex.matchEntire(n)
+            val num = m?.groupValues?.getOrNull(1)?.toIntOrNull()
+            if (num != null) used.add(num)
+        }
+
+        // Pick the smallest available suffix starting from 2
+        var candidate = 2
+        while (used.contains(candidate)) candidate++
+
+        return "$baseName ($candidate)"
+    }
+
+    fun finishWorkout(workoutNameInput: String?) {
         viewModelScope.launch {
             val workoutId = currentWorkoutId
 
@@ -284,6 +321,15 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (workoutId == null) {
                 resetLocalState()
                 return@launch
+            }
+
+            val userId = 1L // matches your current approach in ensureWorkoutExists()
+
+            // ✅ 1) Store the name (with auto-suffix) BEFORE resetting state
+            val typed = workoutNameInput?.trim().orEmpty()
+            if (typed.isNotBlank()) {
+                val uniqueName = makeUniqueWorkoutNameForUser(userId, typed)
+                workoutDao.updateWorkoutName(workoutId, uniqueName)
             }
 
             val snapshot = _activeExercises.value
@@ -322,6 +368,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             resetLocalState()
         }
     }
+
 
     // --- Factory ---
 
