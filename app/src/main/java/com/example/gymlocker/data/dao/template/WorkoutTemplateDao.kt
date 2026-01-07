@@ -2,6 +2,7 @@ package com.example.gymlocker.data.dao.template
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.example.gymlocker.data.entity.template.*
@@ -10,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WorkoutTemplateDao {
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(template: WorkoutTemplate): Long
 
     @Query("DELETE FROM workout_templates WHERE templateId = :templateId")
@@ -25,4 +26,7 @@ interface WorkoutTemplateDao {
     @Transaction
     @Query("SELECT * FROM workout_templates WHERE templateId = :templateId")
     suspend fun getTemplateWithExercises(templateId: Long): WorkoutTemplateWithExercises?
+
+    @Query("SELECT COUNT(*) FROM workout_templates WHERE userId = :userId")
+    suspend fun countTemplatesByUserId(userId: Long): Int
 }

@@ -397,6 +397,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String,
         nameOverride: String? = null
     ) {
+        // Guard: don't start a new workout if one is already in progress
+        if (_isWorkoutInProgress.value || currentWorkoutId != null) return
+
         viewModelScope.launch {
             // 1) Load template structure
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)

@@ -194,6 +194,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     private suspend fun seedDummyTemplates(userId: Long) {
         val workoutTemplateDao = workoutTemplateDao()
+
+        // Guard: don't seed templates twice
+        val existingCount = runCatching {
+            workoutTemplateDao.countTemplatesByUserId(userId)
+        }.getOrNull() ?: 0
+        if (existingCount > 0) return
+
         val templateExerciseDao = templateExerciseDao()
         val templateSetDao = templateSetDao()
         val exerciseDao = exerciseDao()
