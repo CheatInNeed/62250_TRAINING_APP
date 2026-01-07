@@ -84,10 +84,6 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 
-    /**
-     * Seeds default data once after DB creation.
-     * This callback is safe (it uses the DB instance that was built, not INSTANCE?).
-     */
     private class SeedCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
@@ -99,7 +95,6 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
     }
-
     /**
      * Only inserts seed data if the DB looks empty.
      * Adjust the count() calls to match your DAO APIs.

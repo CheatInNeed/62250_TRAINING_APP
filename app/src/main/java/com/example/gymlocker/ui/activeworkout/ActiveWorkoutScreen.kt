@@ -53,6 +53,12 @@ import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,7 +104,7 @@ fun ActiveWorkoutScreen(
             TopAppBar(
                 title = { Text("Active Workout") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -193,7 +199,10 @@ fun ActiveWorkoutScreen(
                             onToggleDone = { setNumber, checked ->
                                 viewModel.toggleSetDone(exercise.exerciseId, setNumber, checked)
                             },
-                            onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) }
+                            onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
+                            onDeleteSet = { setNumber ->
+                                viewModel.removeSet(exercise.exerciseId, setNumber)
+                            }
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -229,9 +238,13 @@ fun ActiveWorkoutExerciseItem(
     onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
     onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit,
-    onDeleteExercise: () -> Unit = {}
+    onDeleteExercise: () -> Unit = {},
+    onDeleteSet: (setNumber: Int) -> Unit = {}
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var deleteSetsMode by remember { mutableStateOf(false) }
+    //var pendingDeleteSetNumber by remember { mutableStateOf<Int?>(null) }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -254,6 +267,30 @@ fun ActiveWorkoutExerciseItem(
         )
     }
 
+    //TODO Måske fedt at have
+
+/*
+    if (pendingDeleteSetNumber != null) {
+        AlertDialog(
+            onDismissRequest = { pendingDeleteSetNumber = null },
+            title = { Text("Delete set?") },
+            text = { Text("Are you sure you want to delete this set?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDeleteSet(pendingDeleteSetNumber!!)
+                    pendingDeleteSetNumber = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteSetNumber = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+ */
+
+
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -268,13 +305,41 @@ fun ActiveWorkoutExerciseItem(
                 text = exercise.exerciseName,
                 style = MaterialTheme.typography.titleMedium
             )
-            TextButton(
-                onClick = { showDeleteConfirm = true },
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("Delete")
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Delete exercise") },
+                        onClick = {
+                            showMenu = false
+                            showDeleteConfirm = true
+                        }
+                    )
+
+                    if (!deleteSetsMode) {
+                        DropdownMenuItem(
+                            text = { Text("Delete sets") },
+                            onClick = {
+                                showMenu = false
+                                deleteSetsMode = true
+                            }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text("Done deleting sets") },
+                            onClick = {
+                                showMenu = false
+                                deleteSetsMode = false
+                            }
+                        )
+                    }
+                }
             }
         }
 
@@ -296,6 +361,11 @@ fun ActiveWorkoutExerciseItem(
         exercise.sets.forEach { set ->
             ExerciseSetRow(
                 set = set,
+                deleteMode = deleteSetsMode,
+                onDelete = { onDeleteSet(set.setNumber)
+                    if (exercise.sets.size <= 2) {
+                        deleteSetsMode = false
+                } },
                 onWeightChange = { onWeightChange(set.setNumber, it) },
                 onRepsChange = { onRepsChange(set.setNumber, it) },
                 onToggleDone = { onToggleDone(set.setNumber, it) }
@@ -316,17 +386,24 @@ fun ActiveWorkoutExerciseItem(
 @Composable
 fun ExerciseSetRow(
     set: ExerciseSetState,
+    deleteMode: Boolean,
+    onDelete: () -> Unit,
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
     onToggleDone: (Boolean) -> Unit
 ) {
-    val rowModifier = if (set.isDone) {
-        Modifier
+    val rowModifier = when {
+        deleteMode -> Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .background(MaterialTheme.colorScheme.errorContainer)
+
+        set.isDone -> Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .background(Color(0x8834C759))
-    } else {
-        Modifier
+
+        else -> Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
     }
@@ -404,6 +481,17 @@ fun ExerciseSetRow(
             onCheckedChange = onToggleDone,
             modifier = Modifier.weight(0.4f)
         )
+
+        if (deleteMode) {
+            TextButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Delete")
+            }
+        }
     }
 }
 

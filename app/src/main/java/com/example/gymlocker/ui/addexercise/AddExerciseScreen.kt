@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.dp
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.Exercises
 
+enum class ExerciseFilterMode { BY_NAME, BY_MUSCLE_GROUP }
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExerciseSheet(
@@ -33,6 +36,14 @@ fun AddExerciseSheet(
 
     var searchQuery by remember { mutableStateOf("") }
 
+    var filterMode by remember { mutableStateOf(ExerciseFilterMode.BY_NAME) }
+    var selectedMuscleGroupId by remember { mutableStateOf<Long?>(null) } // null = "All"
+    var showMuscleGroupMenu by remember { mutableStateOf(false) }
+
+    val allMuscleGroups by db.muscleGroupDao()
+        .getAllMuscleGroups()
+        .collectAsState(initial = emptyList())
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState
@@ -47,6 +58,64 @@ fun AddExerciseSheet(
                 Text("Add Exercise")
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Sort by musclegroup
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = filterMode == ExerciseFilterMode.BY_NAME,
+                        onClick = {
+                            filterMode = ExerciseFilterMode.BY_NAME
+                            selectedMuscleGroupId = null
+                            showMuscleGroupMenu = false
+                        },
+                        label = { Text("By name") }
+                    )
+
+                    Box {
+                        FilterChip(
+                            selected = filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP,
+                            onClick = {
+                                filterMode = ExerciseFilterMode.BY_MUSCLE_GROUP
+                                showMuscleGroupMenu = true
+                            },
+                            label = {
+                                val selectedName = allMuscleGroups
+                                    .firstOrNull { it.muscleGroupId == selectedMuscleGroupId }
+                                    ?.name
+
+                                Text(selectedName?.let { "Muscle: $it" } ?: "By muscle group")
+                            }
+                        )
+
+                        DropdownMenu(
+                            expanded = showMuscleGroupMenu,
+                            onDismissRequest = { showMuscleGroupMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("All muscle groups") },
+                                onClick = {
+                                    selectedMuscleGroupId = null
+                                    showMuscleGroupMenu = false
+                                }
+                            )
+
+                            allMuscleGroups.forEach { mg ->
+                                DropdownMenuItem(
+                                    text = { Text(mg.name) },
+                                    onClick = {
+                                        selectedMuscleGroupId = mg.muscleGroupId
+                                        showMuscleGroupMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 TextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -56,13 +125,19 @@ fun AddExerciseSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val filtered = if (searchQuery.isBlank()) {
-                    allExercises
-                } else {
-                    allExercises.filter {
-                        it.name.contains(searchQuery, ignoreCase = true)
+                val filtered = allExercises
+                    // 1) altid: search på navn (hvis der er noget i searchQuery)
+                    .filter { ex ->
+                        searchQuery.isBlank() || ex.name.contains(searchQuery, ignoreCase = true)
                     }
-                }
+                    // 2) hvis muscle-mode: filtrér også på valgt muskelgruppe
+                    .filter { ex ->
+                        if (filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP) {
+                            selectedMuscleGroupId == null || ex.muscleGroupId == selectedMuscleGroupId
+                        } else {
+                            true
+                        }
+                    }
 
                 LazyColumn(
                     modifier = Modifier

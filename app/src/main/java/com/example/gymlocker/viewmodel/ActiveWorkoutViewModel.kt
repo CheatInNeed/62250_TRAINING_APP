@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -51,6 +53,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private var timerJob: Job? = null
 
     private var currentWorkoutId: Long? = null
+
+    private val workoutCreateMutex = Mutex()
 
     private val _elapsedTime = MutableStateFlow(0L)
     val elapsedTime: StateFlow<Long> = _elapsedTime.asStateFlow()
@@ -114,14 +118,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     // --- Core: Option A persistence helpers ---
 
-    private suspend fun ensureWorkoutExists(): Long {
+    private suspend fun ensureWorkoutExists(): Long = workoutCreateMutex.withLock {
         val existing = currentWorkoutId
         if (existing != null) return existing
 
-        // You currently have no login/user selection; we rely on the seeded default userId = 1
         val userId = 1L
-
-        val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(Date())
         val name = "Workout $dateString"
 
         val workoutId = workoutDao.insert(
@@ -133,7 +135,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         )
 
         currentWorkoutId = workoutId
-        return workoutId
+        workoutId
     }
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
@@ -150,6 +152,16 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             exerciseId = exercise.exerciseId,
             exerciseName = exercise.name
         )
+
+        viewModelScope.launch {
+            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
+                exercise.exerciseId,
+                1,
+                currentWorkoutId
+            )
+            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
+            setPreviousForOneSet(exercise.exerciseId, 1, prevText)
+        }
 
         // Create the Workout + ExerciseLog lazily (so it’s ready for set saving)
         viewModelScope.launch {
@@ -179,6 +191,44 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
         _activeExercises.value = updated
+
+        val newSetNumber = updated
+            .first { it.exerciseId == exerciseId }
+            .sets
+            .maxOf { it.setNumber }
+
+        viewModelScope.launch {
+            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
+                exerciseId,
+                newSetNumber,
+                currentWorkoutId
+            )
+            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
+            setPreviousForOneSet(exerciseId, newSetNumber, prevText)
+        }
+    }
+
+    fun removeSet(exerciseId: Long, setNumber: Int) {
+        // 1) Fjern lokalt i UI-state
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else {
+                val newSets = ex.sets
+                    .filterNot { it.setNumber == setNumber }
+                    // renummerér kun i UI, så I stadig har 1..N efter sletning
+                    .mapIndexed { index, s -> s.copy(setNumber = index + 1) }
+
+                // hvis ingen sets tilbage, så behold én tom set-række
+                ex.copy(sets = if (newSets.isEmpty()) listOf(ExerciseSetState(setNumber = 1)) else newSets)
+            }
+        }
+
+        // 2) Slet i DB (hvis workout+log allerede findes)
+        viewModelScope.launch {
+            val workoutId = currentWorkoutId ?: return@launch
+            val logId = exerciseLogDao.getLogId(workoutId, exerciseId) ?: return@launch
+            performedSetDao.deleteSetByNumber(logId, setNumber)
+        }
     }
 
     fun updateSetWeight(exerciseId: Long, setNumber: Int, weight: String) {
@@ -410,4 +460,30 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+
+    private fun setPreviousForExercise(exerciseId: Long, previousText: String?) {
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    // Sæt "previous" for alle sets (eller kun set 1 hvis du vil)
+                    s.copy(previous = previousText)
+                }
+            )
+        }
+    }
+
+    private fun formatPrevious(weight: Float, reps: Int): String =
+        "${weight.toInt()} kg x $reps"
+
+    private fun setPreviousForOneSet(exerciseId: Long, setNumber: Int, previousText: String?) {
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(
+                sets = ex.sets.map { s ->
+                    if (s.setNumber == setNumber) s.copy(previous = previousText) else s
+                }
+            )
+        }
+    }
 }
