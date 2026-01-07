@@ -312,7 +312,19 @@ fun ActiveWorkoutExerciseItem(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Delete exercise") },
+                        text = {
+                            Text(
+                                "Delete exercise",
+                                color = Color.Red
+                            )
+                       },
+                        /*leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },*/
                         onClick = {
                             showMenu = false
                             showDeleteConfirm = true
@@ -321,7 +333,12 @@ fun ActiveWorkoutExerciseItem(
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
-                            text = { Text("Delete sets") },
+                            text = {
+                                Text(
+                                    "Delete sets"
+                                    //color = Color.Red
+                                )
+                           },
                             onClick = {
                                 showMenu = false
                                 deleteSetsMode = true
