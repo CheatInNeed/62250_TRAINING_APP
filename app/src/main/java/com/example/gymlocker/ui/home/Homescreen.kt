@@ -40,6 +40,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,7 +128,6 @@ fun StatsCard() {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Stats")
             Spacer(modifier = Modifier.height(8.dp))
-            // Placeholder for the graph
             Text("Graph will be here")
         }
     }
@@ -144,10 +146,10 @@ fun CompletedWorkoutsCard(
             if (workouts.isEmpty()) {
                 Text("No completed workouts yet.", textAlign = TextAlign.Center)
             } else {
-                // Show latest 5
                 workouts.take(5).forEach { w ->
-                    // ✅ Name + date (and keep count if you want)
-                    Text("• ${w.name}  —  ${w.date}  (${w.exerciseCount} exercises)")
+                    Text(
+                        text = "• ${w.name} — ${formatWorkoutDatePretty(w.date)} • ${w.exerciseCount} exercises"
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -159,6 +161,22 @@ fun CompletedWorkoutsCard(
                 }
             }
         }
+    }
+}
+
+/**
+ * Converts:
+ * "2026-01-07 14:33:12.456" → "Jan 7, 2026"
+ */
+private fun formatWorkoutDatePretty(raw: String): String {
+    return try {
+        val datePart = raw.substringBefore(" ")
+        val parsed = LocalDate.parse(datePart)
+        parsed.format(
+            DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH)
+        )
+    } catch (e: Exception) {
+        raw.substringBefore(" ")
     }
 }
 

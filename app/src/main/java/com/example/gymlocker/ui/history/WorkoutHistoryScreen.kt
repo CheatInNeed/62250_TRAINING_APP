@@ -61,7 +61,8 @@ fun WorkoutHistoryScreen(
                 },
                 actions = {
                     IconButton(onClick = {
-                        viewMode = if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR else HistoryViewMode.LIST
+                        viewMode =
+                            if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR else HistoryViewMode.LIST
                     }) {
                         Icon(
                             imageVector = if (viewMode == HistoryViewMode.LIST) Icons.Default.DateRange else Icons.AutoMirrored.Filled.List,
@@ -103,8 +104,11 @@ fun WorkoutList(
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(workouts) { workout ->
             ListItem(
-                headlineContent = { Text(workout.date) },
-                supportingContent = { Text("${workout.exerciseCount} exercises") },
+                // ✅ Same style as Home: Name — Date • X exercises
+                headlineContent = { Text(workout.name) },
+                supportingContent = {
+                    Text("${formatWorkoutDatePretty(workout.date)} • ${workout.exerciseCount} exercises")
+                },
                 modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
             )
             HorizontalDivider()
@@ -119,13 +123,18 @@ fun WorkoutCalendar(
 ) {
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
-    
+
     val workoutsByDate = remember(workouts) {
         workouts.groupBy {
             try {
                 LocalDateTime.parse(it.date, formatter).toLocalDate()
             } catch (e: Exception) {
-                null
+                // fallback: try to parse "yyyy-MM-dd" only
+                try {
+                    LocalDate.parse(it.date.substringBefore(" ")).also { _ -> }
+                } catch (_: Exception) {
+                    null
+                }
             }
         }.filterKeys { it != null }.mapKeys { it.key!! }
     }
@@ -143,19 +152,26 @@ fun WorkoutCalendar(
             selectedDate = selectedDate,
             onDateSelected = { selectedDate = it }
         )
-        
+
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        
+
         val displayDate = selectedDate
         if (displayDate != null) {
             val dayWorkouts = workoutsByDate[displayDate] ?: emptyList()
+
             Text(
-                text = displayDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy")),
+                text = displayDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH)),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
+
             if (dayWorkouts.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
                         text = "No workouts on this day.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -166,15 +182,11 @@ fun WorkoutCalendar(
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(dayWorkouts) { workout ->
                         ListItem(
-                            headlineContent = { 
-                                val time = try {
-                                    LocalDateTime.parse(workout.date, formatter).format(DateTimeFormatter.ofPattern("HH:mm"))
-                                } catch (e: Exception) {
-                                    "Workout"
-                                }
-                                Text("Workout at $time") 
+                            // ✅ Keep it simple like Home: show the workout name
+                            headlineContent = { Text(workout.name) },
+                            supportingContent = {
+                                Text("${formatWorkoutDatePretty(workout.date)} • ${workout.exerciseCount} exercises")
                             },
-                            supportingContent = { Text("${workout.exerciseCount} exercises") },
                             modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
                         )
                         HorizontalDivider()
@@ -239,9 +251,9 @@ fun CalendarGrid(
                 )
             }
         }
-        
+
         val totalCells = ((firstDayOfMonth + daysInMonth + 6) / 7) * 7
-        
+
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
             modifier = Modifier.height(240.dp),
@@ -254,7 +266,7 @@ fun CalendarGrid(
                     val hasWorkout = workoutsByDate.containsKey(date)
                     val isSelected = date == selectedDate
                     val isToday = date == LocalDate.now()
-                    
+
                     Box(
                         modifier = Modifier
                             .aspectRatio(1f)
@@ -295,5 +307,20 @@ fun CalendarGrid(
                 }
             }
         }
+    }
+}
+
+/**
+ * Converts:
+ * "2026-01-07 14:33:12.456" → "Jan 7, 2026"
+ * or if stored as "2026-01-07" → "Jan 7, 2026"
+ */
+private fun formatWorkoutDatePretty(raw: String): String {
+    return try {
+        val datePart = raw.substringBefore(" ").trim()
+        val parsed = LocalDate.parse(datePart)
+        parsed.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
+    } catch (e: Exception) {
+        raw.substringBefore(" ").trim()
     }
 }
