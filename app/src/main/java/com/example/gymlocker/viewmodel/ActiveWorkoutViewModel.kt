@@ -28,8 +28,13 @@ data class ExerciseSetState(
     val weight: Int = 0,
     val reps: Int = 0,
     val isDone: Boolean = false,
-    val previous: String? = null
+    val previous: String? = null,
+
+    // NEW: visual hint flags for opacity
+    val isWeightPrefilled: Boolean = false,
+    val isRepsPrefilled: Boolean = false
 )
+
 
 // Én øvelse i den aktive workout
 data class ActiveExerciseState(
@@ -139,20 +144,54 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         val existing = _activeExercises.value
         if (existing.any { it.exerciseId == exercise.exerciseId }) return
 
+        // Add placeholder exercise first (so UI shows it immediately)
         _activeExercises.value = existing + ActiveExerciseState(
             exerciseId = exercise.exerciseId,
             exerciseName = exercise.name,
-            muscleGroupId = exercise.muscleGroupId
+            muscleGroupId = exercise.muscleGroupId,
+            sets = listOf(ExerciseSetState(setNumber = 1))
         )
 
         viewModelScope.launch {
-            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
-                exercise.exerciseId,
-                1,
-                currentWorkoutId
+            // Find latest workout containing this exercise (excluding current in-progress workout)
+            val latestWorkoutId = performedSetDao.getLatestWorkoutIdForExerciseExcludingWorkout(
+                exerciseId = exercise.exerciseId,
+                excludeWorkoutId = currentWorkoutId
             )
-            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
-            setPreviousForOneSet(exercise.exerciseId, 1, prevText)
+
+            if (latestWorkoutId == null) {
+                // No previous data -> keep default single empty set
+                // previous will be shown as "-" by UI already
+                return@launch
+            }
+
+            val previousSets = performedSetDao.getPerformedSetsForExerciseInWorkout(
+                workoutId = latestWorkoutId,
+                exerciseId = exercise.exerciseId
+            )
+
+            if (previousSets.isEmpty()) return@launch
+
+            // Convert previous performed sets to UI sets
+            val clonedSets = previousSets.map { ps ->
+                val w = ps.weight.toInt()
+                val r = ps.reps
+                ExerciseSetState(
+                    setNumber = ps.setNumber,
+                    weight = w,
+                    reps = r,
+                    isDone = false, // never auto-complete
+                    previous = formatPrevious(ps.weight, ps.reps),
+                    isWeightPrefilled = true,
+                    isRepsPrefilled = true
+                )
+            }
+
+            // Apply cloned sets to the exercise in UI state
+            _activeExercises.value = _activeExercises.value.map { ex ->
+                if (ex.exerciseId != exercise.exerciseId) ex
+                else ex.copy(sets = clonedSets)
+            }
         }
 
         // Create the Workout + ExerciseLog lazily (so it’s ready for set saving)
@@ -161,6 +200,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             exerciseLogDao.getOrCreateLogId(workoutId, exercise.exerciseId)
         }
     }
+
 
     fun removeExercise(exerciseId: Long) {
         _activeExercises.value = _activeExercises.value.filterNot { it.exerciseId == exerciseId }
@@ -191,14 +231,39 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
         viewModelScope.launch {
             val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
-                exerciseId,
-                newSetNumber,
-                currentWorkoutId
+                exerciseId = exerciseId,
+                setNumber = newSetNumber,
+                excludeWorkoutId = currentWorkoutId
             )
-            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
-            setPreviousForOneSet(exerciseId, newSetNumber, prevText)
+
+            if (latest == null) {
+                // no previous -> show "-" in previous column (already handled by UI)
+                setPreviousForOneSet(exerciseId, newSetNumber, null)
+                return@launch
+            }
+
+            val prevText = formatPrevious(latest.weight, latest.reps)
+
+            // Update the new set with prefilled values + flags + previous text
+            _activeExercises.value = _activeExercises.value.map { ex ->
+                if (ex.exerciseId != exerciseId) ex
+                else ex.copy(
+                    sets = ex.sets.map { s ->
+                        if (s.setNumber == newSetNumber) {
+                            s.copy(
+                                weight = latest.weight.toInt(),
+                                reps = latest.reps,
+                                previous = prevText,
+                                isWeightPrefilled = true,
+                                isRepsPrefilled = true
+                            )
+                        } else s
+                    }
+                )
+            }
         }
     }
+
 
     fun removeSet(exerciseId: Long, setNumber: Int) {
         // 1) Fjern lokalt i UI-state
@@ -229,7 +294,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    if (s.setNumber == setNumber) s.copy(weight = w) else s
+                    if (s.setNumber == setNumber) s.copy(weight = w, isWeightPrefilled = false)
+                    else s
                 }
             )
         }
@@ -241,11 +307,13 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    if (s.setNumber == setNumber) s.copy(reps = r) else s
+                    if (s.setNumber == setNumber) s.copy(reps = r, isRepsPrefilled = false)
+                    else s
                 }
             )
         }
     }
+
 
     fun toggleSetDone(exerciseId: Long, setNumber: Int, isDone: Boolean) {
         val before = _activeExercises.value.firstOrNull { it.exerciseId == exerciseId } ?: return
