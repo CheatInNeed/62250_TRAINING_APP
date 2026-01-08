@@ -266,27 +266,28 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
 
     fun removeSet(exerciseId: Long, setNumber: Int) {
-        // 1) Fjern lokalt i UI-state
+        // 1) Remove locally in UI-state
         _activeExercises.value = _activeExercises.value.map { ex ->
             if (ex.exerciseId != exerciseId) ex
             else {
                 val newSets = ex.sets
                     .filterNot { it.setNumber == setNumber }
-                    // renummerér kun i UI, så I stadig har 1..N efter sletning
+                    // Renumber (only for UI)
                     .mapIndexed { index, s -> s.copy(setNumber = index + 1) }
 
-                // hvis ingen sets tilbage, så behold én tom set-række
-                ex.copy(sets = if (newSets.isEmpty()) listOf(ExerciseSetState(setNumber = 1)) else newSets)
+                // ✅ Allow empty list (exercise can exist with 0 sets)
+                ex.copy(sets = newSets)
             }
         }
 
-        // 2) Slet i DB (hvis workout+log allerede findes)
+        // 2) Delete from DB (if workout+log already exists)
         viewModelScope.launch {
             val workoutId = currentWorkoutId ?: return@launch
             val logId = exerciseLogDao.getLogId(workoutId, exerciseId) ?: return@launch
             performedSetDao.deleteSetByNumber(logId, setNumber)
         }
     }
+
 
     fun updateSetWeight(exerciseId: Long, setNumber: Int, weight: String) {
         val w = weight.toIntOrNull() ?: 0
