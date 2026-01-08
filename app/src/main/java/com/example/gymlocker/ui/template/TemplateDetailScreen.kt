@@ -27,8 +27,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplateWithExercises
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import java.text.SimpleDateFormat
@@ -121,10 +123,7 @@ fun TemplateDetailScreen(
 
                 LazyColumn {
                     items(template.exercises) { exerciseWithSets ->
-                        ExerciseCard(
-                            exerciseWithSets,
-                            exerciseName = "Exercise #${exerciseWithSets.templateExercise.exerciseId}"
-                        )
+                        ExerciseCard(exerciseWithSets)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -147,10 +146,19 @@ fun ExerciseCard(
     exerciseWithSets: com.example.gymlocker.data.entity.template.TemplateExerciseWithSets,
     exerciseName: String = "Unknown Exercise"
 ) {
+    val context = LocalContext.current
+    val fetchedExerciseName = remember { mutableStateOf(exerciseName) }
+
+    LaunchedEffect(exerciseWithSets.templateExercise.exerciseId) {
+        val db = AppDatabase.getDatabase(context)
+        val exercise = db.exerciseDao().getById(exerciseWithSets.templateExercise.exerciseId)
+        fetchedExerciseName.value = exercise?.name ?: "Unknown Exercise"
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = exerciseName,
+                text = fetchedExerciseName.value,
                 style = MaterialTheme.typography.titleSmall
             )
             Spacer(modifier = Modifier.height(8.dp))
