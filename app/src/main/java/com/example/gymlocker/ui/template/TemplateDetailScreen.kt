@@ -55,7 +55,7 @@ fun TemplateDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(template?.template?.name ?: "Template") },
+                title = { Text("Home") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
