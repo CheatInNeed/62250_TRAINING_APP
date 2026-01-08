@@ -631,6 +631,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 // You already have ExerciseDao in the VM - fetch name:
                 val ex = exerciseDao.getById(exerciseId) // you may need to add this DAO method if missing
                 val exName = ex?.name ?: "Exercise #$exerciseId"
+                val muscleGroupId = ex?.muscleGroupId ?: 0L
 
                 // Update UI state
                 val uiSets = tex.sets.map { s ->
@@ -645,6 +646,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 _activeExercises.value = _activeExercises.value + ActiveExerciseState(
                     exerciseId = exerciseId,
                     exerciseName = exName,
+                    muscleGroupId = muscleGroupId,
                     sets = uiSets.toMutableList()
                 )
 

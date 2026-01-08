@@ -2,6 +2,7 @@ package com.example.gymlocker.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,7 +49,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.time.temporal.ChronoUnit
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -152,54 +152,78 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             }
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = lastWorkoutLabel,
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-            )
+            item {
+                Text(
+                    text = lastWorkoutLabel,
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
-            WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
+            item {
+                WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
+            }
 
-            Button(onClick = {
-                if (isWorkoutInProgress) {
-                    navController.navigate("activeWorkout")
-                } else {
-                    navController.navigate("workout")
+            item {
+                Button(onClick = {
+                    if (isWorkoutInProgress) {
+                        navController.navigate("activeWorkout")
+                    } else {
+                        navController.navigate("workout")
+                    }
+                }) {
+                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
-            }) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = {
-                navController.navigate("createTemplate")
-            }) {
-                Text("Opret nyt template")
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            TemplatesCard(templates) { templateId ->
-                navController.navigate("templateDetail/$templateId")
+            item {
+                Button(onClick = {
+                    navController.navigate("createTemplate")
+                }) {
+                    Text("Opret nyt template")
+                }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+            item {
+                TemplatesCard(templates) { templateId ->
+                    navController.navigate("templateDetail/$templateId")
+                }
+            }
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-            StatsCard()
+            item {
+                StatsCard()
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-            CompletedWorkoutsCard(
-                workouts = completedWorkouts,
-                onViewHistoryClick = { navController.navigate("workoutHistory") }
-            )
+            item {
+                CompletedWorkoutsCard(
+                    workouts = completedWorkouts,
+                    onViewHistoryClick = { navController.navigate("workoutHistory") }
+                )
+            }
         }
     }
 }
