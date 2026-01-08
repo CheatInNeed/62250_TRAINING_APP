@@ -530,4 +530,50 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     suspend fun getMuscleGroupName(id: Long): String {
         return db.muscleGroupDao().getNameById(id) ?: "Unknown"
     }
+    /**
+     * Returns PR text for exercise details screen.
+     * PR is calculated as best set by max(weight * reps) with fallback to weight.
+     */
+    suspend fun getPersonalRecordText(exerciseId: Long): String {
+        val pr = performedSetDao.getPersonalRecordSetForExerciseExcludingWorkout(
+            exerciseId = exerciseId,
+            excludeWorkoutId = currentWorkoutId
+        ) ?: return "No PR yet"
+
+        // If reps is 0 (unlikely in your app), show only weight.
+        return if (pr.reps > 0) {
+            "${pr.weight.toInt()} kg x ${pr.reps}"
+        } else {
+            "${pr.weight.toInt()} kg"
+        }
+    }
+    /**
+     * Returns last-trained text for exercise details screen.
+     * Shows "Never trained" if no previous workout contains this exercise.
+     */
+    suspend fun getLastTrainedText(exerciseId: Long): String {
+        val dateString = performedSetDao.getLastTrainedDateForExerciseExcludingWorkout(
+            exerciseId = exerciseId,
+            excludeWorkoutId = currentWorkoutId
+        ) ?: return "Never trained"
+
+        return formatWorkoutDateForDisplay(dateString)
+    }
+
+    private fun formatWorkoutDateForDisplay(dbDateString: String): String {
+        return try {
+            // DB format used in ensureWorkoutExists(): "yyyy-MM-dd HH:mm:ss.SSS"
+            val parser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+            val date = parser.parse(dbDateString) ?: return dbDateString
+
+            // Local short format like "12. sep"
+            val formatter = SimpleDateFormat("d. MMM", Locale.getDefault())
+            formatter.format(date).lowercase(Locale.getDefault())
+        } catch (e: Exception) {
+            // Fallback: show raw string if parsing fails
+            dbDateString
+        }
+    }
+
+
 }
