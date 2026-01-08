@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.data.entity.template.TemplateExercise
+import com.example.gymlocker.data.entity.template.TemplateSet
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,36 +17,36 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// Represents a template exercise with its sets
+data class TemplateExerciseState(
+    val templateExerciseId: Long = 0L,
+    val exerciseId: Long,
+    val exerciseName: String,
+    val muscleGroupId: Long,
+    val sets: List<TemplateSetState> = listOf(TemplateSetState(setNumber = 1))
+)
+
+data class TemplateSetState(
+    val setNumber: Int,
+    val weight: Float = 0f,
+    val reps: Int = 0
+)
+
 class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
 
     private val db by lazy { AppDatabase.getDatabase(appContext) }
     private val workoutTemplateDao by lazy { db.workoutTemplateDao() }
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
-    private val exerciseDao by lazy { db.exerciseDao() }
+    private val templateSetDao by lazy { db.templateSetDao() }
 
     private val _templateName = MutableStateFlow("")
     val templateName: StateFlow<String> = _templateName.asStateFlow()
 
-    private val _selectedExercises = MutableStateFlow<List<Exercises>>(emptyList())
-    val selectedExercises: StateFlow<List<Exercises>> = _selectedExercises.asStateFlow()
-
-    private val _availableExercises = MutableStateFlow<List<Exercises>>(emptyList())
-    val availableExercises: StateFlow<List<Exercises>> = _availableExercises.asStateFlow()
+    private val _selectedExercises = MutableStateFlow<List<TemplateExerciseState>>(emptyList())
+    val selectedExercises: StateFlow<List<TemplateExerciseState>> = _selectedExercises.asStateFlow()
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
-
-    init {
-        loadAvailableExercises()
-    }
-
-    private fun loadAvailableExercises() {
-        viewModelScope.launch {
-            exerciseDao.getAllExercises().collect { exercises ->
-                _availableExercises.value = exercises
-            }
-        }
-    }
 
     fun updateTemplateName(name: String) {
         _templateName.value = name
@@ -54,7 +55,14 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
     fun addExercise(exercise: Exercises) {
         val currentList = _selectedExercises.value.toMutableList()
         if (!currentList.any { it.exerciseId == exercise.exerciseId }) {
-            currentList.add(exercise)
+            currentList.add(
+                TemplateExerciseState(
+                    exerciseId = exercise.exerciseId,
+                    exerciseName = exercise.name,
+                    muscleGroupId = exercise.muscleGroupId,
+                    sets = listOf(TemplateSetState(setNumber = 1))
+                )
+            )
             _selectedExercises.value = currentList
         }
     }
@@ -64,6 +72,63 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
         currentList.removeAll { it.exerciseId == exerciseId }
         _selectedExercises.value = currentList
     }
+
+    fun addSet(exerciseId: Long) {
+        _selectedExercises.value = _selectedExercises.value.map { exercise ->
+            if (exercise.exerciseId != exerciseId) {
+                exercise
+            } else {
+                val newSetNumber = exercise.sets.maxOfOrNull { it.setNumber }?.plus(1) ?: 1
+                exercise.copy(
+                    sets = exercise.sets + TemplateSetState(setNumber = newSetNumber)
+                )
+            }
+        }
+    }
+
+    fun removeSet(exerciseId: Long, setNumber: Int) {
+        _selectedExercises.value = _selectedExercises.value.map { exercise ->
+            if (exercise.exerciseId != exerciseId) {
+                exercise
+            } else {
+                exercise.copy(
+                    sets = exercise.sets.filter { it.setNumber != setNumber }
+                        .mapIndexed { index, set -> set.copy(setNumber = index + 1) }
+                )
+            }
+        }
+    }
+
+    fun updateSetWeight(exerciseId: Long, setNumber: Int, weight: String) {
+        _selectedExercises.value = _selectedExercises.value.map { exercise ->
+            if (exercise.exerciseId != exerciseId) {
+                exercise
+            } else {
+                exercise.copy(
+                    sets = exercise.sets.map { set ->
+                        if (set.setNumber != setNumber) set
+                        else set.copy(weight = weight.toFloatOrNull() ?: 0f)
+                    }
+                )
+            }
+        }
+    }
+
+    fun updateSetReps(exerciseId: Long, setNumber: Int, reps: String) {
+        _selectedExercises.value = _selectedExercises.value.map { exercise ->
+            if (exercise.exerciseId != exerciseId) {
+                exercise
+            } else {
+                exercise.copy(
+                    sets = exercise.sets.map { set ->
+                        if (set.setNumber != setNumber) set
+                        else set.copy(reps = reps.toIntOrNull() ?: 0)
+                    }
+                )
+            }
+        }
+    }
+
 
     fun saveTemplate() {
         if (_templateName.value.isBlank()) {
@@ -89,15 +154,25 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
 
                 val templateId = workoutTemplateDao.insert(template)
 
-                // Add exercises to the template
-                val templateExercises = _selectedExercises.value.map { exercise ->
-                    TemplateExercise(
+                // Add exercises and sets to the template
+                _selectedExercises.value.forEach { templateExercise ->
+                    val templateEx = TemplateExercise(
                         templateId = templateId,
-                        exerciseId = exercise.exerciseId
+                        exerciseId = templateExercise.exerciseId
                     )
-                }
+                    val templateExerciseId = templateExerciseDao.insert(templateEx)
 
-                templateExerciseDao.insertAll(templateExercises)
+                    // Add sets for this exercise
+                    val templateSets = templateExercise.sets.map { set ->
+                        TemplateSet(
+                            templateExerciseId = templateExerciseId,
+                            setNumber = set.setNumber,
+                            weight = set.weight,
+                            reps = set.reps
+                        )
+                    }
+                    templateSetDao.insertAll(templateSets)
+                }
 
                 // Reset state after saving
                 _templateName.value = ""
