@@ -28,17 +28,27 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.dao.WorkoutSummary
+import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import java.time.temporal.ChronoUnit
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,17 +59,42 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+    val lastWorkoutLabel by activeWorkoutViewModel
+        .lastWorkoutLabel()
+        .collectAsState(initial = "Finder seneste workout…")
+
+    // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    val exerciseLogDao = remember { db.exerciseLogDao() }
+
+    // Same date format as Workout.date in your DB: "yyyy-MM-dd HH:mm:ss.SSS"
+    val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
+
+    val today = LocalDate.now()
+    val startOfWeek = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
+    val endOfWeek = startOfWeek.plusDays(6)
+
+    val startInclusive = startOfWeek.atStartOfDay().format(formatter)
+    val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
+
+    val workoutsThisWeek by exerciseLogDao
+        .observeCompletedWorkoutCountInRange(
+            startInclusive = startInclusive,
+            endInclusive = endInclusive
+        )
+        .collectAsState(initial = 0)
+    // ---------------------------------------------------------------------------------------------
 
     // Observe templates for default user (1L)
     val templatesFlow = activeWorkoutViewModel.observeTemplates(1L)
     val templates by templatesFlow.collectAsState(initial = emptyList())
 
     Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Home") })
-        },
+        topBar = { TopAppBar(title = { Text("Home") }) },
         bottomBar = {
             Column {
+                // (1) Active workout banner (hvis i gang)
                 if (isWorkoutInProgress) {
                     Box(
                         modifier = Modifier
@@ -80,6 +115,26 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                         }
                     }
                 }
+
+                // (2) Thumb-friendly primary action button
+                Button(
+                    onClick = {
+                        if (isWorkoutInProgress) {
+                            navController.navigate("activeWorkout")
+                        } else {
+                            navController.navigate("workout")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
+                }
+
+                // (3) Bottom nav bar
                 BottomAppBar {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -103,7 +158,20 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(onClick = { 
+            Text(
+                text = lastWorkoutLabel,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
+
+            Button(onClick = {
                 if (isWorkoutInProgress) {
                     navController.navigate("activeWorkout")
                 } else {
@@ -123,12 +191,26 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 navController.navigate("templateDetail/$templateId")
             }
             Spacer(modifier = Modifier.height(16.dp))
+
             StatsCard()
+
             Spacer(modifier = Modifier.height(16.dp))
+
             CompletedWorkoutsCard(
                 workouts = completedWorkouts,
                 onViewHistoryClick = { navController.navigate("workoutHistory") }
             )
+        }
+    }
+}
+
+@Composable
+fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("This week", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("$workoutsThisWeek workouts this week")
         }
     }
 }
@@ -139,15 +221,29 @@ fun StatsCard() {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Stats")
             Spacer(modifier = Modifier.height(8.dp))
-            // Placeholder for the graph
             Text("Graph will be here")
         }
     }
 }
 
+/**
+ * ✅ Pretty date:
+ * Input: "yyyy-MM-dd HH:mm:ss.SSS"
+ * Output: "Jan 7 2026"
+ */
+private fun prettyWorkoutDate(raw: String): String {
+    return try {
+        val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        val output = DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH)
+        LocalDateTime.parse(raw, input).format(output)
+    } catch (e: Exception) {
+        raw // fallback
+    }
+}
+
 @Composable
 fun CompletedWorkoutsCard(
-    workouts: List<com.example.gymlocker.data.dao.WorkoutSummary>,
+    workouts: List<WorkoutSummary>,
     onViewHistoryClick: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -158,11 +254,12 @@ fun CompletedWorkoutsCard(
             if (workouts.isEmpty()) {
                 Text("No completed workouts yet.", textAlign = TextAlign.Center)
             } else {
-                // Vis fx de seneste 5
+                // Show latest 5
                 workouts.take(5).forEach { w ->
-                    Text("• ${w.date}  –  ${w.exerciseCount} exercises")
+                    val prettyDate = prettyWorkoutDate(w.date)
+                    Text("• ${w.name} - $prettyDate - ${w.exerciseCount} exercises")
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(
                     onClick = onViewHistoryClick,

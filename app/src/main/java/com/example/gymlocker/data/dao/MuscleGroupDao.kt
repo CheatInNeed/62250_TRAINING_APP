@@ -13,4 +13,7 @@ interface MuscleGroupDao {
 
     @Query("SELECT * FROM muscle_groups")
     fun getAllMuscleGroups(): Flow<List<MuscleGroup>>
+
+    @Query("SELECT name FROM muscle_groups WHERE muscleGroupId = :id LIMIT 1")
+    suspend fun getNameById(id: Long): String?
 }

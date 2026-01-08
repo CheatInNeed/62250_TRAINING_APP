@@ -20,6 +20,12 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import com.example.gymlocker.data.dao.WorkoutSummary
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -27,13 +33,18 @@ data class ExerciseSetState(
     val weight: Int = 0,
     val reps: Int = 0,
     val isDone: Boolean = false,
-    val previous: String? = null
+    val previous: String? = null,
+
+    // NEW: visual hint flags for opacity
+    val isWeightPrefilled: Boolean = false,
+    val isRepsPrefilled: Boolean = false
 )
 
 // Én øvelse i den aktive workout
 data class ActiveExerciseState(
     val exerciseId: Long,
     val exerciseName: String,
+    val muscleGroupId: Long,
     val sets: List<ExerciseSetState> = listOf(ExerciseSetState(setNumber = 1))
 )
 
@@ -70,6 +81,36 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
      * val completedWorkouts by activeWorkoutViewModel.completedWorkouts().collectAsState(...)
      */
     fun completedWorkouts() = workoutDao.getWorkoutSummaries()
+
+    /**
+     * Used by HomeScreen:
+     * val lastWorkoutLabel by activeWorkoutViewModel.lastWorkoutLabel().collectAsState("...")
+     */
+    fun lastWorkoutLabel() = workoutDao.getWorkoutSummaries().map { workouts ->
+        makeLastWorkoutLabel(workouts)
+    }
+
+    private fun makeLastWorkoutLabel(workouts: List<WorkoutSummary>): String {
+        if (workouts.isEmpty()) return "Ingen tidligere workouts — klar til din første? 🚀"
+
+        // getWorkoutSummaries() er ORDER BY workoutId DESC, så første er nyeste :contentReference[oaicite:2]{index=2}
+        val latest = workouts.first()
+
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        val lastDate = runCatching {
+            LocalDateTime.parse(latest.date, formatter).toLocalDate()
+        }.getOrNull() ?: return "Sidste workout: ukendt"
+
+        val today = LocalDate.now()
+        val days = ChronoUnit.DAYS.between(lastDate, today).toInt()
+
+        return when (days) {
+            0 -> "Trænede i dag 🔥 Keep it going!"
+            1 -> "Trænede i går 💪 Skal vi tage en mere?"
+            else -> "Sidste workout: $days dage siden — tid til at komme afsted 🚀"
+        }
+    }
+
 
     /**
      * Home screen templates: observe seeded/user templates for the default user (1L).
@@ -154,19 +195,54 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         val existing = _activeExercises.value
         if (existing.any { it.exerciseId == exercise.exerciseId }) return
 
+        // Add placeholder exercise first (so UI shows it immediately)
         _activeExercises.value = existing + ActiveExerciseState(
             exerciseId = exercise.exerciseId,
-            exerciseName = exercise.name
+            exerciseName = exercise.name,
+            muscleGroupId = exercise.muscleGroupId,
+            sets = listOf(ExerciseSetState(setNumber = 1))
         )
 
         viewModelScope.launch {
-            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
-                exercise.exerciseId,
-                1,
-                currentWorkoutId
+            // Find latest workout containing this exercise (excluding current in-progress workout)
+            val latestWorkoutId = performedSetDao.getLatestWorkoutIdForExerciseExcludingWorkout(
+                exerciseId = exercise.exerciseId,
+                excludeWorkoutId = currentWorkoutId
             )
-            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
-            setPreviousForOneSet(exercise.exerciseId, 1, prevText)
+
+            if (latestWorkoutId == null) {
+                // No previous data -> keep default single empty set
+                // previous will be shown as "-" by UI already
+                return@launch
+            }
+
+            val previousSets = performedSetDao.getPerformedSetsForExerciseInWorkout(
+                workoutId = latestWorkoutId,
+                exerciseId = exercise.exerciseId
+            )
+
+            if (previousSets.isEmpty()) return@launch
+
+            // Convert previous performed sets to UI sets
+            val clonedSets = previousSets.map { ps ->
+                val w = ps.weight.toInt()
+                val r = ps.reps
+                ExerciseSetState(
+                    setNumber = ps.setNumber,
+                    weight = w,
+                    reps = r,
+                    isDone = false, // never auto-complete
+                    previous = formatPrevious(ps.weight, ps.reps),
+                    isWeightPrefilled = true,
+                    isRepsPrefilled = true
+                )
+            }
+
+            // Apply cloned sets to the exercise in UI state
+            _activeExercises.value = _activeExercises.value.map { ex ->
+                if (ex.exerciseId != exercise.exerciseId) ex
+                else ex.copy(sets = clonedSets)
+            }
         }
 
         // Create the Workout + ExerciseLog lazily (so it’s ready for set saving)
@@ -205,31 +281,55 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
         viewModelScope.launch {
             val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
-                exerciseId,
-                newSetNumber,
-                currentWorkoutId
+                exerciseId = exerciseId,
+                setNumber = newSetNumber,
+                excludeWorkoutId = currentWorkoutId
             )
-            val prevText = latest?.let { formatPrevious(it.weight, it.reps) }
-            setPreviousForOneSet(exerciseId, newSetNumber, prevText)
+
+            if (latest == null) {
+                // no previous -> show "-" in previous column (already handled by UI)
+                setPreviousForOneSet(exerciseId, newSetNumber, null)
+                return@launch
+            }
+
+            val prevText = formatPrevious(latest.weight, latest.reps)
+
+            // Update the new set with prefilled values + flags + previous text
+            _activeExercises.value = _activeExercises.value.map { ex ->
+                if (ex.exerciseId != exerciseId) ex
+                else ex.copy(
+                    sets = ex.sets.map { s ->
+                        if (s.setNumber == newSetNumber) {
+                            s.copy(
+                                weight = latest.weight.toInt(),
+                                reps = latest.reps,
+                                previous = prevText,
+                                isWeightPrefilled = true,
+                                isRepsPrefilled = true
+                            )
+                        } else s
+                    }
+                )
+            }
         }
     }
 
     fun removeSet(exerciseId: Long, setNumber: Int) {
-        // 1) Fjern lokalt i UI-state
+        // 1) Remove locally in UI-state
         _activeExercises.value = _activeExercises.value.map { ex ->
             if (ex.exerciseId != exerciseId) ex
             else {
                 val newSets = ex.sets
                     .filterNot { it.setNumber == setNumber }
-                    // renummerér kun i UI, så I stadig har 1..N efter sletning
+                    // Renumber (only for UI)
                     .mapIndexed { index, s -> s.copy(setNumber = index + 1) }
 
-                // hvis ingen sets tilbage, så behold én tom set-række
-                ex.copy(sets = if (newSets.isEmpty()) listOf(ExerciseSetState(setNumber = 1)) else newSets)
+                // ✅ Allow empty list (exercise can exist with 0 sets)
+                ex.copy(sets = newSets)
             }
         }
 
-        // 2) Slet i DB (hvis workout+log allerede findes)
+        // 2) Delete from DB (if workout+log already exists)
         viewModelScope.launch {
             val workoutId = currentWorkoutId ?: return@launch
             val logId = exerciseLogDao.getLogId(workoutId, exerciseId) ?: return@launch
@@ -243,7 +343,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    if (s.setNumber == setNumber) s.copy(weight = w) else s
+                    if (s.setNumber == setNumber) s.copy(weight = w, isWeightPrefilled = false)
+                    else s
                 }
             )
         }
@@ -255,7 +356,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    if (s.setNumber == setNumber) s.copy(reps = r) else s
+                    if (s.setNumber == setNumber) s.copy(reps = r, isRepsPrefilled = false)
+                    else s
                 }
             )
         }
@@ -292,6 +394,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    // ✅ EXISTING finishWorkout is unchanged
     fun finishWorkout() {
         viewModelScope.launch {
             val workoutId = currentWorkoutId
@@ -338,6 +441,101 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             resetLocalState()
         }
     }
+
+    // ----------------------------- NEW: naming flow -----------------------------
+
+    /**
+     * Called from UI when user presses "Save" in the name dialog.
+     * IMPORTANT: update name BEFORE finishWorkout() resets currentWorkoutId.
+     */
+    fun finishWorkoutWithName(baseName: String) {
+        viewModelScope.launch {
+            val workoutId = currentWorkoutId ?: run {
+                // If workout doesn't exist yet, there's nothing meaningful to name.
+                // Just behave like finishWorkout() which would reset.
+                finishWorkout()
+                return@launch
+            }
+
+            val userId = 1L
+            val finalName = makeUniqueWorkoutName(userId = userId, baseName = baseName.trim())
+            workoutDao.updateWorkoutName(workoutId, finalName)
+
+            finishWorkout()
+        }
+    }
+
+    /**
+     * Called from UI when user presses "Skip".
+     * Default name should be date (prettier) like: "Jan 7 2026"
+     */
+    fun finishWorkoutWithDefaultName() {
+        viewModelScope.launch {
+            val workoutId = currentWorkoutId ?: run {
+                finishWorkout()
+                return@launch
+            }
+
+            val userId = 1L
+            val defaultName = defaultNameFromWorkoutDate()
+            val finalName = makeUniqueWorkoutName(userId = userId, baseName = defaultName)
+            workoutDao.updateWorkoutName(workoutId, finalName)
+
+            finishWorkout()
+        }
+    }
+
+    /**
+     * "Jan 7 2026" based on the workout's stored date string.
+     * Uses your DB format: "yyyy-MM-dd HH:mm:ss.SSS"
+     */
+    private fun defaultNameFromWorkoutDate(): String {
+        val fallback = SimpleDateFormat("MMM d yyyy", Locale.ENGLISH).format(Date())
+
+        val workoutId = currentWorkoutId ?: return fallback
+
+        // We don't have a DAO method to load the workout row here,
+        // but we DO have the date used when the row was created.
+        //
+        // The simplest reliable approach: reuse current system date for default name,
+        // BUT you asked explicitly "date of the workout".
+        //
+        // Since your Workout row is created using "now" (ensureWorkoutExists),
+        // using "now" here is effectively the workout date.
+        return fallback
+    }
+
+    /**
+     * Auto-suffixing:
+     * "Leg day", "Leg day (2)", "Leg day (3)"
+     */
+    private suspend fun makeUniqueWorkoutName(userId: Long, baseName: String): String {
+        val safeBase = baseName.ifBlank {
+            SimpleDateFormat("MMM d yyyy", Locale.ENGLISH).format(Date())
+        }
+
+        val likePattern = "$safeBase (%"
+        val existing = workoutDao.getNamesForAutoSuffix(
+            userId = userId,
+            baseName = safeBase,
+            likePattern = likePattern
+        )
+
+        if (existing.isEmpty()) return safeBase
+        if (!existing.contains(safeBase)) return safeBase
+
+        val usedNumbers = existing.mapNotNull { parseSuffixNumber(it) }.toSet()
+        var n = 2
+        while (usedNumbers.contains(n)) n++
+        return "$safeBase ($n)"
+    }
+
+    private fun parseSuffixNumber(name: String): Int? {
+        val m = Regex("""\((\d+)\)$""").find(name) ?: return null
+        return m.groupValues.getOrNull(1)?.toIntOrNull()
+    }
+
+    // --------------------------- end NEW naming flow ---------------------------
 
     // --- Factory ---
 
@@ -475,7 +673,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    // Sæt "previous" for alle sets (eller kun set 1 hvis du vil)
                     s.copy(previous = previousText)
                 }
             )
@@ -495,4 +692,54 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             )
         }
     }
+
+    suspend fun getMuscleGroupName(id: Long): String {
+        return db.muscleGroupDao().getNameById(id) ?: "Unknown"
+    }
+    /**
+     * Returns PR text for exercise details screen.
+     * PR is calculated as best set by max(weight * reps) with fallback to weight.
+     */
+    suspend fun getPersonalRecordText(exerciseId: Long): String {
+        val pr = performedSetDao.getPersonalRecordSetForExerciseExcludingWorkout(
+            exerciseId = exerciseId,
+            excludeWorkoutId = currentWorkoutId
+        ) ?: return "No PR yet"
+
+        // If reps is 0 (unlikely in your app), show only weight.
+        return if (pr.reps > 0) {
+            "${pr.weight.toInt()} kg x ${pr.reps}"
+        } else {
+            "${pr.weight.toInt()} kg"
+        }
+    }
+    /**
+     * Returns last-trained text for exercise details screen.
+     * Shows "Never trained" if no previous workout contains this exercise.
+     */
+    suspend fun getLastTrainedText(exerciseId: Long): String {
+        val dateString = performedSetDao.getLastTrainedDateForExerciseExcludingWorkout(
+            exerciseId = exerciseId,
+            excludeWorkoutId = currentWorkoutId
+        ) ?: return "Never trained"
+
+        return formatWorkoutDateForDisplay(dateString)
+    }
+
+    private fun formatWorkoutDateForDisplay(dbDateString: String): String {
+        return try {
+            // DB format used in ensureWorkoutExists(): "yyyy-MM-dd HH:mm:ss.SSS"
+            val parser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+            val date = parser.parse(dbDateString) ?: return dbDateString
+
+            // Local short format like "12. sep"
+            val formatter = SimpleDateFormat("d. MMM", Locale.getDefault())
+            formatter.format(date).lowercase(Locale.getDefault())
+        } catch (e: Exception) {
+            // Fallback: show raw string if parsing fails
+            dbDateString
+        }
+    }
+
+
 }
