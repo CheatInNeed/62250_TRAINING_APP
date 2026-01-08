@@ -464,6 +464,10 @@ fun ExerciseSetRow(
 
         val alpha = 0.15f
 
+        // NEW: opacity rules for prefilled values
+        val prefillAlpha = 0.65f
+        val normalAlpha = 1.0f
+
         Box(
             modifier = Modifier
                 .weight(0.9f)
@@ -475,11 +479,19 @@ fun ExerciseSetRow(
                 onValueChange = onWeightChange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
+                placeholder = { Text("–") },
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
                     focusedContainerColor = Color.Gray.copy(alpha = alpha),
                     disabledContainerColor = Color.Gray.copy(alpha = alpha),
                     errorContainerColor = Color.Gray.copy(alpha = alpha),
+
+                    // NEW: text opacity difference
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (set.isWeightPrefilled) prefillAlpha else normalAlpha
+                    ),
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = normalAlpha),
+
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
@@ -499,11 +511,19 @@ fun ExerciseSetRow(
                 onValueChange = onRepsChange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
+                placeholder = { Text("–") },
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
                     focusedContainerColor = Color.Gray.copy(alpha = alpha),
                     disabledContainerColor = Color.Gray.copy(alpha = alpha),
                     errorContainerColor = Color.Gray.copy(alpha = alpha),
+
+                    // NEW: text opacity difference
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (set.isRepsPrefilled) prefillAlpha else normalAlpha
+                    ),
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = normalAlpha),
+
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,

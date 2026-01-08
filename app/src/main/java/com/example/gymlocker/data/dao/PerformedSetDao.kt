@@ -98,4 +98,42 @@ interface PerformedSetDao {
         setNumber: Int,
         excludeWorkoutId: Long?
     ): PerformedSet?
+    /**
+     * Finds the latest workoutId (by workout date) where this exercise was performed,
+     * excluding the current workout if provided.
+     */
+    @Query(
+        """
+        SELECT w.workoutId FROM workouts w
+        JOIN exercise_log el ON el.workoutId = w.workoutId
+        JOIN performed_set ps ON ps.exerciseLogId = el.id
+        WHERE el.exerciseId = :exerciseId
+          AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+        ORDER BY w.date DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLatestWorkoutIdForExerciseExcludingWorkout(
+        exerciseId: Long,
+        excludeWorkoutId: Long?
+    ): Long?
+
+    /**
+     * Returns all performed sets for an exercise in a specific workout, sorted by setNumber.
+     * Used to clone all sets when adding an exercise to the active workout.
+     */
+    @Query(
+        """
+        SELECT ps.* FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        WHERE el.workoutId = :workoutId
+          AND el.exerciseId = :exerciseId
+        ORDER BY ps.setNumber ASC
+        """
+    )
+    suspend fun getPerformedSetsForExerciseInWorkout(
+        workoutId: Long,
+        exerciseId: Long
+    ): List<PerformedSet>
+
 }
