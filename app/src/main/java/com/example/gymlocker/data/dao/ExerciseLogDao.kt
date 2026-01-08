@@ -38,14 +38,15 @@ interface ExerciseLogDao {
     @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
     fun observeLogsForWorkout(workoutId: Long): Flow<List<ExerciseLog>>
 
+    @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
+    suspend fun getLogsForWorkoutOnce(workoutId: Long): List<ExerciseLog>
+
     @Query("DELETE FROM exercise_log WHERE workoutId = :workoutId")
     suspend fun deleteLogsForWorkout(workoutId: Long)
 
     @Query("DELETE FROM exercise_log WHERE id = :logId")
     suspend fun deleteById(logId: Long)
 
-    @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
-    suspend fun getLogsForWorkoutOnce(workoutId: Long): List<ExerciseLog>
 
     @Query(
         """

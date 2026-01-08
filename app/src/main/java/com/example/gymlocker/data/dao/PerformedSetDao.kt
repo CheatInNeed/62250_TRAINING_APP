@@ -14,6 +14,9 @@ interface PerformedSetDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(set: PerformedSet): Long
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(sets: List<PerformedSet>): List<Long>
+
     @Update
     suspend fun update(set: PerformedSet)
 
@@ -25,6 +28,15 @@ interface PerformedSetDao {
         """
     )
     fun observeSetsForLog(exerciseLogId: Long): Flow<List<PerformedSet>>
+
+    @Query(
+        """
+        SELECT * FROM performed_set
+        WHERE exerciseLogId = :exerciseLogId
+        ORDER BY setNumber ASC
+        """
+    )
+    suspend fun getSetsByLogOnce(exerciseLogId: Long): List<PerformedSet>
 
     @Query(
         """
