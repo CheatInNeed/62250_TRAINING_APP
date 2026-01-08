@@ -286,12 +286,14 @@ fun ActiveWorkoutScreen(
 
     detailExercise?.let { ex ->
         ExerciseDetailsDialog(
+            exerciseId = ex.exerciseId,
             exerciseName = ex.exerciseName,
             muscleGroupId = ex.muscleGroupId,
             viewModel = viewModel,
             onDismiss = { detailExercise = null }
         )
     }
+
 
     if (showAddExerciseSheet) {
         AddExerciseSheet(
@@ -564,21 +566,44 @@ fun ActiveWorkoutScreenPreview() {
 
 @Composable
 fun ExerciseDetailsDialog(
+    exerciseId: Long,
     exerciseName: String,
     muscleGroupId: Long,
     viewModel: ActiveWorkoutViewModel,
     onDismiss: () -> Unit
 ) {
     var muscleGroupName by remember { mutableStateOf<String?>(null) }
+    var prText by remember { mutableStateOf<String?>(null) }
+    var lastTrainedText by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(muscleGroupId) {
+    LaunchedEffect(exerciseId, muscleGroupId) {
         muscleGroupName = viewModel.getMuscleGroupName(muscleGroupId)
+        prText = viewModel.getPersonalRecordText(exerciseId)
+        lastTrainedText = viewModel.getLastTrainedText(exerciseId)
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(exerciseName) },
-        text = { Text("Muscle group: ${muscleGroupName ?: "Loading..."}") },
+        text = {
+            Column {
+                Text("Muscle group: ${muscleGroupName ?: "Loading..."}")
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Personal record",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(prText ?: "Loading...")
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "Last trained",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(lastTrainedText ?: "Loading...")
+            }
+        },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }

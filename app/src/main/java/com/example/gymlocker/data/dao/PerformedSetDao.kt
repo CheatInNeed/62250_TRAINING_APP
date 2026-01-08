@@ -135,5 +135,58 @@ interface PerformedSetDao {
         workoutId: Long,
         exerciseId: Long
     ): List<PerformedSet>
+    /**
+     * Personal Record (PR) for an exercise:
+     * Score = max(weight * reps, weight), so it supports both "highest weight × reps" or "highest weight".
+     * Excludes the current workout if provided.
+     */
+    @Query(
+        """
+        SELECT ps.* FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        WHERE el.exerciseId = :exerciseId
+          AND ps.weight > 0
+          AND (
+                ps.reps > 0
+                OR ps.reps = 0
+              )
+          AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+        ORDER BY 
+            CASE 
+                WHEN ps.reps > 0 THEN (ps.weight * ps.reps)
+                ELSE ps.weight
+            END DESC,
+            ps.weight DESC,
+            ps.reps DESC,
+            w.date DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getPersonalRecordSetForExerciseExcludingWorkout(
+        exerciseId: Long,
+        excludeWorkoutId: Long?
+    ): PerformedSet?
+
+    /**
+     * Latest workout date where an exercise was trained (has performed_set rows),
+     * excluding the current workout if provided.
+     */
+    @Query(
+        """
+        SELECT w.date FROM workouts w
+        JOIN exercise_log el ON el.workoutId = w.workoutId
+        JOIN performed_set ps ON ps.exerciseLogId = el.id
+        WHERE el.exerciseId = :exerciseId
+          AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+        ORDER BY w.date DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getLastTrainedDateForExerciseExcludingWorkout(
+        exerciseId: Long,
+        excludeWorkoutId: Long?
+    ): String?
+
 
 }
