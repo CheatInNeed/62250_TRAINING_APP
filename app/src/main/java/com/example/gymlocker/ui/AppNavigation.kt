@@ -15,6 +15,7 @@ import com.example.gymlocker.ui.workout.WorkoutDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutScreen
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
+import com.example.gymlocker.ui.splash.SplashScreen
 
 @Composable
 fun AppNavigation() {
@@ -29,7 +30,10 @@ fun AppNavigation() {
         factory = WorkoutHistoryViewModel.provideFactory(context)
     )
 
-    NavHost(navController = navController, startDestination = "home") {
+
+    NavHost(navController = navController, startDestination = "splash") {
+        composable("splash") { SplashScreen(navController) }
+
         composable("home") { HomeScreen(navController, activeWorkoutViewModel) }
         composable("workout") { WorkoutScreen(navController) }
         composable("activeWorkout") { ActiveWorkoutScreen(navController, activeWorkoutViewModel) }
