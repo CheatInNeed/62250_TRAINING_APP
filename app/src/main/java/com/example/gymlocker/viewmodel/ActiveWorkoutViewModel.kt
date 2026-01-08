@@ -349,6 +349,83 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    fun markAllSetsDone(exerciseId: Long) {
+        val before = _activeExercises.value.firstOrNull { it.exerciseId == exerciseId } ?: return
+        val setsBefore = before.sets
+
+        // 1) Update UI state
+        _activeExercises.value = _activeExercises.value.map { ex ->
+            if (ex.exerciseId != exerciseId) ex
+            else ex.copy(sets = ex.sets.map { it.copy(isDone = true) })
+        }
+
+        // 2) Persist immediately (same strategy as toggleSetDone)
+        viewModelScope.launch {
+            val workoutId = ensureWorkoutExists()
+            val logId = exerciseLogDao.getOrCreateLogId(workoutId, exerciseId)
+
+            // Save only meaningful sets (weight+reps), but mark them completed
+            setsBefore
+                .filter { it.weight > 0 && it.reps > 0 }
+                .forEach { s ->
+                    performedSetDao.upsertByNumber(
+                        exerciseLogId = logId,
+                        setNumber = s.setNumber,
+                        weight = s.weight.toFloat(),
+                        reps = s.reps,
+                        isCompleted = true
+                    )
+                }
+        }
+    }
+
+    /**
+     * Used by the finish popup.
+     * We treat "unfinished" as: meaningful sets (weight+reps) that are NOT done.
+     */
+    fun hasUnfinishedMeaningfulSets(): Boolean {
+        return _activeExercises.value.any { ex ->
+            ex.sets.any { s -> s.weight > 0 && s.reps > 0 && !s.isDone }
+        }
+    }
+
+    /**
+     * Marks all unfinished (meaningful) sets as done across the whole workout.
+     */
+    fun markAllUnfinishedMeaningfulSetsDone() {
+        val snapshot = _activeExercises.value
+
+        // 1) Update UI state in one go (progress bar updates instantly)
+        _activeExercises.value = snapshot.map { ex ->
+            ex.copy(
+                sets = ex.sets.map { s ->
+                    if (s.weight > 0 && s.reps > 0) s.copy(isDone = true) else s
+                }
+            )
+        }
+
+        // 2) Persist in one coroutine
+        viewModelScope.launch {
+            val workoutId = ensureWorkoutExists()
+
+            snapshot.forEach { ex ->
+                val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
+
+                ex.sets
+                    .filter { it.weight > 0 && it.reps > 0 } // meaningful only
+                    .forEach { s ->
+                        performedSetDao.upsertByNumber(
+                            exerciseLogId = logId,
+                            setNumber = s.setNumber,
+                            weight = s.weight.toFloat(),
+                            reps = s.reps,
+                            isCompleted = true
+                        )
+                    }
+            }
+        }
+    }
+
 
     fun toggleSetDone(exerciseId: Long, setNumber: Int, isDone: Boolean) {
         val before = _activeExercises.value.firstOrNull { it.exerciseId == exerciseId } ?: return

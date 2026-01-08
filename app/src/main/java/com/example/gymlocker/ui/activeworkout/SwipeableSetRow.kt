@@ -46,7 +46,7 @@ fun SwipeableSetRow(
     val haptics = LocalHapticFeedback.current
 
     // Must match dismissThresholds below
-    val thresholdFraction = 0.35f
+    val thresholdFraction = 0.3f
 
     var hasBuzzedThisSwipe by remember { mutableStateOf(false) }
 
