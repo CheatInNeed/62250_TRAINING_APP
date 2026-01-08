@@ -58,6 +58,9 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+    val lastWorkoutLabel by activeWorkoutViewModel
+        .lastWorkoutLabel()
+        .collectAsState(initial = "Finder seneste workout…")
 
     // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
@@ -151,7 +154,14 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            LastWorkoutMotivation(workouts = completedWorkouts)
+            Text(
+                text = lastWorkoutLabel,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -206,37 +216,6 @@ private fun prettyWorkoutDate(raw: String): String {
     } catch (e: Exception) {
         raw // fallback
     }
-}
-
-private fun daysSinceLastWorkoutText(workouts: List<WorkoutSummary>): String {
-    if (workouts.isEmpty()) return "Ingen tidligere workouts — klar til din første? 🚀"
-
-    val latest = workouts.first()
-
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-    val lastDate = runCatching { LocalDateTime.parse(latest.date, formatter).toLocalDate() }.getOrNull()
-        ?: return "Sidste workout: ukendt (dato fejl)"
-
-    val today = LocalDate.now()
-    val days = ChronoUnit.DAYS.between(lastDate, today).toInt()
-
-    return when (days) {
-        0 -> "Trænede i dag 🔥 Keep it going!"
-        1 -> "Trænede i går 💪 Skal vi tage en mere?"
-        else -> "Sidste workout: $days dage siden — tid til at komme afsted 🚀"
-    }
-}
-
-@Composable
-private fun LastWorkoutMotivation(workouts: List<WorkoutSummary>) {
-    Text(
-        text = daysSinceLastWorkoutText(workouts),
-        style = MaterialTheme.typography.titleMedium,
-        textAlign = TextAlign.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp)
-    )
 }
 
 @Composable
