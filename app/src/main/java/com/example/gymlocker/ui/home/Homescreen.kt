@@ -48,6 +48,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +58,9 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+    val lastWorkoutLabel by activeWorkoutViewModel
+        .lastWorkoutLabel()
+        .collectAsState(initial = "Finder seneste workout…")
 
     // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
@@ -85,6 +89,8 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
         topBar = { TopAppBar(title = { Text("Home") }) },
         bottomBar = {
             Column {
+
+                // (1) Active workout banner (hvis i gang)
                 if (isWorkoutInProgress) {
                     Box(
                         modifier = Modifier
@@ -105,6 +111,26 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                         }
                     }
                 }
+
+                // (2) Thumb-friendly primary action button
+                Button(
+                    onClick = {
+                        if (isWorkoutInProgress) {
+                            navController.navigate("activeWorkout")
+                        } else {
+                            navController.navigate("workout")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
+                }
+
+                // (3) Bottom nav bar
                 BottomAppBar {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -128,17 +154,16 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(onClick = {
-                if (isWorkoutInProgress) {
-                    navController.navigate("activeWorkout")
-                } else {
-                    navController.navigate("workout")
-                }
-            }) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
-            }
+            Text(
+                text = lastWorkoutLabel,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
 

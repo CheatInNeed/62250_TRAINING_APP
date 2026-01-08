@@ -21,6 +21,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.example.gymlocker.data.dao.WorkoutSummary
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -71,6 +75,36 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
      * val completedWorkouts by activeWorkoutViewModel.completedWorkouts().collectAsState(...)
      */
     fun completedWorkouts() = workoutDao.getWorkoutSummaries()
+
+    /**
+     * Used by HomeScreen:
+     * val lastWorkoutLabel by activeWorkoutViewModel.lastWorkoutLabel().collectAsState("...")
+     */
+    fun lastWorkoutLabel() = workoutDao.getWorkoutSummaries().map { workouts ->
+        makeLastWorkoutLabel(workouts)
+    }
+
+    private fun makeLastWorkoutLabel(workouts: List<WorkoutSummary>): String {
+        if (workouts.isEmpty()) return "Ingen tidligere workouts — klar til din første? 🚀"
+
+        // getWorkoutSummaries() er ORDER BY workoutId DESC, så første er nyeste :contentReference[oaicite:2]{index=2}
+        val latest = workouts.first()
+
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+        val lastDate = runCatching {
+            LocalDateTime.parse(latest.date, formatter).toLocalDate()
+        }.getOrNull() ?: return "Sidste workout: ukendt"
+
+        val today = LocalDate.now()
+        val days = ChronoUnit.DAYS.between(lastDate, today).toInt()
+
+        return when (days) {
+            0 -> "Trænede i dag 🔥 Keep it going!"
+            1 -> "Trænede i går 💪 Skal vi tage en mere?"
+            else -> "Sidste workout: $days dage siden — tid til at komme afsted 🚀"
+        }
+    }
+
 
     // --- Timer/state ---
 
