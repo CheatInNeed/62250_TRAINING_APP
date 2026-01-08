@@ -48,6 +48,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +86,8 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
         topBar = { TopAppBar(title = { Text("Home") }) },
         bottomBar = {
             Column {
+
+                // (1) Active workout banner (hvis i gang)
                 if (isWorkoutInProgress) {
                     Box(
                         modifier = Modifier
@@ -105,6 +108,26 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                         }
                     }
                 }
+
+                // (2) Thumb-friendly primary action button
+                Button(
+                    onClick = {
+                        if (isWorkoutInProgress) {
+                            navController.navigate("activeWorkout")
+                        } else {
+                            navController.navigate("workout")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
+                }
+
+                // (3) Bottom nav bar
                 BottomAppBar {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -128,17 +151,9 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(onClick = {
-                if (isWorkoutInProgress) {
-                    navController.navigate("activeWorkout")
-                } else {
-                    navController.navigate("workout")
-                }
-            }) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
-            }
+            LastWorkoutMotivation(workouts = completedWorkouts)
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
 
@@ -191,6 +206,37 @@ private fun prettyWorkoutDate(raw: String): String {
     } catch (e: Exception) {
         raw // fallback
     }
+}
+
+private fun daysSinceLastWorkoutText(workouts: List<WorkoutSummary>): String {
+    if (workouts.isEmpty()) return "Ingen tidligere workouts — klar til din første? 🚀"
+
+    val latest = workouts.first()
+
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+    val lastDate = runCatching { LocalDateTime.parse(latest.date, formatter).toLocalDate() }.getOrNull()
+        ?: return "Sidste workout: ukendt (dato fejl)"
+
+    val today = LocalDate.now()
+    val days = ChronoUnit.DAYS.between(lastDate, today).toInt()
+
+    return when (days) {
+        0 -> "Trænede i dag 🔥 Keep it going!"
+        1 -> "Trænede i går 💪 Skal vi tage en mere?"
+        else -> "Sidste workout: $days dage siden — tid til at komme afsted 🚀"
+    }
+}
+
+@Composable
+private fun LastWorkoutMotivation(workouts: List<WorkoutSummary>) {
+    Text(
+        text = daysSinceLastWorkoutText(workouts),
+        style = MaterialTheme.typography.titleMedium,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    )
 }
 
 @Composable
