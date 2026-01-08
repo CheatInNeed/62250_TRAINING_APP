@@ -59,6 +59,8 @@ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
+import androidx.compose.runtime.derivedStateOf
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +73,24 @@ fun ActiveWorkoutScreen(
     val activeExercises by viewModel.activeExercises.collectAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
+
+    val totalVolume by remember(activeExercises) {
+        derivedStateOf {
+            activeExercises.sumOf { ex ->
+                ex.sets
+                    .asSequence()
+                    .filter { it.isDone }                 // kun completed sets
+                    .sumOf { it.weight.toDouble() * it.reps.toDouble() }  // weight * reps
+            }
+        }
+    }
+
+    val totalVolumeText = remember(totalVolume) {
+        // pæn visning uden .0 hvis heltal
+        if (totalVolume % 1.0 == 0.0) totalVolume.toLong().toString()
+        else String.format("%.2f", totalVolume)
+    }
+
 
     // Finish flow dialogs
     var showQuickFinishWarning by remember { mutableStateOf(false) }
@@ -236,6 +256,12 @@ fun ActiveWorkoutScreen(
                     modifier = Modifier.fillMaxWidth(),
                     progress = 0f
                 )
+                Text(
+                    text = "Total volume: $totalVolumeText kg",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             // Exercises
