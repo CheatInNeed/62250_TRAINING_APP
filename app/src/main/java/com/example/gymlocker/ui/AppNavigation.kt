@@ -16,6 +16,7 @@ import com.example.gymlocker.ui.template.TemplateDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutScreen
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 
 @Composable
@@ -27,6 +28,9 @@ fun AppNavigation() {
         factory = ActiveWorkoutViewModel.provideFactory(context)
     )
 
+    val createTemplateViewModel: CreateTemplateViewModel = viewModel(
+        factory = CreateTemplateViewModel.provideFactory(context)
+    )
     val historyViewModel: WorkoutHistoryViewModel = viewModel(
         factory = WorkoutHistoryViewModel.provideFactory(context)
     )
@@ -35,7 +39,7 @@ fun AppNavigation() {
         composable("home") { HomeScreen(navController, activeWorkoutViewModel) }
         composable("workout") { WorkoutScreen(navController) }
         composable("activeWorkout") { ActiveWorkoutScreen(navController, activeWorkoutViewModel) }
-        composable("createTemplate") { CreateTemplateScreen(navController) }
+        composable("createTemplate") { CreateTemplateScreen(navController, createTemplateViewModel)}
         composable("workoutHistory") { WorkoutHistoryScreen(navController, historyViewModel) }
         composable(
             route = "workoutDetail/{workoutId}",
