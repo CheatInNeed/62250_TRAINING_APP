@@ -38,7 +38,13 @@ interface PerformedSetDao {
     /**
      * Upsert by (exerciseLogId, setNumber) uniqueness.
      */
-    suspend fun upsertByNumber(exerciseLogId: Long, setNumber: Int, weight: Float, reps: Int, isCompleted: Boolean) {
+    suspend fun upsertByNumber(
+        exerciseLogId: Long,
+        setNumber: Int,
+        weight: Float,
+        reps: Int,
+        isCompleted: Boolean
+    ) {
         val existing = getSetByNumber(exerciseLogId, setNumber)
         if (existing == null) {
             insert(
@@ -74,30 +80,31 @@ interface PerformedSetDao {
 
     @Query(
         """
-    DELETE FROM performed_set
-    WHERE exerciseLogId = :exerciseLogId
-      AND setNumber = :setNumber
-    """
+        DELETE FROM performed_set
+        WHERE exerciseLogId = :exerciseLogId
+          AND setNumber = :setNumber
+        """
     )
     suspend fun deleteSetByNumber(exerciseLogId: Long, setNumber: Int)
 
     @Query(
         """
-    SELECT ps.* FROM performed_set ps
-    JOIN exercise_log el ON el.id = ps.exerciseLogId
-    JOIN workouts w ON w.workoutId = el.workoutId
-    WHERE el.exerciseId = :exerciseId
-      AND ps.setNumber = :setNumber
-      AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
-    ORDER BY w.date DESC
-    LIMIT 1
-    """
+        SELECT ps.* FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        WHERE el.exerciseId = :exerciseId
+          AND ps.setNumber = :setNumber
+          AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+        ORDER BY w.date DESC
+        LIMIT 1
+        """
     )
     suspend fun getLatestSetForExerciseAndNumberExcludingWorkout(
         exerciseId: Long,
         setNumber: Int,
         excludeWorkoutId: Long?
     ): PerformedSet?
+
     /**
      * Finds the latest workoutId (by workout date) where this exercise was performed,
      * excluding the current workout if provided.
@@ -135,9 +142,10 @@ interface PerformedSetDao {
         workoutId: Long,
         exerciseId: Long
     ): List<PerformedSet>
+
     /**
      * Personal Record (PR) for an exercise:
-     * Score = max(weight * reps, weight), so it supports both "highest weight × reps" or "highest weight".
+     * Score = max(weight * reps, weight)
      * Excludes the current workout if provided.
      */
     @Query(
@@ -147,10 +155,6 @@ interface PerformedSetDao {
         JOIN workouts w ON w.workoutId = el.workoutId
         WHERE el.exerciseId = :exerciseId
           AND ps.weight > 0
-          AND (
-                ps.reps > 0
-                OR ps.reps = 0
-              )
           AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
         ORDER BY 
             CASE 
@@ -187,6 +191,4 @@ interface PerformedSetDao {
         exerciseId: Long,
         excludeWorkoutId: Long?
     ): String?
-
-
 }
