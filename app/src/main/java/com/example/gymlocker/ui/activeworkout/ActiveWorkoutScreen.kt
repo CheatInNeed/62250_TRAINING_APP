@@ -1,7 +1,6 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,6 +61,8 @@ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
+import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,7 +78,6 @@ fun ActiveWorkoutScreen(
     var showUnfinishedSetsDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
 
-    // Finish flow dialogs
     var showQuickFinishWarning by remember { mutableStateOf(false) }
     var showNameDialog by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
@@ -96,7 +96,7 @@ fun ActiveWorkoutScreen(
             activeExercises.sumOf { ex ->
                 ex.sets
                     .asSequence()
-                    .filter { it.isDone } // kun completed sets
+                    .filter { it.isDone }
                     .sumOf { it.weight.toDouble() * it.reps.toDouble() }
             }
         }
@@ -111,7 +111,6 @@ fun ActiveWorkoutScreen(
         viewModel.startTimer()
     }
 
-    // Discard dialog (original text kept)
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -132,7 +131,6 @@ fun ActiveWorkoutScreen(
         )
     }
 
-    // Unfinished sets dialog (new feature)
     if (showUnfinishedSetsDialog) {
         AlertDialog(
             onDismissRequest = { showUnfinishedSetsDialog = false },
@@ -142,29 +140,20 @@ fun ActiveWorkoutScreen(
                 TextButton(onClick = {
                     viewModel.markAllUnfinishedMeaningfulSetsDone()
                     showUnfinishedSetsDialog = false
-
-                    // Chain forward
                     workoutNameInput = ""
                     showNameDialog = true
-                }) {
-                    Text("Mark as complete")
-                }
+                }) { Text("Mark as complete") }
             },
             dismissButton = {
                 TextButton(onClick = {
                     showUnfinishedSetsDialog = false
-
-                    // Chain forward WITHOUT marking
                     workoutNameInput = ""
                     showNameDialog = true
-                }) {
-                    Text("Keep unfinished")
-                }
+                }) { Text("Keep unfinished") }
             }
         )
     }
 
-    // Quick finish warning (RESTORED TEXT)
     if (showQuickFinishWarning) {
         AlertDialog(
             onDismissRequest = { showQuickFinishWarning = false },
@@ -173,8 +162,6 @@ fun ActiveWorkoutScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showQuickFinishWarning = false
-
-                    // Chain forward
                     if (viewModel.hasUnfinishedMeaningfulSets()) {
                         showUnfinishedSetsDialog = true
                     } else {
@@ -189,7 +176,6 @@ fun ActiveWorkoutScreen(
         )
     }
 
-    // Name dialog (RESTORED TEXT)
     if (showNameDialog) {
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
@@ -230,16 +216,9 @@ fun ActiveWorkoutScreen(
 
                     Button(
                         onClick = {
-                            // IMPORTANT: only open ONE dialog, then chain from dialog buttons.
                             when {
-                                elapsedTime < 60 -> {
-                                    showQuickFinishWarning = true
-                                }
-
-                                viewModel.hasUnfinishedMeaningfulSets() -> {
-                                    showUnfinishedSetsDialog = true
-                                }
-
+                                elapsedTime < 60 -> showQuickFinishWarning = true
+                                viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
                                 else -> {
                                     workoutNameInput = ""
                                     showNameDialog = true
@@ -273,7 +252,6 @@ fun ActiveWorkoutScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Timer + progress
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -293,7 +271,6 @@ fun ActiveWorkoutScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Exercises
             if (activeExercises.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -345,7 +322,6 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    // Details dialog
     detailExercise?.let { ex ->
         ExerciseDetailsDialog(
             exerciseId = ex.exerciseId,
@@ -354,7 +330,6 @@ fun ActiveWorkoutScreen(
             viewModel = viewModel,
             onDismiss = { detailExercise = null }
         )
-
     }
 
     if (showAddExerciseSheet) {
@@ -533,8 +508,9 @@ fun ExerciseSetRow(
 ) {
     val alphaContainer = 0.15f
 
-    val isWeightPrefilled = (set.previous != null) && (set.weight != 0)
-    val isRepsPrefilled = (set.previous != null) && (set.reps != 0)
+    // ✅ Use the actual state flags from the ViewModel (more stable / consistent)
+    val isWeightPrefilled = set.isWeightPrefilled
+    val isRepsPrefilled = set.isRepsPrefilled
 
     val prefillAlpha = 0.65f
     val normalAlpha = 1.0f
@@ -656,42 +632,5 @@ fun ActiveWorkoutScreenPreview() {
             ).create(ActiveWorkoutViewModel::class.java)
         )
     }
-}
-
-@Composable
-fun ExerciseDetailsDialog(
-    exerciseId: Long,
-    exerciseName: String,
-    muscleGroupId: Long,
-    viewModel: ActiveWorkoutViewModel,
-    onDismiss: () -> Unit
-) {
-    var muscleGroupName by remember { mutableStateOf<String?>(null) }
-    var prText by remember { mutableStateOf<String?>(null) }
-    var lastTrainedText by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(muscleGroupId) {
-        muscleGroupName = viewModel.getMuscleGroupName(muscleGroupId)
-    }
-
-    LaunchedEffect(exerciseId) {
-        prText = viewModel.getPersonalRecordText(exerciseId)       // "No PR yet" if none
-        lastTrainedText = viewModel.getLastTrainedText(exerciseId) // "Never trained" if none
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(exerciseName) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Muscle group: ${muscleGroupName ?: "Loading..."}")
-                Text("PR: ${prText ?: "Loading..."}")
-                Text("Last trained: ${lastTrainedText ?: "Loading..."}")
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        }
-    )
 }
 
