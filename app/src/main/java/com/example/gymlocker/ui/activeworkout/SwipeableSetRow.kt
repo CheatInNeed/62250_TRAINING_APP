@@ -1,38 +1,35 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.FractionalThreshold
-import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.rememberDismissState
+import androidx.compose.material.rememberSwipeableState
+import androidx.compose.material.swipeable
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
+
+private enum class SwipeStage { Closed, Complete, RevealDelete }
+
+private fun lerp(start: Float, stop: Float, fraction: Float): Float {
+    return start + (stop - start) * fraction
+}
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -43,180 +40,128 @@ fun SwipeableSetRow(
     onDelete: () -> Unit,
     content: @Composable () -> Unit
 ) {
-    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
-    // Must match dismissThresholds below
-    val thresholdFraction = 0.35f
+    val revealDistanceDp = 96.dp
+    val revealPx = with(density) { revealDistanceDp.toPx() }
 
-    var hasBuzzedThisSwipe by remember { mutableStateOf(false) }
+    var rowWidthPx by remember { mutableFloatStateOf(0f) }
+    val swipeState = rememberSwipeableState(initialValue = SwipeStage.Closed)
 
-    val dismissState = rememberDismissState(
-        confirmStateChange = { newValue ->
-            if (!enabled) return@rememberDismissState false
+    val safeRevealPx = remember(rowWidthPx, revealPx) {
+        if (rowWidthPx <= 0f) 0f else minOf(revealPx, rowWidthPx * 0.6f)
+    }
+    val safeRevealDp = with(density) { safeRevealPx.toDp() }
 
-            when (newValue) {
-                DismissValue.DismissedToEnd -> {
-                    if (!isDone) onComplete()
-                    hasBuzzedThisSwipe = false
-                    false
-                }
+    // ✅ IMPORTANT: include BOTH directions (positive = right, negative = left)
+    val anchors = remember(rowWidthPx, safeRevealPx) {
+        if (rowWidthPx <= 0f || safeRevealPx <= 0f) null
+        else mapOf(
+            0f to SwipeStage.Closed,
+            +safeRevealPx to SwipeStage.Complete,
+            -safeRevealPx to SwipeStage.RevealDelete
+        )
+    }
 
-                DismissValue.DismissedToStart -> {
-                    onDelete()
-                    hasBuzzedThisSwipe = false
-                    false
-                }
-
-                else -> {
-                    hasBuzzedThisSwipe = false
-                    false
-                }
-            }
-        }
-    )
-
-    // Raw swipe offset in px (positive=right, negative=left)
-    val offsetPx = dismissState.offset.value
-    val dirRaw = dismissState.dismissDirection
-
-    // ✅ Only treat as swiping if we actually moved a bit
-    val isSwiping = abs(offsetPx) > 2f && dirRaw != null
-    val dir: DismissDirection? = if (isSwiping) dirRaw else null
-
-    // A decent normalization constant for phones; tune if you want
-    val normalizePx = 280f
-
-    // ✅ If not swiping, force progress to 0 so background text can't "stick"
-    val rawProgress = (abs(offsetPx) / normalizePx).coerceIn(0f, 1f)
-    val progressTarget = if (isSwiping) rawProgress else 0f
-
-    // Smooth the visuals
-    val progress by animateFloatAsState(
-        targetValue = progressTarget,
-        animationSpec = spring(stiffness = 600f, dampingRatio = 0.85f),
-        label = "swipeProgress"
-    )
-
-    // Tiny parallax on content
-    val contentShift = if (isSwiping) (offsetPx * 0.08f).coerceIn(-18f, 18f) else 0f
-
-    // Threshold “pop”: scale slightly more once past threshold
-    val pastThreshold = progress >= thresholdFraction
-    val iconScaleTarget = if (pastThreshold) 1.12f else (0.85f + 0.20f * progress)
-    val iconScale by animateFloatAsState(
-        targetValue = iconScaleTarget,
-        animationSpec = spring(stiffness = 900f, dampingRatio = 0.75f),
-        label = "iconScale"
-    )
-
-    // ✅ Hide icons/text completely when not swiping
-    val iconAlphaTarget = if (isSwiping) (0.15f + 0.85f * progress).coerceIn(0f, 1f) else 0f
-    val iconAlpha by animateFloatAsState(
-        targetValue = iconAlphaTarget,
-        animationSpec = spring(stiffness = 800f, dampingRatio = 0.9f),
-        label = "iconAlpha"
-    )
-
-    // One-time haptic feedback when crossing threshold during a swipe
-    LaunchedEffect(pastThreshold, dir) {
-        if (!enabled) return@LaunchedEffect
-        if (dir == null) return@LaunchedEffect
-
-        if (pastThreshold && !hasBuzzedThisSwipe) {
-            haptics.performHapticFeedback(
-                androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove
-            )
-            hasBuzzedThisSwipe = true
-        }
-        if (!pastThreshold) {
-            hasBuzzedThisSwipe = false
+    // Classic swipe: if user releases into "Complete", trigger and snap back
+    LaunchedEffect(swipeState.currentValue) {
+        if (swipeState.currentValue == SwipeStage.Complete) {
+            if (!isDone) onComplete()
+            swipeState.animateTo(SwipeStage.Closed)
         }
     }
 
-    SwipeToDismiss(
-        state = dismissState,
-        directions = if (enabled)
-            setOf(DismissDirection.StartToEnd, DismissDirection.EndToStart)
-        else emptySet(),
-        dismissThresholds = { FractionalThreshold(thresholdFraction) },
-        background = {
-            val base = MaterialTheme.colorScheme.surfaceVariant
-            val complete = MaterialTheme.colorScheme.primaryContainer
-            val delete = MaterialTheme.colorScheme.errorContainer
+    val thresholds = { _: SwipeStage, _: SwipeStage -> FractionalThreshold(0.35f) }
 
-            val bgColor = when (dir) {
-                DismissDirection.StartToEnd -> lerp(base, complete, progress)
-                DismissDirection.EndToStart -> lerp(base, delete, progress)
-                null -> base
-            }
+    val offsetPx = swipeState.offset.value
 
-            val align = when (dir) {
-                DismissDirection.StartToEnd -> Alignment.CenterStart
-                DismissDirection.EndToStart -> Alignment.CenterEnd
-                null -> Alignment.Center
-            }
+    val showingDelete = offsetPx < 0f
+    val showingComplete = offsetPx > 0f
+    val revealDelete = swipeState.currentValue == SwipeStage.RevealDelete
+    val isSwiping = abs(offsetPx) > 2f
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(bgColor)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = align
-            ) {
-                // ✅ Only draw label+icon while swiping (dir != null)
-                when (dir) {
-                    DismissDirection.StartToEnd -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Complete",
-                                modifier = Modifier.graphicsLayer(
-                                    scaleX = iconScale,
-                                    scaleY = iconScale,
-                                    alpha = iconAlpha
-                                )
-                            )
-                            Text(
-                                "Complete",
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .graphicsLayer(alpha = iconAlpha)
-                            )
+    val progress = remember(offsetPx, safeRevealPx) {
+        if (safeRevealPx <= 0f) 0f else (abs(offsetPx) / safeRevealPx).coerceIn(0f, 1f)
+    }
+    val easedProgress = progress * progress
+
+    // ✅ Stronger minimum so green is clearly visible even in dark theme
+    val maxAlpha = 0.45f
+    val bgAlphaTarget = if (isSwiping) lerp(0.12f, maxAlpha, easedProgress) else 0f
+    val bgAlpha by animateFloatAsState(
+        targetValue = bgAlphaTarget,
+        label = "SwipeBackgroundAlpha"
+    )
+
+    // ✅ Red for left swipe, green for right swipe
+    val baseBgColor: Color = when {
+        showingDelete -> Color(0xFFD32F2F)    // red
+        showingComplete -> Color(0xFF2E7D32) // green
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
+    val bgColor = baseBgColor.copy(alpha = bgAlpha)
+
+    val swipeableModifier = if (enabled && anchors != null) {
+        Modifier.swipeable(
+            state = swipeState,
+            anchors = anchors,
+            orientation = Orientation.Horizontal,
+            thresholds = thresholds,
+            // If your layout is RTL and directions feel flipped, set this to true:
+            // reverseDirection = true
+        )
+    } else {
+        Modifier
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onSizeChanged { rowWidthPx = it.width.toFloat().coerceAtLeast(0f) }
+            .then(swipeableModifier)
+    ) {
+        // Background
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(bgColor)
+        ) {
+            val showDeleteUi =
+                (revealDelete && showingDelete) ||
+                        (isSwiping && showingDelete && rowWidthPx > 0f && abs(offsetPx) > (rowWidthPx * 0.12f))
+
+            if (showDeleteUi && safeRevealPx > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(safeRevealDp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(
+                        onClick = {
+                            onDelete()
+                            scope.launch { swipeState.animateTo(SwipeStage.Closed) }
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White
+                        )
                     }
-
-                    DismissDirection.EndToStart -> {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Delete",
-                                modifier = Modifier
-                                    .padding(end = 8.dp)
-                                    .graphicsLayer(alpha = iconAlpha)
-                            )
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                modifier = Modifier.graphicsLayer(
-                                    scaleX = iconScale,
-                                    scaleY = iconScale,
-                                    alpha = iconAlpha
-                                )
-                            )
-                        }
-                    }
-
-                    null -> Unit
                 }
             }
-        },
-        dismissContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer(translationX = contentShift)
-            ) {
-                content()
-            }
         }
-    )
+
+        // Foreground content
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetPx.roundToInt(), 0) }
+        ) {
+            content()
+        }
+    }
 }

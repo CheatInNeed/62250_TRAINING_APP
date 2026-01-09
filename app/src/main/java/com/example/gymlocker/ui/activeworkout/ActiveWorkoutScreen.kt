@@ -30,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +40,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +61,7 @@ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
-import androidx.compose.runtime.derivedStateOf
+import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,37 +73,44 @@ fun ActiveWorkoutScreen(
     var showAddExerciseSheet by remember { mutableStateOf(false) }
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
+
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showUnfinishedSetsDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
+
+    var showQuickFinishWarning by remember { mutableStateOf(false) }
+    var showNameDialog by remember { mutableStateOf(false) }
+    var workoutNameInput by remember { mutableStateOf("") }
+
+    val progress by remember(activeExercises) {
+        derivedStateOf {
+            val totalSets = activeExercises.sumOf { it.sets.size }
+            if (totalSets == 0) return@derivedStateOf 0f
+            val doneSets = activeExercises.sumOf { ex -> ex.sets.count { it.isDone } }
+            doneSets.toFloat() / totalSets.toFloat()
+        }
+    }
 
     val totalVolume by remember(activeExercises) {
         derivedStateOf {
             activeExercises.sumOf { ex ->
                 ex.sets
                     .asSequence()
-                    .filter { it.isDone }                 // kun completed sets
-                    .sumOf { it.weight.toDouble() * it.reps.toDouble() }  // weight * reps
+                    .filter { it.isDone }
+                    .sumOf { it.weight.toDouble() * it.reps.toDouble() }
             }
         }
     }
 
     val totalVolumeText = remember(totalVolume) {
-        // pæn visning uden .0 hvis heltal
         if (totalVolume % 1.0 == 0.0) totalVolume.toLong().toString()
         else String.format("%.2f", totalVolume)
     }
-
-
-    // Finish flow dialogs
-    var showQuickFinishWarning by remember { mutableStateOf(false) }
-    var showNameDialog by remember { mutableStateOf(false) }
-    var workoutNameInput by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.startTimer()
     }
 
-    // Discard dialog
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -122,75 +131,73 @@ fun ActiveWorkoutScreen(
         )
     }
 
-    // 1) Under 1 minute warning
-    if (showQuickFinishWarning) {
+    if (showUnfinishedSetsDialog) {
         AlertDialog(
-            onDismissRequest = { showQuickFinishWarning = false },
-            title = { Text("Finish workout?") },
-            text = { Text("You are about to finish a workout under 1 minute!") },
+            onDismissRequest = { showUnfinishedSetsDialog = false },
+            title = { Text("Unfinished sets") },
+            text = { Text("You have unfinished sets. Do you want to mark these as complete?") },
             confirmButton = {
                 TextButton(onClick = {
-                    showQuickFinishWarning = false
+                    viewModel.markAllUnfinishedMeaningfulSetsDone()
+                    showUnfinishedSetsDialog = false
                     workoutNameInput = ""
                     showNameDialog = true
-                }) { Text("Confirm") }
+                }) { Text("Mark as complete") }
             },
             dismissButton = {
-                TextButton(onClick = { showQuickFinishWarning = false }) { Text("Cancel") }
+                TextButton(onClick = {
+                    showUnfinishedSetsDialog = false
+                    workoutNameInput = ""
+                    showNameDialog = true
+                }) { Text("Keep unfinished") }
             }
         )
     }
 
-    // 2) Name dialog
+    if (showQuickFinishWarning) {
+        AlertDialog(
+            onDismissRequest = { showQuickFinishWarning = false },
+            title = { Text("Workout is too short") },
+            text = { Text("This workout is under 1 minute. Are you sure you want to finish it?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showQuickFinishWarning = false
+                    if (viewModel.hasUnfinishedMeaningfulSets()) {
+                        showUnfinishedSetsDialog = true
+                    } else {
+                        workoutNameInput = ""
+                        showNameDialog = true
+                    }
+                }) { Text("Finish anyway") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showQuickFinishWarning = false }) { Text("Keep training") }
+            }
+        )
+    }
+
     if (showNameDialog) {
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
-            title = { Text("Name your workout") },
+            title = { Text("Enter Workout Name") },
             text = {
-                Column {
-                    Text("Give this workout a name.")
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextField(
-                        value = workoutNameInput,
-                        onValueChange = { workoutNameInput = it },
-                        singleLine = true,
-                        placeholder = { Text("e.g. Leg day") }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Auto-suffixing prevents duplicates. You can also skip to use the date.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
+                OutlinedTextField(
+                    value = workoutNameInput,
+                    onValueChange = { workoutNameInput = it },
+                    label = { Text("Workout name") },
+                    singleLine = true
+                )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val name = workoutNameInput.trim()
-                        if (name.isNotEmpty()) {
-                            viewModel.finishWorkoutWithName(name)
-                            showNameDialog = false
-                            navController.navigate("home") {
-                                popUpTo("home") { inclusive = true }
-                            }
-                        }
-                    },
-                    enabled = workoutNameInput.trim().isNotEmpty()
-                ) { Text("Save") }
+                TextButton(onClick = {
+                    showNameDialog = false
+                    viewModel.finishWorkoutWithName(workoutNameInput)
+                    navController.popBackUnlessAtRoot()
+                    navController.popBackUnlessAtRoot()
+                }) { Text("Finish") }
             },
             dismissButton = {
-                Row {
-                    TextButton(onClick = {
-                        viewModel.finishWorkoutWithDefaultName()
-                        showNameDialog = false
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = true }
-                        }
-                    }) { Text("Skip") }
-
-                    TextButton(onClick = { showNameDialog = false }) { Text("Cancel") }
-                }
+                TextButton(onClick = { showNameDialog = false }) { Text("Cancel") }
             }
         )
     }
@@ -209,12 +216,14 @@ fun ActiveWorkoutScreen(
 
                     Button(
                         onClick = {
-                            if (elapsedTime < 60) {
-                                showQuickFinishWarning = true
-                                return@Button
+                            when {
+                                elapsedTime < 60 -> showQuickFinishWarning = true
+                                viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
+                                else -> {
+                                    workoutNameInput = ""
+                                    showNameDialog = true
+                                }
                             }
-                            workoutNameInput = ""
-                            showNameDialog = true
                         },
                         modifier = Modifier.padding(end = 8.dp)
                     ) { Text("Finish") }
@@ -243,7 +252,6 @@ fun ActiveWorkoutScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Timer + progress
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -254,17 +262,15 @@ fun ActiveWorkoutScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
-                    progress = 0f
+                    progress = progress
                 )
                 Text(
                     text = "Total volume: $totalVolumeText kg",
                     style = MaterialTheme.typography.titleMedium
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            // Exercises
             if (activeExercises.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -284,6 +290,7 @@ fun ActiveWorkoutScreen(
                         ActiveWorkoutExerciseItem(
                             exercise = exercise,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
+                            onMarkAllSetsDone = { viewModel.markAllSetsDone(exercise.exerciseId) },
                             onWeightChange = { setNumber, text ->
                                 viewModel.updateSetWeight(exercise.exerciseId, setNumber, text)
                             },
@@ -316,7 +323,6 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    // Details dialog
     detailExercise?.let { ex ->
         ExerciseDetailsDialog(
             exerciseId = ex.exerciseId,
@@ -339,6 +345,7 @@ fun ActiveWorkoutScreen(
 fun ActiveWorkoutExerciseItem(
     exercise: ActiveExerciseState,
     onAddSet: () -> Unit,
+    onMarkAllSetsDone: () -> Unit,
     onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
     onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit,
@@ -380,7 +387,10 @@ fun ActiveWorkoutExerciseItem(
             Text(
                 text = exercise.exerciseName,
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.clickable { onOpenDetails() }
+                modifier = Modifier.combinedClickable(
+                    onClick = { onOpenDetails() },
+                    onLongClick = { onMarkAllSetsDone() }
+                )
             )
 
             Box {
@@ -393,10 +403,10 @@ fun ActiveWorkoutExerciseItem(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Delete exercise", color = Color.Red) },
+                        text = { Text("Mark all sets as complete") },
                         onClick = {
                             showMenu = false
-                            showDeleteConfirm = true
+                            onMarkAllSetsDone()
                         }
                     )
 
@@ -423,7 +433,6 @@ fun ActiveWorkoutExerciseItem(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Header row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -436,7 +445,6 @@ fun ActiveWorkoutExerciseItem(
         }
         Spacer(modifier = Modifier.height(4.dp))
 
-        // If empty, show placeholder
         if (exercise.sets.isEmpty()) {
             Text(
                 text = "No sets yet",
@@ -455,7 +463,6 @@ fun ActiveWorkoutExerciseItem(
                             deleteMode = true,
                             onDelete = {
                                 onDeleteSet(set.setNumber)
-                                // exit delete mode when we get to 0/1 sets
                                 if (exercise.sets.size <= 1) deleteSetsMode = false
                             },
                             onWeightChange = { onWeightChange(set.setNumber, it) },
@@ -463,7 +470,6 @@ fun ActiveWorkoutExerciseItem(
                             onToggleDone = { onToggleDone(set.setNumber, it) }
                         )
                     } else {
-                        // ✅ Swipe enabled
                         SwipeableSetRow(
                             enabled = true,
                             isDone = set.isDone,
@@ -503,10 +509,9 @@ fun ExerciseSetRow(
 ) {
     val alphaContainer = 0.15f
 
-    // “Smart previous” heuristics:
-    // If there is a previous set text AND the current value is non-zero, assume it was auto-filled.
-    val isWeightPrefilled = (set.previous != null) && (set.weight != 0)
-    val isRepsPrefilled = (set.previous != null) && (set.reps != 0)
+    // ✅ Use the actual state flags from the ViewModel (more stable / consistent)
+    val isWeightPrefilled = set.isWeightPrefilled
+    val isRepsPrefilled = set.isRepsPrefilled
 
     val prefillAlpha = 0.65f
     val normalAlpha = 1.0f
@@ -520,7 +525,6 @@ fun ExerciseSetRow(
         set.isDone -> Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            // Use opaque green so swipe-background doesn't bleed through
             .background(Color(0xFF34C759))
 
         else -> Modifier
@@ -543,7 +547,6 @@ fun ExerciseSetRow(
             textAlign = TextAlign.Center
         )
 
-        // KG
         Box(
             modifier = Modifier
                 .weight(0.9f)
@@ -561,13 +564,10 @@ fun ExerciseSetRow(
                     focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
-
-                    // Prefill opacity
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = if (isWeightPrefilled) prefillAlpha else normalAlpha
                     ),
                     focusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = normalAlpha),
-
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
@@ -576,7 +576,6 @@ fun ExerciseSetRow(
             )
         }
 
-        // REPS
         Box(
             modifier = Modifier
                 .weight(0.9f)
@@ -594,13 +593,10 @@ fun ExerciseSetRow(
                     focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
-
-                    // Prefill opacity
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = if (isRepsPrefilled) prefillAlpha else normalAlpha
                     ),
                     focusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = normalAlpha),
-
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
