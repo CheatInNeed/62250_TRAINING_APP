@@ -348,11 +348,13 @@ fun ActiveWorkoutScreen(
     // Details dialog
     detailExercise?.let { ex ->
         ExerciseDetailsDialog(
+            exerciseId = ex.exerciseId,
             exerciseName = ex.exerciseName,
             muscleGroupId = ex.muscleGroupId,
             viewModel = viewModel,
             onDismiss = { detailExercise = null }
         )
+
     }
 
     if (showAddExerciseSheet) {
@@ -658,21 +660,38 @@ fun ActiveWorkoutScreenPreview() {
 
 @Composable
 fun ExerciseDetailsDialog(
+    exerciseId: Long,
     exerciseName: String,
     muscleGroupId: Long,
     viewModel: ActiveWorkoutViewModel,
     onDismiss: () -> Unit
 ) {
     var muscleGroupName by remember { mutableStateOf<String?>(null) }
+    var prText by remember { mutableStateOf<String?>(null) }
+    var lastTrainedText by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(muscleGroupId) {
         muscleGroupName = viewModel.getMuscleGroupName(muscleGroupId)
     }
 
+    LaunchedEffect(exerciseId) {
+        prText = viewModel.getPersonalRecordText(exerciseId)       // "No PR yet" if none
+        lastTrainedText = viewModel.getLastTrainedText(exerciseId) // "Never trained" if none
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(exerciseName) },
-        text = { Text("Muscle group: ${muscleGroupName ?: "Loading..."}") },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Muscle group: ${muscleGroupName ?: "Loading..."}")
+                Text("PR: ${prText ?: "Loading..."}")
+                Text("Last trained: ${lastTrainedText ?: "Loading..."}")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
     )
 }
+
