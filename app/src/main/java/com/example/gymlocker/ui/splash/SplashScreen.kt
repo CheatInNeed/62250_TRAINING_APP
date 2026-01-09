@@ -43,7 +43,7 @@ fun SplashScreen(
         }
 
         // --- "Real" loading work (warm up DB etc.) ---
-        val minShowMs = 700L
+        val minShowMs = 1000L
         val start = System.currentTimeMillis()
 
         // Keep this fast: just ensure DB instance is created.
@@ -53,6 +53,7 @@ fun SplashScreen(
             // Optional stricter readiness check (uncomment if you want):
             // db.userDao().countUsers()
         }
+
 
         val elapsed = System.currentTimeMillis() - start
         val remaining = max(0L, minShowMs - elapsed)
