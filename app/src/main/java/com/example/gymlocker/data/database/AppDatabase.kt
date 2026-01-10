@@ -16,25 +16,33 @@ import java.io.File
 
 @Database(
     entities = [
+        // Profile (existing)
         User::class,
+
+        // Auth (NEW)
+        AuthAccount::class,
+
         Workout::class,
         MuscleGroup::class,
         Exercises::class,
         ExerciseLog::class,
         PerformedSet::class,
 
-        // ✅ Templates (Option A)
+        // Templates
         WorkoutTemplate::class,
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 2,
-    // ✅ Avoid Room kapt failing unless you ALSO configure room.schemaLocation in Gradle.
+    version = 3, // <-- bumped from 2 -> 3
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
+
+    // NEW
+    abstract fun authAccountDao(): AuthAccountDao
+
     abstract fun workoutDao(): WorkoutDao
     abstract fun muscleGroupDao(): MuscleGroupDao
     abstract fun exerciseDao(): ExerciseDao
@@ -45,7 +53,6 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun templateExerciseDao(): TemplateExerciseDao
     abstract fun templateSetDao(): TemplateSetDao
 
-
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
         private const val DB_NAME = "gymlocker.db"
@@ -53,7 +60,9 @@ abstract class AppDatabase : RoomDatabase() {
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
 
-                // ✅ Always rebuild DB from scratch on every app start
+                // ⚠️ You currently delete the DB every app start.
+                // That makes "persist login between app sessions" impossible in practice,
+                // because user accounts will be removed.
                 deleteDatabaseFiles(context, DB_NAME)
 
                 val instance =
@@ -72,10 +81,8 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private fun deleteDatabaseFiles(context: Context, dbName: String) {
-            // Main DB
             context.deleteDatabase(dbName)
 
-            // Room sidecar files (best-effort cleanup)
             val dbFile = context.getDatabasePath(dbName)
             val shm = File(dbFile.path + "-shm")
             val wal = File(dbFile.path + "-wal")
@@ -87,7 +94,6 @@ abstract class AppDatabase : RoomDatabase() {
     private class SeedCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            // Use a background coroutine and fetch the instance safely.
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     database.seedIfEmpty()
@@ -95,35 +101,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
     }
-    /**
-     * Only inserts seed data if the DB looks empty.
-     * Adjust the count() calls to match your DAO APIs.
-     */
+
     private suspend fun seedIfEmpty() {
-        // If your DAOs don’t have these count methods, either add them or change the condition.
         val userDao = userDao()
         val exerciseDao = exerciseDao()
         val muscleGroupDao = muscleGroupDao()
 
-        // --- Guard: don't seed twice ---
-        // If you don't have countUsers/countExercises, remove these checks and just seed.
         val usersCount = runCatching { userDao.countUsers() }.getOrNull()
         val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull()
 
         if ((usersCount != null && usersCount > 0) || (exercisesCount != null && exercisesCount > 0)) return
 
-        // --- Seed user ---
-        // Prefer letting Room autogenerate ID unless you *need* userId=1.
-        userDao.insert(User(name = "Default User", height = 0, weight = 0))
+        // Seed a profile row (for dummy data). Auth is created by Register screen, not here.
+        val defaultUserId = userDao.insert(User(name = "Default User", height = 0, weight = 0))
 
-        // --- Seed muscle groups ---
         val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
         val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
         val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
         val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
         val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
-
-        // --- Seed exercises ---
         exerciseDao.insert(
             Exercises(
                 name = "Bench Press",
@@ -133,6 +129,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = chestId
             )
         )
+
         exerciseDao.insert(
             Exercises(
                 name = "Squat",
@@ -142,6 +139,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = legsId
             )
         )
+
         exerciseDao.insert(
             Exercises(
                 name = "Deadlift",
@@ -151,6 +149,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = backId
             )
         )
+
         exerciseDao.insert(
             Exercises(
                 name = "Overhead Press",
@@ -160,6 +159,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = shouldersId
             )
         )
+
         exerciseDao.insert(
             Exercises(
                 name = "Barbell Row",
@@ -169,6 +169,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = backId
             )
         )
+
         exerciseDao.insert(
             Exercises(
                 name = "Pull-up",
@@ -178,6 +179,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = backId
             )
         )
+
         exerciseDao.insert(
             Exercises(
                 name = "Bicep Curl",
@@ -188,14 +190,13 @@ abstract class AppDatabase : RoomDatabase() {
             )
         )
 
-        seedDummyTemplates(userId = 1L)
-
+        // Use the seeded profile id instead of hardcoded 1L
+        seedDummyTemplates(userId = defaultUserId)
     }
 
     private suspend fun seedDummyTemplates(userId: Long) {
         val workoutTemplateDao = workoutTemplateDao()
 
-        // Guard: don't seed templates twice
         val existingCount = runCatching {
             workoutTemplateDao.countTemplatesByUserId(userId)
         }.getOrNull() ?: 0
@@ -252,5 +253,4 @@ abstract class AppDatabase : RoomDatabase() {
 
         addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
     }
-
 }
