@@ -28,16 +28,24 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
     }
+}
+
+// Helps kapt/Room resolve types and gives better errors if something still fails
+kapt {
+    correctErrorTypes = true
 }
 
 dependencies {
@@ -74,7 +82,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // DataStore (NEW) — used to store login session info (like "is logged in" + active profile id)
+    // DataStore (session persistence)
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Optional – for easy dataflow conversion to Compose

@@ -18,7 +18,8 @@ import androidx.room.PrimaryKey
     ]
 )
 data class AuthAccount(
-    @PrimaryKey(autoGenerate = true) val authId: Long = 0,
+    @PrimaryKey(autoGenerate = true)
+    val authId: Long = 0,
     val email: String,
     val passwordHash: String,
     val profileUserId: Long

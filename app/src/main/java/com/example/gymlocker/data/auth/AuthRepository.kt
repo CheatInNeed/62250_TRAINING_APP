@@ -5,12 +5,13 @@ import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.AuthAccount
 import com.example.gymlocker.data.entity.User
 
-class AuthRepository(private val context: Context) {
+class AuthRepository(context: Context) {
 
-    private val db = AppDatabase.getDatabase(context)
+    private val appContext = context.applicationContext
+    private val db = AppDatabase.getDatabase(appContext)
     private val userDao = db.userDao()
     private val authDao = db.authAccountDao()
-    private val session = SessionManager(context)
+    private val session = SessionManager(appContext)
 
     suspend fun register(email: String, password: String): Result<Unit> {
         val normalizedEmail = email.trim().lowercase()
@@ -20,10 +21,11 @@ class AuthRepository(private val context: Context) {
             return Result.failure(IllegalStateException("Email is already registered"))
         }
 
-        // Create default/empty profile (workouts attach to this profile id)
+        // Create default profile row (workouts attach to this User)
+        // NOTE: your User requires name/height/weight, so we must supply values.
         val profileId = userDao.insert(
             User(
-                name = "",
+                name = "Default",
                 height = 0,
                 weight = 0
             )
@@ -45,6 +47,7 @@ class AuthRepository(private val context: Context) {
 
     suspend fun login(email: String, password: String): Result<Unit> {
         val normalizedEmail = email.trim().lowercase()
+
         val account = authDao.findByEmail(normalizedEmail)
             ?: return Result.failure(IllegalArgumentException("Incorrect email or password"))
 

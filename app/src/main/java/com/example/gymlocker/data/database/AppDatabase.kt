@@ -120,14 +120,75 @@ abstract class AppDatabase : RoomDatabase() {
         val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
         val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
         val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
+        exerciseDao.insert(
+            Exercises(
+                name = "Bench Press",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = true,
+                muscleGroupId = chestId
+            )
+        )
 
-        exerciseDao.insert(Exercises("Bench Press", 0, 0, true, chestId))
-        exerciseDao.insert(Exercises("Squat", 0, 0, true, legsId))
-        exerciseDao.insert(Exercises("Deadlift", 0, 0, false, backId))
-        exerciseDao.insert(Exercises("Overhead Press", 0, 0, false, shouldersId))
-        exerciseDao.insert(Exercises("Barbell Row", 0, 0, false, backId))
-        exerciseDao.insert(Exercises("Pull-up", 0, 0, false, backId))
-        exerciseDao.insert(Exercises("Bicep Curl", 0, 0, false, armsId))
+        exerciseDao.insert(
+            Exercises(
+                name = "Squat",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = true,
+                muscleGroupId = legsId
+            )
+        )
+
+        exerciseDao.insert(
+            Exercises(
+                name = "Deadlift",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = backId
+            )
+        )
+
+        exerciseDao.insert(
+            Exercises(
+                name = "Overhead Press",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = shouldersId
+            )
+        )
+
+        exerciseDao.insert(
+            Exercises(
+                name = "Barbell Row",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = backId
+            )
+        )
+
+        exerciseDao.insert(
+            Exercises(
+                name = "Pull-up",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = backId
+            )
+        )
+
+        exerciseDao.insert(
+            Exercises(
+                name = "Bicep Curl",
+                startWeight = 0,
+                startReps = 0,
+                isRecent = false,
+                muscleGroupId = armsId
+            )
+        )
 
         // Use the seeded profile id instead of hardcoded 1L
         seedDummyTemplates(userId = defaultUserId)
