@@ -2,6 +2,9 @@ package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,6 +58,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.theme.GymLockerTheme
@@ -74,7 +79,7 @@ fun ActiveWorkoutScreen(
     var showAddExerciseSheet by remember { mutableStateOf(false) }
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
-
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showUnfinishedSetsDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
@@ -232,21 +237,13 @@ fun ActiveWorkoutScreen(
             )
         },
         bottomBar = {
-            BottomAppBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { navController.navigate("home") }) {
-                        Icon(Icons.Filled.Home, contentDescription = "Home")
-                    }
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Filled.Person, contentDescription = "Profile")
-                    }
-                }
+            Column {
+                ActiveWorkoutBanner(navController, viewModel)
+                AppBottomBar(navController)
             }
         }
+
+
     ) { innerPadding ->
         Column(
             modifier = Modifier

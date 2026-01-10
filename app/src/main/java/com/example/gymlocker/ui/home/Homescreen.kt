@@ -1,10 +1,8 @@
 package com.example.gymlocker.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,15 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,6 +33,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.data.entity.template.WorkoutTemplate
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import java.time.DayOfWeek
@@ -49,7 +43,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.example.gymlocker.data.entity.template.WorkoutTemplate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,7 +61,6 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val db = remember { AppDatabase.getDatabase(context) }
     val exerciseLogDao = remember { db.exerciseLogDao() }
 
-    // Same date format as Workout.date in your DB: "yyyy-MM-dd HH:mm:ss.SSS"
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
 
     val today = LocalDate.now()
@@ -86,37 +78,17 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
         .collectAsState(initial = 0)
     // ---------------------------------------------------------------------------------------------
 
-    // Observe templates for default user (1L)
+    // Observe templates for default user (still 1L for now)
     val templatesFlow = activeWorkoutViewModel.observeTemplates(1L)
     val templates by templatesFlow.collectAsState(initial = emptyList())
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
+
+        // ✅ Bottom bar: ONE start/resume button + ONE active workout banner + the nav bar
         bottomBar = {
             Column {
-                // (1) Active workout banner (hvis i gang)
-                if (isWorkoutInProgress) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .clickable { navController.navigate("activeWorkout") }
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Active Workout in Progress")
-                            Text(activeWorkoutViewModel.formatTime(elapsedTime))
-                        }
-                    }
-                }
-
-                // (2) Thumb-friendly primary action button
+                // Thumb-friendly primary action button (ONLY PLACE IT EXISTS)
                 Button(
                     onClick = {
                         if (isWorkoutInProgress) {
@@ -134,24 +106,13 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                     Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
 
-                // (3) Bottom nav bar
-                BottomAppBar {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { /*TODO*/ }) {
-                            Icon(Icons.Filled.Home, contentDescription = "Home")
-                        }
-                        IconButton(onClick = { /*TODO*/ }) {
-                            Icon(Icons.Filled.Person, contentDescription = "Profile")
-                        }
-                    }
-                }
+                // Reusable banner + nav bar
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
             }
         }
     ) { innerPadding ->
+
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -169,54 +130,33 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 )
             }
 
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
+
+            // ✅ Removed the duplicate Start/Resume button that was in the list
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
-                WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
-            }
-
-            item {
-                Button(onClick = {
-                    if (isWorkoutInProgress) {
-                        navController.navigate("activeWorkout")
-                    } else {
-                        navController.navigate("workout")
-                    }
-                }) {
-                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
-                }
-            }
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-            item {
-                Button(onClick = {
-                    navController.navigate("createTemplate")
-                }) {
+                Button(onClick = { navController.navigate("createTemplate") }) {
                     Text("Opret nyt template")
                 }
             }
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+
             item {
                 TemplatesCard(templates) { templateId ->
                     navController.navigate("templateDetail/$templateId")
                 }
             }
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            item {
-                StatsCard()
-            }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
 
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            item { StatsCard() }
+
+            item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
                 CompletedWorkoutsCard(
@@ -261,7 +201,7 @@ private fun prettyWorkoutDate(raw: String): String {
         val output = DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH)
         LocalDateTime.parse(raw, input).format(output)
     } catch (e: Exception) {
-        raw // fallback
+        raw
     }
 }
 
@@ -278,7 +218,6 @@ fun CompletedWorkoutsCard(
             if (workouts.isEmpty()) {
                 Text("No completed workouts yet.", textAlign = TextAlign.Center)
             } else {
-                // Show latest 5
                 workouts.take(5).forEach { w ->
                     val prettyDate = prettyWorkoutDate(w.date)
                     Text("• ${w.name} - $prettyDate - ${w.exerciseCount} exercises")
@@ -288,16 +227,17 @@ fun CompletedWorkoutsCard(
                 TextButton(
                     onClick = onViewHistoryClick,
                     modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Workout History")
-                }
+                ) { Text("Workout History") }
             }
         }
     }
 }
 
 @Composable
-fun TemplatesCard(templates: List<WorkoutTemplate>, onStartFromTemplate: (Long) -> Unit) {
+fun TemplatesCard(
+    templates: List<WorkoutTemplate>,
+    onStartFromTemplate: (Long) -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Templates")
