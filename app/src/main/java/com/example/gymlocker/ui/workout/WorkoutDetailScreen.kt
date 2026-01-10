@@ -17,17 +17,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 import kotlinx.coroutines.launch
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutDetailScreen(
     workoutId: Long,
     navController: NavController,
-    viewModel: WorkoutHistoryViewModel
+    viewModel: WorkoutHistoryViewModel,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
     val workoutDetails by viewModel.getWorkoutDetails(workoutId).collectAsState(initial = emptyList())
     var showCreateTemplateDialog by remember { mutableStateOf(false) }
@@ -58,7 +61,6 @@ fun WorkoutDetailScreen(
                                 showCreateTemplateDialog = false
                                 templateName = ""
                                 isCreatingTemplate = false
-                                // Navigate back
                                 navController.popBackStack()
                             }
                         }
@@ -72,9 +74,7 @@ fun WorkoutDetailScreen(
                 TextButton(
                     onClick = { showCreateTemplateDialog = false },
                     enabled = !isCreatingTemplate
-                ) {
-                    Text("Cancel")
-                }
+                ) { Text("Cancel") }
             }
         )
     }
@@ -94,6 +94,12 @@ fun WorkoutDetailScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Column {
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
+            }
         }
     ) { innerPadding ->
         if (workoutDetails.isEmpty()) {

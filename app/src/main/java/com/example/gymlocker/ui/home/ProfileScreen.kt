@@ -1,16 +1,29 @@
 package com.example.gymlocker.ui.profile
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import kotlinx.coroutines.flow.collectLatest
 
@@ -18,7 +31,8 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun ProfileScreen(
     navController: NavController,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
     // If logged out, send to login
     LaunchedEffect(Unit) {
@@ -43,34 +57,9 @@ fun ProfileScreen(
             )
         },
         bottomBar = {
-            BottomAppBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = {
-                            navController.navigate("home") {
-                                launchSingleTop = true
-                                popUpTo("home") { inclusive = false }
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Filled.Home, contentDescription = "Home")
-                    }
-
-                    IconButton(
-                        onClick = {
-                            // Already here, but "singleTop" prevents duplicates if tapped again
-                            navController.navigate("profile") {
-                                launchSingleTop = true
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Filled.Person, contentDescription = "Profile")
-                    }
-                }
+            Column {
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
             }
         }
     ) { innerPadding ->

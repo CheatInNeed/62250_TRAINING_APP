@@ -40,13 +40,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.CreateTemplateViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateTemplateScreen(
     navController: NavController,
-    viewModel: CreateTemplateViewModel
+    viewModel: CreateTemplateViewModel,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
     var showAddExerciseSheet by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -83,9 +88,7 @@ fun CreateTemplateScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showDiscardDialog = true }) {
-                        Text("Discard")
-                    }
+                    TextButton(onClick = { showDiscardDialog = true }) { Text("Discard") }
                     Button(
                         onClick = {
                             viewModel.saveTemplate()
@@ -98,6 +101,12 @@ fun CreateTemplateScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Column {
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
+            }
         }
     ) { innerPadding ->
         Column(
@@ -105,7 +114,7 @@ fun CreateTemplateScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Top: template name (replaces timer/progress)
+            // Top: template name
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -122,16 +131,13 @@ fun CreateTemplateScreen(
                 )
             }
 
-            // Middle: identical exercise list
             if (templateExercises.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("No exercises added yet.")
                         Text("Start by adding your first exercise.")
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { showAddExerciseSheet = true }) {
-                            Text("Add Exercise")
-                        }
+                        Button(onClick = { showAddExerciseSheet = true }) { Text("Add Exercise") }
                     }
                 }
             } else {
@@ -151,7 +157,9 @@ fun CreateTemplateScreen(
                                 viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                             },
                             onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
-                            onDeleteSet = { setNumber -> viewModel.removeSet(exercise.exerciseId, setNumber) }
+                            onDeleteSet = { setNumber ->
+                                viewModel.removeSet(exercise.exerciseId, setNumber)
+                            }
                         )
                         Spacer(Modifier.height(16.dp))
                     }
@@ -161,9 +169,7 @@ fun CreateTemplateScreen(
                         Button(
                             onClick = { showAddExerciseSheet = true },
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Add Exercise")
-                        }
+                        ) { Text("Add Exercise") }
                         Spacer(Modifier.height(8.dp))
                     }
                 }
@@ -204,14 +210,10 @@ fun TemplateExerciseItem(
                 TextButton(onClick = {
                     onDeleteExercise()
                     showDeleteConfirm = false
-                }) {
-                    Text("Remove")
-                }
+                }) { Text("Remove") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
             }
         )
     }
@@ -270,7 +272,6 @@ fun TemplateExerciseItem(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Header row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
@@ -285,10 +286,10 @@ fun TemplateExerciseItem(
             TemplateSetRow(
                 set = set,
                 deleteMode = deleteSetsMode,
-                onDelete = { onDeleteSet(set.setNumber)
-                    if (exercise.sets.size <= 2) {
-                        deleteSetsMode = false
-                } },
+                onDelete = {
+                    onDeleteSet(set.setNumber)
+                    if (exercise.sets.size <= 2) deleteSetsMode = false
+                },
                 onWeightChange = { onWeightChange(set.setNumber, it) },
                 onRepsChange = { onRepsChange(set.setNumber, it) }
             )
@@ -298,9 +299,7 @@ fun TemplateExerciseItem(
         Button(
             onClick = onAddSet,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("+ Add Set")
-        }
+        ) { Text("+ Add Set") }
     }
 }
 
@@ -312,14 +311,9 @@ fun TemplateSetRow(
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit
 ) {
-    val rowModifier = when {
-        deleteMode -> Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-        else -> Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    }
+    val rowModifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp)
 
     Row(
         modifier = rowModifier,
@@ -331,9 +325,8 @@ fun TemplateSetRow(
             textAlign = TextAlign.Center
         )
 
-        val weightAndRepsInputFieldTransparancyModifier: Float = 0.15f;
+        val alpha = 0.15f
 
-        // KG input
         Box(
             modifier = Modifier
                 .weight(0.9f)
@@ -346,11 +339,10 @@ fun TemplateSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    focusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    disabledContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    errorContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-
+                    unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
+                    focusedContainerColor = Color.Gray.copy(alpha = alpha),
+                    disabledContainerColor = Color.Gray.copy(alpha = alpha),
+                    errorContainerColor = Color.Gray.copy(alpha = alpha),
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
@@ -359,7 +351,6 @@ fun TemplateSetRow(
             )
         }
 
-        // REPS input
         Box(
             modifier = Modifier
                 .weight(0.9f)
@@ -372,11 +363,10 @@ fun TemplateSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    focusedContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    disabledContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-                    errorContainerColor = Color.Gray.copy(alpha = weightAndRepsInputFieldTransparancyModifier),
-
+                    unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
+                    focusedContainerColor = Color.Gray.copy(alpha = alpha),
+                    disabledContainerColor = Color.Gray.copy(alpha = alpha),
+                    errorContainerColor = Color.Gray.copy(alpha = alpha),
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,

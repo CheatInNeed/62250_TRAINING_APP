@@ -25,6 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.data.dao.WorkoutSummary
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -32,17 +36,9 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
-import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
-enum class HistoryViewMode {
-    LIST, CALENDAR
-}
+enum class HistoryViewMode { LIST, CALENDAR }
 
-/**
- * ✅ Pretty date:
- * Input: "yyyy-MM-dd HH:mm:ss.SSS"
- * Output: "Jan 7 2026"
- */
 private fun prettyWorkoutDate(raw: String): String {
     return try {
         val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
@@ -57,12 +53,10 @@ private fun prettyWorkoutDate(raw: String): String {
 @Composable
 fun WorkoutHistoryScreen(
     navController: NavController,
-    viewModel: WorkoutHistoryViewModel
+    viewModel: WorkoutHistoryViewModel,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
-    val workouts by viewModel
-        .completedWorkouts()
-        .collectAsState(initial = emptyList())
-
+    val workouts by viewModel.completedWorkouts().collectAsState(initial = emptyList())
     var viewMode by remember { mutableStateOf(HistoryViewMode.LIST) }
 
     Scaffold(
@@ -86,30 +80,29 @@ fun WorkoutHistoryScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Column {
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
+            }
         }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             if (workouts.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "No completed workouts yet.",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Text("No completed workouts yet.", style = MaterialTheme.typography.bodyLarge)
                 }
             } else {
                 if (viewMode == HistoryViewMode.LIST) {
                     WorkoutList(
                         workouts = workouts,
-                        onWorkoutClick = { workoutId ->
-                            navController.navigate("workoutDetail/$workoutId")
-                        }
+                        onWorkoutClick = { workoutId -> navController.navigate("workoutDetail/$workoutId") }
                     )
                 } else {
                     WorkoutCalendar(
                         workouts = workouts,
-                        onWorkoutClick = { workoutId ->
-                            navController.navigate("workoutDetail/$workoutId")
-                        }
+                        onWorkoutClick = { workoutId -> navController.navigate("workoutDetail/$workoutId") }
                     )
                 }
             }
@@ -127,7 +120,6 @@ fun WorkoutList(
             val prettyDate = prettyWorkoutDate(workout.date)
 
             ListItem(
-                // ✅ "name - Jan 7 2026 - X exercises"
                 headlineContent = {
                     Text("${workout.name} - $prettyDate - ${workout.exerciseCount} exercises")
                 },
@@ -137,6 +129,8 @@ fun WorkoutList(
         }
     }
 }
+
+/* ---- Calendar code unchanged below ---- */
 
 @Composable
 fun WorkoutCalendar(
@@ -159,10 +153,7 @@ fun WorkoutCalendar(
     var selectedDate by remember { mutableStateOf<LocalDate?>(LocalDate.now()) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        CalendarHeader(
-            currentMonth = currentMonth,
-            onMonthChange = { currentMonth = it }
-        )
+        CalendarHeader(currentMonth = currentMonth, onMonthChange = { currentMonth = it })
 
         CalendarGrid(
             currentMonth = currentMonth,
@@ -206,7 +197,6 @@ fun WorkoutCalendar(
                             null
                         }
 
-                        // ✅ show name + time + exercise count
                         val line = if (time != null) {
                             "${workout.name} - $time - ${workout.exerciseCount} exercises"
                         } else {
@@ -262,7 +252,7 @@ fun CalendarGrid(
     selectedDate: LocalDate?,
     onDateSelected: (LocalDate) -> Unit
 ) {
-    val firstDayOfMonth = currentMonth.atDay(1).dayOfWeek.value % 7 // 0=Sun, 1=Mon...
+    val firstDayOfMonth = currentMonth.atDay(1).dayOfWeek.value % 7
     val daysInMonth = currentMonth.lengthOfMonth()
     val daysOfWeek = listOf("S", "M", "T", "W", "T", "F", "S")
 

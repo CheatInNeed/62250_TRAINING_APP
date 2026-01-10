@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplateWithExercises
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -64,6 +66,12 @@ fun TemplateDetailScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Column {
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
+            }
         }
     ) { innerPadding ->
         if (isLoading.value) {
@@ -81,7 +89,6 @@ fun TemplateDetailScreen(
                     .padding(innerPadding)
                     .padding(16.dp)
             ) {
-                // Template header with play button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -99,13 +106,19 @@ fun TemplateDetailScreen(
                     }
                     IconButton(
                         onClick = {
-                            val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                            val dateString =
+                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                    .format(Date())
+
                             activeWorkoutViewModel.startWorkoutFromTemplate(
                                 templateId = templateId,
                                 userId = 1L,
                                 date = dateString
                             )
-                            navController.navigate("activeWorkout")
+
+                            navController.navigate("activeWorkout") {
+                                launchSingleTop = true
+                            }
                         }
                     ) {
                         Icon(Icons.Filled.PlayArrow, contentDescription = "Start workout")
@@ -114,11 +127,7 @@ fun TemplateDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Exercises list
-                Text(
-                    text = "Exercises",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                Text(text = "Exercises", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn {
@@ -162,10 +171,7 @@ fun ExerciseCard(
                 style = MaterialTheme.typography.titleSmall
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Sets",
-                style = MaterialTheme.typography.labelMedium
-            )
+            Text(text = "Sets", style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(4.dp))
             exerciseWithSets.sets.forEach { set ->
                 Text(
@@ -176,4 +182,3 @@ fun ExerciseCard(
         }
     }
 }
-

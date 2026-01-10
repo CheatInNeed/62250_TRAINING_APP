@@ -41,6 +41,7 @@ import com.example.gymlocker.data.entity.template.WorkoutTemplate
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -58,10 +59,6 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val lastWorkoutLabel by activeWorkoutViewModel
         .lastWorkoutLabel()
         .collectAsState(initial = "Finder seneste workout…")
-
-    // ✅ current route (used to avoid re-navigating to same screen)
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
 
     // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
@@ -134,7 +131,11 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 }
 
                 // (3) Reusable bottom nav bar
-                AppBottomBar(navController = navController, currentRoute = currentRoute)
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
+
             }
         }
     ) { innerPadding ->

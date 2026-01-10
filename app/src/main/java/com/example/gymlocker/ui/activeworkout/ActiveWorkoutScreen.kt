@@ -2,6 +2,9 @@ package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,8 +80,6 @@ fun ActiveWorkoutScreen(
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showUnfinishedSetsDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
@@ -236,8 +237,12 @@ fun ActiveWorkoutScreen(
             )
         },
         bottomBar = {
-            AppBottomBar(navController = navController, currentRoute = currentRoute)
+            Column {
+                ActiveWorkoutBanner(navController, viewModel)
+                AppBottomBar(navController)
+            }
         }
+
 
     ) { innerPadding ->
         Column(

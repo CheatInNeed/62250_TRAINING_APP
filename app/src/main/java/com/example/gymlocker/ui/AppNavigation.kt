@@ -44,11 +44,8 @@ fun AppNavigation() {
         factory = AuthViewModel.provideFactory(context)
     )
 
-    // Observe login state from DataStore (session)
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState(initial = false)
 
-    // Important: NavHost needs a stable startDestination.
-    // We'll pick it once when we get the initial state.
     var startDestination by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(isLoggedIn) {
@@ -61,41 +58,62 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = startDestination!!) {
 
-        // --- Auth ---
         composable("login") {
-            LoginScreen(
-                navController = navController,
-                authViewModel = authViewModel
-            )
+            LoginScreen(navController = navController, authViewModel = authViewModel)
         }
+
         composable("register") {
-            RegisterScreen(
+            RegisterScreen(navController = navController, authViewModel = authViewModel)
+        }
+
+        composable("home") {
+            HomeScreen(navController, activeWorkoutViewModel)
+        }
+
+        composable("workout") {
+            WorkoutScreen(navController)
+        }
+
+        composable("activeWorkout") {
+            ActiveWorkoutScreen(navController, activeWorkoutViewModel)
+        }
+
+        composable("createTemplate") {
+            CreateTemplateScreen(
                 navController = navController,
-                authViewModel = authViewModel
+                viewModel = createTemplateViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
 
-        // --- App ---
-        composable("home") { HomeScreen(navController, activeWorkoutViewModel) }
-        composable("workout") { WorkoutScreen(navController) }
-        composable("activeWorkout") { ActiveWorkoutScreen(navController, activeWorkoutViewModel) }
-        composable("createTemplate") { CreateTemplateScreen(navController, createTemplateViewModel) }
-        composable("workoutHistory") { WorkoutHistoryScreen(navController, historyViewModel) }
+        composable("workoutHistory") {
+            WorkoutHistoryScreen(
+                navController = navController,
+                viewModel = historyViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
+        }
 
-        // Profile screen contains Logout
         composable("profile") {
             ProfileScreen(
                 navController = navController,
-                authViewModel = authViewModel
+                authViewModel = authViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
+
 
         composable(
             route = "workoutDetail/{workoutId}",
             arguments = listOf(navArgument("workoutId") { type = NavType.LongType })
         ) { backStackEntry ->
             val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: 0L
-            WorkoutDetailScreen(workoutId, navController, historyViewModel)
+            WorkoutDetailScreen(
+                workoutId = workoutId,
+                navController = navController,
+                viewModel = historyViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
         }
 
         composable(
@@ -103,7 +121,11 @@ fun AppNavigation() {
             arguments = listOf(navArgument("templateId") { type = NavType.LongType })
         ) { backStackEntry ->
             val templateId = backStackEntry.arguments?.getLong("templateId") ?: 0L
-            TemplateDetailScreen(templateId, navController, activeWorkoutViewModel)
+            TemplateDetailScreen(
+                templateId = templateId,
+                navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
         }
     }
 }

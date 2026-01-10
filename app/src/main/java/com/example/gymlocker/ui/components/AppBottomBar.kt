@@ -11,34 +11,46 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
-fun AppBottomBar(
-    navController: NavController,
-    currentRoute: String? = null
-) {
+fun AppBottomBar(navController: NavController) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     val selectedColor = MaterialTheme.colorScheme.primary
     val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    val isHomeSelected = currentRoute == "home"
+    // "Home area" routes = highlight Home icon, even when not literally on "home"
+    val homeRoutes = setOf(
+        "home",
+        "workout",
+        "activeWorkout",
+        "createTemplate",
+        "workoutHistory",
+        "workoutDetail/{workoutId}",
+        "templateDetail/{templateId}"
+    )
+
     val isProfileSelected = currentRoute == "profile"
+    val isHomeSelected = !isProfileSelected && (currentRoute in homeRoutes)
 
     BottomAppBar {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
         ) {
+            // ✅ Always go to the actual Home screen when tapped (unless already there)
             IconButton(
                 onClick = {
-                    if (!isHomeSelected) {
+                    if (currentRoute != "home") {
                         navController.navigate("home") {
                             launchSingleTop = true
                             restoreState = true
-                            popUpTo("home") { saveState = true }
+                            // Pop back stack to home if it exists, otherwise just navigate
+                            popUpTo("home") { inclusive = false }
                         }
                     }
                 }
@@ -52,7 +64,7 @@ fun AppBottomBar(
 
             IconButton(
                 onClick = {
-                    if (!isProfileSelected) {
+                    if (currentRoute != "profile") {
                         navController.navigate("profile") {
                             launchSingleTop = true
                             restoreState = true
