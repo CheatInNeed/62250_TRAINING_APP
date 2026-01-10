@@ -16,10 +16,7 @@ import java.io.File
 
 @Database(
     entities = [
-        // Profile (existing)
         User::class,
-
-        // Auth (NEW)
         AuthAccount::class,
 
         Workout::class,
@@ -28,19 +25,16 @@ import java.io.File
         ExerciseLog::class,
         PerformedSet::class,
 
-        // Templates
         WorkoutTemplate::class,
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 3, // <-- bumped from 2 -> 3
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
-
-    // NEW
     abstract fun authAccountDao(): AuthAccountDao
 
     abstract fun workoutDao(): WorkoutDao
@@ -57,13 +51,15 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile private var INSTANCE: AppDatabase? = null
         private const val DB_NAME = "gymlocker.db"
 
+        // 🔥 Toggle this when debugging
+        private const val DEBUG_WIPE_DB = true
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
 
-                // ⚠️ You currently delete the DB every app start.
-                // That makes "persist login between app sessions" impossible in practice,
-                // because user accounts will be removed.
-                deleteDatabaseFiles(context, DB_NAME)
+                if (DEBUG_WIPE_DB) {
+                    wipeDatabaseAndSession(context)
+                }
 
                 val instance =
                     Room.databaseBuilder(
@@ -80,14 +76,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        private fun deleteDatabaseFiles(context: Context, dbName: String) {
-            context.deleteDatabase(dbName)
+        private fun wipeDatabaseAndSession(context: Context) {
+            // --- Room DB ---
+            context.deleteDatabase(DB_NAME)
 
-            val dbFile = context.getDatabasePath(dbName)
-            val shm = File(dbFile.path + "-shm")
-            val wal = File(dbFile.path + "-wal")
-            if (shm.exists()) shm.delete()
-            if (wal.exists()) wal.delete()
+            val dbFile = context.getDatabasePath(DB_NAME)
+            File(dbFile.path + "-shm").delete()
+            File(dbFile.path + "-wal").delete()
+
+            // --- DataStore session ---
+            // preferencesDataStore(name = "session")
+            val sessionFile = File(context.filesDir, "datastore/session.preferences_pb")
+            if (sessionFile.exists()) sessionFile.delete()
         }
     }
 
@@ -107,19 +107,28 @@ abstract class AppDatabase : RoomDatabase() {
         val exerciseDao = exerciseDao()
         val muscleGroupDao = muscleGroupDao()
 
-        val usersCount = runCatching { userDao.countUsers() }.getOrNull()
-        val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull()
+        val usersCount = runCatching { userDao.countUsers() }.getOrNull() ?: 0
+        val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
 
-        if ((usersCount != null && usersCount > 0) || (exercisesCount != null && exercisesCount > 0)) return
+        if (usersCount > 0 || exercisesCount > 0) return
 
-        // Seed a profile row (for dummy data). Auth is created by Register screen, not here.
-        val defaultUserId = userDao.insert(User(name = "Default User", height = 0, weight = 0))
+        // Seed a profile row (dummy)
+        val defaultUserId = userDao.insert(
+            User(
+                name = "Default User",
+                height = 0,
+                weight = 0
+            )
+        )
 
+        // Seed muscle groups
         val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
         val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
         val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
         val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
         val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
+
+        // ✅ IMPORTANT: use named params so types match your entity
         exerciseDao.insert(
             Exercises(
                 name = "Bench Press",
@@ -129,7 +138,6 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = chestId
             )
         )
-
         exerciseDao.insert(
             Exercises(
                 name = "Squat",
@@ -139,7 +147,6 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = legsId
             )
         )
-
         exerciseDao.insert(
             Exercises(
                 name = "Deadlift",
@@ -149,7 +156,6 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = backId
             )
         )
-
         exerciseDao.insert(
             Exercises(
                 name = "Overhead Press",
@@ -159,7 +165,6 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = shouldersId
             )
         )
-
         exerciseDao.insert(
             Exercises(
                 name = "Barbell Row",
@@ -169,7 +174,6 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = backId
             )
         )
-
         exerciseDao.insert(
             Exercises(
                 name = "Pull-up",
@@ -179,7 +183,6 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = backId
             )
         )
-
         exerciseDao.insert(
             Exercises(
                 name = "Bicep Curl",
@@ -190,7 +193,6 @@ abstract class AppDatabase : RoomDatabase() {
             )
         )
 
-        // Use the seeded profile id instead of hardcoded 1L
         seedDummyTemplates(userId = defaultUserId)
     }
 
@@ -215,6 +217,7 @@ abstract class AppDatabase : RoomDatabase() {
             exerciseName: String,
             sets: List<Pair<Float, Int>>
         ) {
+            // ✅ named params so it matches your TemplateExercise entity (likely Long, Long)
             val templateExerciseId = templateExerciseDao.insert(
                 TemplateExercise(
                     templateId = templateId,
@@ -223,6 +226,7 @@ abstract class AppDatabase : RoomDatabase() {
             )
 
             sets.forEachIndexed { index, (weight, reps) ->
+                // ✅ named params to match your TemplateSet entity
                 templateSetDao.insert(
                     TemplateSet(
                         templateExerciseId = templateExerciseId,
@@ -234,14 +238,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // ✅ named params so date/name stay String and userId stays Long
         val pushId = workoutTemplateDao.insert(
-            WorkoutTemplate(date = "2026-01-07", name = "Push (Dummy)", userId = userId)
+            WorkoutTemplate(
+                date = "2026-01-07",
+                name = "Push (Dummy)",
+                userId = userId
+            )
         )
         val pullId = workoutTemplateDao.insert(
-            WorkoutTemplate(date = "2026-01-07", name = "Pull (Dummy)", userId = userId)
+            WorkoutTemplate(
+                date = "2026-01-07",
+                name = "Pull (Dummy)",
+                userId = userId
+            )
         )
         val legsId = workoutTemplateDao.insert(
-            WorkoutTemplate(date = "2026-01-07", name = "Legs (Dummy)", userId = userId)
+            WorkoutTemplate(
+                date = "2026-01-07",
+                name = "Legs (Dummy)",
+                userId = userId
+            )
         )
 
         addExerciseWithSets(pushId, "Bench Press", listOf(60f to 10, 70f to 8, 75f to 6))

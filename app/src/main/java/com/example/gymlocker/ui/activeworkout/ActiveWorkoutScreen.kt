@@ -55,6 +55,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.theme.GymLockerTheme
@@ -74,6 +76,8 @@ fun ActiveWorkoutScreen(
     var showAddExerciseSheet by remember { mutableStateOf(false) }
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showUnfinishedSetsDialog by remember { mutableStateOf(false) }
@@ -232,21 +236,9 @@ fun ActiveWorkoutScreen(
             )
         },
         bottomBar = {
-            BottomAppBar {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { navController.navigate("home") }) {
-                        Icon(Icons.Filled.Home, contentDescription = "Home")
-                    }
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Filled.Person, contentDescription = "Profile")
-                    }
-                }
-            }
+            AppBottomBar(navController = navController, currentRoute = currentRoute)
         }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier
