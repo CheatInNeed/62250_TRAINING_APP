@@ -1,10 +1,8 @@
 package com.example.gymlocker.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,22 +24,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -88,31 +84,11 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
+
+        // ✅ Bottom bar: ONE start/resume button + ONE active workout banner + the nav bar
         bottomBar = {
             Column {
-                // (1) Active workout banner (hvis i gang)
-                if (isWorkoutInProgress) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .clickable { navController.navigate("activeWorkout") }
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Active Workout in Progress")
-                            Text(activeWorkoutViewModel.formatTime(elapsedTime))
-                        }
-                    }
-                }
-
-                // (2) Thumb-friendly primary action button
+                // Thumb-friendly primary action button (ONLY PLACE IT EXISTS)
                 Button(
                     onClick = {
                         if (isWorkoutInProgress) {
@@ -130,15 +106,13 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                     Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
 
-                // (3) Reusable bottom nav bar
-                Column {
-                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                    AppBottomBar(navController)
-                }
-
+                // Reusable banner + nav bar
+                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                AppBottomBar(navController)
             }
         }
     ) { innerPadding ->
+
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -160,16 +134,7 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
 
-            item {
-                Button(
-                    onClick = {
-                        if (isWorkoutInProgress) navController.navigate("activeWorkout")
-                        else navController.navigate("workout")
-                    }
-                ) {
-                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
-                }
-            }
+            // ✅ Removed the duplicate Start/Resume button that was in the list
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 

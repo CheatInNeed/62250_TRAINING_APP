@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 
 @Composable
@@ -29,8 +30,13 @@ fun ActiveWorkoutBanner(
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
     val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
 
-    // Only show when active
+    // ✅ Hide banner if not active
     if (!isWorkoutInProgress) return
+
+    // ✅ Hide banner on the actual active workout page
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    if (currentRoute == "activeWorkout") return
 
     val timeText = remember(elapsedTime) { activeWorkoutViewModel.formatTime(elapsedTime) }
 
@@ -41,9 +47,7 @@ fun ActiveWorkoutBanner(
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.primaryContainer)
             .clickable {
-                navController.navigate("activeWorkout") {
-                    launchSingleTop = true
-                }
+                navController.navigate("activeWorkout") { launchSingleTop = true }
             }
             .padding(16.dp)
     ) {
