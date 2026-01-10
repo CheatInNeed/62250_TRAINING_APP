@@ -52,6 +52,7 @@ dependencies {
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation.layout)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -72,6 +73,9 @@ dependencies {
     // Kotlin Coroutines (used by Room + ViewModel)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // DataStore (NEW) — used to store login session info (like "is logged in" + active profile id)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Optional – for easy dataflow conversion to Compose
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
