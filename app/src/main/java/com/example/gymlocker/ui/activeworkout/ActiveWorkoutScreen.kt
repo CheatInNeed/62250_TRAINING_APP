@@ -63,8 +63,6 @@ import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
 
-private const val MAX_WORKOUT_NAME_LENGTH = 40
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
@@ -83,10 +81,9 @@ fun ActiveWorkoutScreen(
     var showNameDialog by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
 
-    val workoutNameTooLong = workoutNameInput.length > MAX_WORKOUT_NAME_LENGTH
-    val workoutNameErrorText = if (workoutNameTooLong) {
-        "Name is too long (max $MAX_WORKOUT_NAME_LENGTH characters)."
-    } else null
+    // ✅ Live validation state for name length
+    val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
+    var nameTooLongAttempt by remember { mutableStateOf(false) }
 
     val progress by remember(activeExercises) {
         derivedStateOf {
@@ -147,6 +144,7 @@ fun ActiveWorkoutScreen(
                     viewModel.markAllUnfinishedMeaningfulSetsDone()
                     showUnfinishedSetsDialog = false
                     workoutNameInput = ""
+                    nameTooLongAttempt = false
                     showNameDialog = true
                 }) { Text("Mark as complete") }
             },
@@ -154,6 +152,7 @@ fun ActiveWorkoutScreen(
                 TextButton(onClick = {
                     showUnfinishedSetsDialog = false
                     workoutNameInput = ""
+                    nameTooLongAttempt = false
                     showNameDialog = true
                 }) { Text("Keep unfinished") }
             }
@@ -172,6 +171,7 @@ fun ActiveWorkoutScreen(
                         showUnfinishedSetsDialog = true
                     } else {
                         workoutNameInput = ""
+                        nameTooLongAttempt = false
                         showNameDialog = true
                     }
                 }) { Text("Finish anyway") }
@@ -183,36 +183,48 @@ fun ActiveWorkoutScreen(
     }
 
     if (showNameDialog) {
+        val maxLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
+        val trimmed = workoutNameInput.trim()
+        val tooLong = trimmed.length > maxLen
+        val blank = trimmed.isBlank()
+
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
             title = { Text("Enter Workout Name") },
             text = {
-                Column {
-                    OutlinedTextField(
-                        value = workoutNameInput,
-                        onValueChange = { workoutNameInput = it },
-                        label = { Text("Workout name") },
-                        singleLine = true,
-                        isError = workoutNameErrorText != null,
-                        supportingText = {
-                            if (workoutNameErrorText != null) {
-                                Text(workoutNameErrorText)
-                            } else {
-                                Text("${workoutNameInput.length} / $MAX_WORKOUT_NAME_LENGTH")
-                            }
+                OutlinedTextField(
+                    value = workoutNameInput,
+                    onValueChange = { newValue ->
+                        // live enforcement: allow typing but block exceeding max
+                        // (or switch to `workoutNameInput = newValue.take(maxLen)` if you prefer hard-trim)
+                        if (newValue.length <= maxLen) {
+                            workoutNameInput = newValue
+                        } else {
+                            // Keep current text; user sees error + counter.
+                            workoutNameInput = newValue
                         }
-                    )
-                }
+                    },
+                    label = { Text("Workout name") },
+                    singleLine = true,
+                    isError = blank || tooLong,
+                    supportingText = {
+                        when {
+                            blank -> Text("Please enter a name.")
+                            tooLong -> Text("Max $maxLen characters.")
+                            else -> Text("${trimmed.length} / $maxLen")
+                        }
+                    }
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showNameDialog = false
-                        viewModel.finishWorkoutWithName(workoutNameInput)
+                        viewModel.finishWorkoutWithName(trimmed)
                         navController.popBackUnlessAtRoot()
                         navController.popBackUnlessAtRoot()
                     },
-                    enabled = !workoutNameTooLong
+                    enabled = !blank && !tooLong
                 ) { Text("Finish") }
             },
             dismissButton = {
@@ -220,6 +232,7 @@ fun ActiveWorkoutScreen(
             }
         )
     }
+
 
     Scaffold(
         topBar = {
@@ -240,6 +253,7 @@ fun ActiveWorkoutScreen(
                                 viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
                                 else -> {
                                     workoutNameInput = ""
+                                    nameTooLongAttempt = false
                                     showNameDialog = true
                                 }
                             }
@@ -417,8 +431,6 @@ fun ActiveWorkoutExerciseItem(
                             onMarkAllSetsDone()
                         }
                     )
-
-                    // ✅ NEW: Delete exercise from active workout (with confirmation dialog)
                     DropdownMenuItem(
                         text = { Text("Delete exercise") },
                         onClick = {
@@ -426,6 +438,7 @@ fun ActiveWorkoutExerciseItem(
                             showDeleteConfirm = true
                         }
                     )
+
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(

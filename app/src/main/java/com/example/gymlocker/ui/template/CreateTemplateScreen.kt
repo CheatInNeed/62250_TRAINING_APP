@@ -1,6 +1,6 @@
-// FILE: app/src/main/java/com/example/gymlocker/ui/template/CreateTemplateScreen.kt
 package com.example.gymlocker.ui.template
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +46,8 @@ import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
+import com.example.gymlocker.viewmodel.TemplateExerciseState
+import com.example.gymlocker.viewmodel.TemplateSetState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,10 +64,7 @@ fun CreateTemplateScreen(
     val templateExercises by viewModel.selectedExercises.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
 
-    val canSave = templateName.isNotBlank() &&
-            templateExercises.isNotEmpty() &&
-            !isSaving &&
-            templateNameError == null
+    val maxLen = CreateTemplateViewModel.MAX_TEMPLATE_NAME_LENGTH
 
     if (showDiscardDialog) {
         AlertDialog(
@@ -74,6 +73,7 @@ fun CreateTemplateScreen(
             text = { Text("Are you sure you want to discard this template?") },
             confirmButton = {
                 TextButton(onClick = {
+                    // Optional: clear name (and you could also clear exercises if you want)
                     viewModel.updateTemplateName("")
                     showDiscardDialog = false
                     navController.navigateUp()
@@ -96,13 +96,16 @@ fun CreateTemplateScreen(
                 },
                 actions = {
                     TextButton(onClick = { showDiscardDialog = true }) { Text("Discard") }
+
                     Button(
                         onClick = {
-                            if (!canSave) return@Button
                             viewModel.saveTemplate()
                             navController.navigateUp()
                         },
-                        enabled = canSave,
+                        enabled = templateName.isNotBlank() &&
+                                templateExercises.isNotEmpty() &&
+                                !isSaving &&
+                                templateNameError == null,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text(if (isSaving) "Saving..." else "Save")
@@ -129,19 +132,19 @@ fun CreateTemplateScreen(
             ) {
                 Text("Template name", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(8.dp))
+
                 TextField(
                     value = templateName,
                     onValueChange = viewModel::updateTemplateName,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    isError = templateNameError != null,
                     placeholder = { Text("e.g. Push Day") },
+                    isError = templateNameError != null || templateName.isBlank(),
                     supportingText = {
-                        val max = CreateTemplateViewModel.MAX_TEMPLATE_NAME_LENGTH
-                        if (templateNameError != null) {
-                            Text(templateNameError!!)
-                        } else {
-                            Text("${templateName.length} / $max")
+                        when {
+                            templateName.isBlank() -> Text("Please enter a name.")
+                            templateNameError != null -> Text(templateNameError ?: "")
+                            else -> Text("${templateName.length} / $maxLen")
                         }
                     }
                 )
@@ -206,7 +209,7 @@ fun CreateTemplateScreen(
 
 @Composable
 fun TemplateExerciseItem(
-    exercise: com.example.gymlocker.viewmodel.TemplateExerciseState,
+    exercise: TemplateExerciseState,
     onAddSet: () -> Unit,
     onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
@@ -241,13 +244,14 @@ fun TemplateExerciseItem(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = exercise.exerciseName,
                 style = MaterialTheme.typography.titleMedium
             )
+
             Box {
                 IconButton(onClick = { showMenu = true }) {
                     Icon(Icons.Filled.MoreVert, contentDescription = "More")
@@ -290,12 +294,13 @@ fun TemplateExerciseItem(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("SET", modifier = Modifier.weight(0.5f))
             Text("KG", modifier = Modifier.weight(0.7f))
             Text("REPS", modifier = Modifier.weight(0.7f))
         }
+
         Spacer(modifier = Modifier.height(4.dp))
 
         exercise.sets.forEach { set ->
@@ -304,6 +309,8 @@ fun TemplateExerciseItem(
                 deleteMode = deleteSetsMode,
                 onDelete = {
                     onDeleteSet(set.setNumber)
+                    // if there was only 1 set left (size==1), after delete it's 0;
+                    // if you want to auto-exit delete mode when empty/small, tweak this:
                     if (exercise.sets.size <= 2) deleteSetsMode = false
                 },
                 onWeightChange = { onWeightChange(set.setNumber, it) },
@@ -321,7 +328,7 @@ fun TemplateExerciseItem(
 
 @Composable
 fun TemplateSetRow(
-    set: com.example.gymlocker.viewmodel.TemplateSetState,
+    set: TemplateSetState,
     deleteMode: Boolean,
     onDelete: () -> Unit,
     onWeightChange: (String) -> Unit,
@@ -353,7 +360,7 @@ fun TemplateSetRow(
                 value = if (set.weight == 0f) "" else set.weight.toString(),
                 onValueChange = onWeightChange,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier.fillMaxWidth(0.9f),
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
                     focusedContainerColor = Color.Gray.copy(alpha = alpha),
@@ -377,7 +384,7 @@ fun TemplateSetRow(
                 value = if (set.reps == 0) "" else set.reps.toString(),
                 onValueChange = onRepsChange,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier.fillMaxWidth(0.9f),
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
                     focusedContainerColor = Color.Gray.copy(alpha = alpha),

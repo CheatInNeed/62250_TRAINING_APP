@@ -5,40 +5,42 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.PerformedSet
-import com.example.gymlocker.data.entity.Workout
-import com.example.gymlocker.data.entity.Exercises
-import com.example.gymlocker.data.entity.template.TemplateExercise
-import com.example.gymlocker.data.entity.template.TemplateSet
-import com.example.gymlocker.data.entity.template.WorkoutTemplate
-import com.example.gymlocker.data.dao.WorkoutSummary
+import com.example.gymlocker.data.entity.*
+import com.example.gymlocker.data.entity.template.*
+import com.example.gymlocker.data.dao.*
+import com.example.gymlocker.data.dao.template.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import java.text.SimpleDateFormat
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import com.example.gymlocker.data.dao.WorkoutSummary
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
+// Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
     val setNumber: Int,
     val weight: Int = 0,
     val reps: Int = 0,
     val isDone: Boolean = false,
     val previous: String? = null,
+
+    // visual hint flags for opacity
     val isWeightPrefilled: Boolean = false,
     val isRepsPrefilled: Boolean = false
 )
 
+// Én øvelse i den aktive workout
 data class ActiveExerciseState(
     val exerciseId: Long,
     val exerciseName: String,
@@ -46,6 +48,9 @@ data class ActiveExerciseState(
     val sets: List<ExerciseSetState> = listOf(ExerciseSetState(setNumber = 1))
 )
 
+/**
+ * Stable UI model for Exercise details popup (and future screen reuse).
+ */
 data class ExerciseStatsUi(
     val prText: String,
     val lastTrainedText: String
@@ -102,15 +107,18 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    /**
+     * Home screen templates: observe seeded/user templates for the default user (1L).
+     */
     fun observeTemplates(userId: Long = 1L) = workoutTemplateDao.observeTemplates(userId)
 
+    /**
+     * Fetch a specific template with its exercises for the detail screen.
+     */
     suspend fun getTemplateWithExercises(templateId: Long) =
         workoutTemplateDao.getTemplateWithExercises(templateId)
 
-    // ✅ NEW: delete a TemplateExercise row (and cascade TemplateSet rows)
-    suspend fun deleteTemplateExerciseById(templateExerciseId: Long) {
-        templateExerciseDao.deleteById(templateExerciseId)
-    }
+    // --- Timer/state ---
 
     fun startTimer() {
         if (timerJob?.isActive == true) return
@@ -149,6 +157,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         return "$minutes min $remainingSeconds sec"
     }
 
+    // --- Core persistence helpers ---
+
     private suspend fun ensureWorkoutExists(): Long = workoutCreateMutex.withLock {
         val existing = currentWorkoutId
         if (existing != null) return existing
@@ -172,6 +182,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
         return ex.sets.filter { it.reps > 0 && it.weight > 0 }
     }
+
+    // --- Exercise handling ---
 
     fun addExercise(exercise: Exercises) {
         val existing = _activeExercises.value
@@ -523,6 +535,10 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     companion object {
+
+        // ✅ Used by the ActiveWorkout name dialog
+        const val MAX_WORKOUT_NAME_LENGTH = 40
+
         fun provideFactory(context: Context): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -540,6 +556,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String
     ) {
         viewModelScope.launch {
+            // 1) Create template root
             val templateId = workoutTemplateDao.insert(
                 WorkoutTemplate(
                     name = templateName,
@@ -548,8 +565,10 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
             )
 
+            // 2) Read workout structure
             val logs = exerciseLogDao.getLogsForWorkoutOnce(workoutId)
 
+            // 3) Copy each ExerciseLog -> TemplateExercise and its sets
             for (log in logs) {
                 val templateExerciseId = templateExerciseDao.insert(
                     TemplateExercise(
@@ -580,12 +599,15 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String,
         nameOverride: String? = null
     ) {
+        // Guard: don't start a new workout if one is already in progress
         if (_isWorkoutInProgress.value || currentWorkoutId != null) return
 
         viewModelScope.launch {
+            // 1) Load template structure
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
                 ?: return@launch
 
+            // 2) Create new workout
             val newWorkoutId = workoutDao.insert(
                 Workout(
                     date = date,
@@ -595,8 +617,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             )
 
             currentWorkoutId = newWorkoutId
+
+            // 3) Reset UI state
             _activeExercises.value = emptyList()
 
+            // 4) Copy template exercises -> UI + DB
             for (tex in tpl.exercises) {
                 val exerciseId = tex.templateExercise.exerciseId
 
@@ -702,4 +727,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             dbDateString
         }
     }
+    fun deleteTemplateExerciseById(templateExerciseId: Long) {
+        viewModelScope.launch {
+            // Because TemplateSet has FK with onDelete = CASCADE,
+            // deleting the template_exercise row will also delete its template_set rows.
+            templateExerciseDao.deleteById(templateExerciseId)
+        }
+    }
+
 }
