@@ -12,7 +12,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -20,21 +22,25 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.data.entity.template.TemplateExerciseWithSets
 import com.example.gymlocker.data.entity.template.WorkoutTemplateWithExercises
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -49,9 +55,50 @@ fun TemplateDetailScreen(
     val templateState = remember { mutableStateOf<WorkoutTemplateWithExercises?>(null) }
     val isLoading = remember { mutableStateOf(true) }
 
+    val pendingDeleteTemplateExerciseId = remember { mutableStateOf<Long?>(null) }
+    val showDeleteConfirm = remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun reloadTemplate() {
+        scope.launch {
+            isLoading.value = true
+            templateState.value = activeWorkoutViewModel.getTemplateWithExercises(templateId)
+            isLoading.value = false
+        }
+    }
+
     LaunchedEffect(templateId) {
         templateState.value = activeWorkoutViewModel.getTemplateWithExercises(templateId)
         isLoading.value = false
+    }
+
+    if (showDeleteConfirm.value && pendingDeleteTemplateExerciseId.value != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirm.value = false
+                pendingDeleteTemplateExerciseId.value = null
+            },
+            title = { Text("Remove exercise?") },
+            text = { Text("Are you sure you want to remove this exercise from the template?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val id = pendingDeleteTemplateExerciseId.value!!
+                    showDeleteConfirm.value = false
+                    pendingDeleteTemplateExerciseId.value = null
+
+                    scope.launch {
+                        activeWorkoutViewModel.deleteTemplateExerciseById(id)
+                        reloadTemplate()
+                    }
+                }) { Text("Remove") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm.value = false
+                    pendingDeleteTemplateExerciseId.value = null
+                }) { Text("Cancel") }
+            }
+        )
     }
 
     val template = templateState.value
@@ -132,7 +179,13 @@ fun TemplateDetailScreen(
 
                 LazyColumn {
                     items(template.exercises) { exerciseWithSets ->
-                        ExerciseCard(exerciseWithSets)
+                        ExerciseCard(
+                            exerciseWithSets = exerciseWithSets,
+                            onRequestDelete = {
+                                pendingDeleteTemplateExerciseId.value = exerciseWithSets.templateExercise.id
+                                showDeleteConfirm.value = true
+                            }
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -152,7 +205,8 @@ fun TemplateDetailScreen(
 
 @Composable
 fun ExerciseCard(
-    exerciseWithSets: com.example.gymlocker.data.entity.template.TemplateExerciseWithSets,
+    exerciseWithSets: TemplateExerciseWithSets,
+    onRequestDelete: () -> Unit,
     exerciseName: String = "Unknown Exercise"
 ) {
     val context = LocalContext.current
@@ -166,10 +220,21 @@ fun ExerciseCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = fetchedExerciseName.value,
-                style = MaterialTheme.typography.titleSmall
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = fetchedExerciseName.value,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onRequestDelete) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete exercise")
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = "Sets", style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(4.dp))

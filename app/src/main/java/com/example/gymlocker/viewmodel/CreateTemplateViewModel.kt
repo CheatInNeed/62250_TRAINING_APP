@@ -17,7 +17,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Represents a template exercise with its sets
 data class TemplateExerciseState(
     val templateExerciseId: Long = 0L,
     val exerciseId: Long,
@@ -34,6 +33,10 @@ data class TemplateSetState(
 
 class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
 
+    companion object {
+        const val MAX_TEMPLATE_NAME_LENGTH = 40
+    }
+
     private val db by lazy { AppDatabase.getDatabase(appContext) }
     private val workoutTemplateDao by lazy { db.workoutTemplateDao() }
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
@@ -41,6 +44,9 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
 
     private val _templateName = MutableStateFlow("")
     val templateName: StateFlow<String> = _templateName.asStateFlow()
+
+    private val _templateNameError = MutableStateFlow<String?>(null)
+    val templateNameError: StateFlow<String?> = _templateNameError.asStateFlow()
 
     private val _selectedExercises = MutableStateFlow<List<TemplateExerciseState>>(emptyList())
     val selectedExercises: StateFlow<List<TemplateExerciseState>> = _selectedExercises.asStateFlow()
@@ -50,6 +56,10 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
 
     fun updateTemplateName(name: String) {
         _templateName.value = name
+        _templateNameError.value =
+            if (name.length > MAX_TEMPLATE_NAME_LENGTH) {
+                "Name is too long (max $MAX_TEMPLATE_NAME_LENGTH characters)."
+            } else null
     }
 
     fun addExercise(exercise: Exercises) {
@@ -129,32 +139,25 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-
     fun saveTemplate() {
-        if (_templateName.value.isBlank()) {
-            return
-        }
-
-        if (_selectedExercises.value.isEmpty()) {
-            return
-        }
+        if (_templateName.value.isBlank()) return
+        if (_templateName.value.length > MAX_TEMPLATE_NAME_LENGTH) return
+        if (_selectedExercises.value.isEmpty()) return
 
         viewModelScope.launch {
             _isSaving.value = true
             try {
-                // Create the template
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val currentDate = dateFormat.format(Date())
 
                 val template = WorkoutTemplate(
                     date = currentDate,
                     name = _templateName.value,
-                    userId = 1L // TODO: Use actual user ID
+                    userId = 1L
                 )
 
                 val templateId = workoutTemplateDao.insert(template)
 
-                // Add exercises and sets to the template
                 _selectedExercises.value.forEach { templateExercise ->
                     val templateEx = TemplateExercise(
                         templateId = templateId,
@@ -162,7 +165,6 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
                     )
                     val templateExerciseId = templateExerciseDao.insert(templateEx)
 
-                    // Add sets for this exercise
                     val templateSets = templateExercise.sets.map { set ->
                         TemplateSet(
                             templateExerciseId = templateExerciseId,
@@ -174,8 +176,8 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
                     templateSetDao.insertAll(templateSets)
                 }
 
-                // Reset state after saving
                 _templateName.value = ""
+                _templateNameError.value = null
                 _selectedExercises.value = emptyList()
             } finally {
                 _isSaving.value = false
@@ -183,7 +185,7 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    companion object {
+    companion object Factory {
         fun provideFactory(context: Context): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -194,4 +196,3 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 }
-

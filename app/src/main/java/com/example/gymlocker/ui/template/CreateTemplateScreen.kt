@@ -1,3 +1,4 @@
+// FILE: app/src/main/java/com/example/gymlocker/ui/template/CreateTemplateScreen.kt
 package com.example.gymlocker.ui.template
 
 import androidx.compose.foundation.layout.Box
@@ -57,8 +58,14 @@ fun CreateTemplateScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
 
     val templateName by viewModel.templateName.collectAsState()
+    val templateNameError by viewModel.templateNameError.collectAsState()
     val templateExercises by viewModel.selectedExercises.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+
+    val canSave = templateName.isNotBlank() &&
+            templateExercises.isNotEmpty() &&
+            !isSaving &&
+            templateNameError == null
 
     if (showDiscardDialog) {
         AlertDialog(
@@ -91,10 +98,11 @@ fun CreateTemplateScreen(
                     TextButton(onClick = { showDiscardDialog = true }) { Text("Discard") }
                     Button(
                         onClick = {
+                            if (!canSave) return@Button
                             viewModel.saveTemplate()
                             navController.navigateUp()
                         },
-                        enabled = templateName.isNotBlank() && templateExercises.isNotEmpty() && !isSaving,
+                        enabled = canSave,
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text(if (isSaving) "Saving..." else "Save")
@@ -114,7 +122,6 @@ fun CreateTemplateScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Top: template name
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -127,7 +134,16 @@ fun CreateTemplateScreen(
                     onValueChange = viewModel::updateTemplateName,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g. Push Day") }
+                    isError = templateNameError != null,
+                    placeholder = { Text("e.g. Push Day") },
+                    supportingText = {
+                        val max = CreateTemplateViewModel.MAX_TEMPLATE_NAME_LENGTH
+                        if (templateNameError != null) {
+                            Text(templateNameError!!)
+                        } else {
+                            Text("${templateName.length} / $max")
+                        }
+                    }
                 )
             }
 
