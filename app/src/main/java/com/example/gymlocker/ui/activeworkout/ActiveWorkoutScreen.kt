@@ -1,10 +1,6 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import com.example.gymlocker.ui.components.ActiveWorkoutBanner
-import com.example.gymlocker.ui.components.AppBottomBar
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,11 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -57,18 +50,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.gymlocker.ui.components.AppBottomBar
+import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
-import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +80,10 @@ fun ActiveWorkoutScreen(
     var showQuickFinishWarning by remember { mutableStateOf(false) }
     var showNameDialog by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
+
+    // ✅ Live validation state for name length
+    val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
+    var nameTooLongAttempt by remember { mutableStateOf(false) }
 
     val progress by remember(activeExercises) {
         derivedStateOf {
@@ -147,6 +144,7 @@ fun ActiveWorkoutScreen(
                     viewModel.markAllUnfinishedMeaningfulSetsDone()
                     showUnfinishedSetsDialog = false
                     workoutNameInput = ""
+                    nameTooLongAttempt = false
                     showNameDialog = true
                 }) { Text("Mark as complete") }
             },
@@ -154,6 +152,7 @@ fun ActiveWorkoutScreen(
                 TextButton(onClick = {
                     showUnfinishedSetsDialog = false
                     workoutNameInput = ""
+                    nameTooLongAttempt = false
                     showNameDialog = true
                 }) { Text("Keep unfinished") }
             }
@@ -172,6 +171,7 @@ fun ActiveWorkoutScreen(
                         showUnfinishedSetsDialog = true
                     } else {
                         workoutNameInput = ""
+                        nameTooLongAttempt = false
                         showNameDialog = true
                     }
                 }) { Text("Finish anyway") }
@@ -183,30 +183,56 @@ fun ActiveWorkoutScreen(
     }
 
     if (showNameDialog) {
+        val maxLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
+        val trimmed = workoutNameInput.trim()
+        val tooLong = trimmed.length > maxLen
+        val blank = trimmed.isBlank()
+
         AlertDialog(
             onDismissRequest = { showNameDialog = false },
             title = { Text("Enter Workout Name") },
             text = {
                 OutlinedTextField(
                     value = workoutNameInput,
-                    onValueChange = { workoutNameInput = it },
+                    onValueChange = { newValue ->
+                        // live enforcement: allow typing but block exceeding max
+                        // (or switch to `workoutNameInput = newValue.take(maxLen)` if you prefer hard-trim)
+                        if (newValue.length <= maxLen) {
+                            workoutNameInput = newValue
+                        } else {
+                            // Keep current text; user sees error + counter.
+                            workoutNameInput = newValue
+                        }
+                    },
                     label = { Text("Workout name") },
-                    singleLine = true
+                    singleLine = true,
+                    isError = blank || tooLong,
+                    supportingText = {
+                        when {
+                            blank -> Text("Please enter a name.")
+                            tooLong -> Text("Max $maxLen characters.")
+                            else -> Text("${trimmed.length} / $maxLen")
+                        }
+                    }
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    showNameDialog = false
-                    viewModel.finishWorkoutWithName(workoutNameInput)
-                    navController.popBackUnlessAtRoot()
-                    navController.popBackUnlessAtRoot()
-                }) { Text("Finish") }
+                TextButton(
+                    onClick = {
+                        showNameDialog = false
+                        viewModel.finishWorkoutWithName(trimmed)
+                        navController.popBackUnlessAtRoot()
+                        navController.popBackUnlessAtRoot()
+                    },
+                    enabled = !blank && !tooLong
+                ) { Text("Finish") }
             },
             dismissButton = {
                 TextButton(onClick = { showNameDialog = false }) { Text("Cancel") }
             }
         )
     }
+
 
     Scaffold(
         topBar = {
@@ -227,6 +253,7 @@ fun ActiveWorkoutScreen(
                                 viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
                                 else -> {
                                     workoutNameInput = ""
+                                    nameTooLongAttempt = false
                                     showNameDialog = true
                                 }
                             }
@@ -242,8 +269,6 @@ fun ActiveWorkoutScreen(
                 AppBottomBar(navController)
             }
         }
-
-
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -293,7 +318,6 @@ fun ActiveWorkoutScreen(
                                 viewModel.updateSetWeight(exercise.exerciseId, setNumber, text)
                             },
                             onRepsChange = { setNumber, text ->
-
                                 viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                             },
                             onToggleDone = { setNumber, checked ->
@@ -407,6 +431,14 @@ fun ActiveWorkoutExerciseItem(
                             onMarkAllSetsDone()
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("Delete exercise") },
+                        onClick = {
+                            showMenu = false
+                            showDeleteConfirm = true
+                        }
+                    )
+
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
@@ -507,7 +539,6 @@ fun ExerciseSetRow(
 ) {
     val alphaContainer = 0.15f
 
-    // ✅ Use the actual state flags from the ViewModel (more stable / consistent)
     val isWeightPrefilled = set.isWeightPrefilled
     val isRepsPrefilled = set.isRepsPrefilled
 
@@ -631,48 +662,4 @@ fun ActiveWorkoutScreenPreview() {
             ).create(ActiveWorkoutViewModel::class.java)
         )
     }
-}
-
-@Composable
-fun ExerciseDetailsDialog(
-    exerciseId: Long,
-    exerciseName: String,
-    muscleGroupId: Long,
-    viewModel: ActiveWorkoutViewModel,
-    onDismiss: () -> Unit
-) {
-    var muscleGroupName by remember { mutableStateOf<String?>(null) }
-    var prText by remember { mutableStateOf<String?>(null) }
-    var lastTrainedText by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(exerciseId, muscleGroupId) {
-        muscleGroupName = viewModel.getMuscleGroupName(muscleGroupId)
-        prText = viewModel.getPersonalRecordText(exerciseId)
-        lastTrainedText = viewModel.getLastTrainedText(exerciseId)
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(exerciseName) },
-        text = {
-            Column {
-                Text("Muscle group: ${muscleGroupName ?: "Loading..."}")
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Personal record",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(prText ?: "Loading...")
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Last trained",
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Text(lastTrainedText ?: "Loading...")
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
 }

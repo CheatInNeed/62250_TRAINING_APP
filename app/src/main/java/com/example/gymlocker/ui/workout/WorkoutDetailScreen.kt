@@ -1,11 +1,30 @@
 package com.example.gymlocker.ui.workout
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,6 +43,8 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 import kotlinx.coroutines.launch
 
+private const val MAX_TEMPLATE_NAME_LENGTH = 40
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutDetailScreen(
@@ -38,6 +59,11 @@ fun WorkoutDetailScreen(
     var isCreatingTemplate by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
+    val nameTooLong = templateName.length > MAX_TEMPLATE_NAME_LENGTH
+    val nameErrorText = if (nameTooLong) {
+        "Name is too long (max $MAX_TEMPLATE_NAME_LENGTH characters)."
+    } else null
+
     if (showCreateTemplateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateTemplateDialog = false },
@@ -48,13 +74,18 @@ fun WorkoutDetailScreen(
                     onValueChange = { templateName = it },
                     label = { Text("Template name") },
                     singleLine = true,
+                    isError = nameErrorText != null,
+                    supportingText = {
+                        if (nameErrorText != null) Text(nameErrorText)
+                        else Text("${templateName.length} / $MAX_TEMPLATE_NAME_LENGTH")
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (templateName.isNotBlank() && !isCreatingTemplate) {
+                        if (templateName.isNotBlank() && !nameTooLong && !isCreatingTemplate) {
                             isCreatingTemplate = true
                             coroutineScope.launch {
                                 viewModel.createTemplateFromWorkout(workoutId, templateName)
@@ -65,7 +96,7 @@ fun WorkoutDetailScreen(
                             }
                         }
                     },
-                    enabled = templateName.isNotBlank() && !isCreatingTemplate
+                    enabled = templateName.isNotBlank() && !nameTooLong && !isCreatingTemplate
                 ) {
                     Text(if (isCreatingTemplate) "Creating..." else "Create")
                 }
