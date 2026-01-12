@@ -18,6 +18,10 @@ interface WorkoutDao {
     @Query("UPDATE workouts SET name = :name WHERE workoutId = :workoutId")
     suspend fun updateWorkoutName(workoutId: Long, name: String)
 
+    // ✅ NEW: persist duration
+    @Query("UPDATE workouts SET time = :timeSeconds WHERE workoutId = :workoutId")
+    suspend fun updateWorkoutTime(workoutId: Long, timeSeconds: Long)
+
     @Query(
         """
         SELECT name FROM workouts
@@ -46,6 +50,17 @@ interface WorkoutDao {
         """
     )
     fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+
+    // ✅ NEW: pull workouts from a date-string boundary (works because your date format is lexicographically sortable)
+    @Query(
+        """
+        SELECT * FROM workouts
+        WHERE userId = :userId
+          AND date >= :startInclusive
+        ORDER BY date ASC
+        """
+    )
+    fun observeWorkoutsFrom(userId: Long, startInclusive: String): Flow<List<Workout>>
 
     // ✅ NEW: user-filtered summaries (Profile needs this)
     @Query(

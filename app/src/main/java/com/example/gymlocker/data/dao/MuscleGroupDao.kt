@@ -16,4 +16,7 @@ interface MuscleGroupDao {
 
     @Query("SELECT name FROM muscle_groups WHERE muscleGroupId = :id LIMIT 1")
     suspend fun getNameById(id: Long): String?
+
+    @Query("SELECT * FROM muscle_groups ORDER BY muscleGroupId ASC")
+    suspend fun getAllOnce(): List<MuscleGroup>
 }

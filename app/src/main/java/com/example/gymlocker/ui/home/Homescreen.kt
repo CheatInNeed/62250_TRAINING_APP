@@ -1,16 +1,18 @@
 package com.example.gymlocker.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,9 +24,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
@@ -45,7 +48,17 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.example.gymlocker.ui.components.*
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.WeeklyBarChart
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import com.example.gymlocker.data.auth.SessionManager
+
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,6 +69,7 @@ fun HomeScreen(
 ) {
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
 
+
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
@@ -64,6 +78,12 @@ fun HomeScreen(
         .lastWorkoutLabel()
         .collectAsState(initial = "Finder seneste workout…")
 
+    val weeklyVolume by activeWorkoutViewModel
+        .weeklyVolumeLast3Months(1L)
+        .collectAsState(initial = emptyList())
+
+
+    // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
 
     // ✅ Active profile (Phase 2 will add UI to create/select this)
@@ -75,6 +95,7 @@ fun HomeScreen(
     val exerciseLogDao = remember { db.exerciseLogDao() }
 
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
+
     val today = LocalDate.now()
     val startOfWeek = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
     val endOfWeek = startOfWeek.plusDays(6)
@@ -87,6 +108,17 @@ fun HomeScreen(
         .collectAsState(initial = 0)
     // ---------------------------------------------
 
+    val weeklyHours by activeWorkoutViewModel
+        .weeklyHoursLast3Months(1L)
+        .collectAsState(initial = emptyList())
+
+    val statsRange by activeWorkoutViewModel.statsRange.collectAsState()
+    val distribution by activeWorkoutViewModel.muscleGroupDistribution(1L).collectAsState(initial = emptyList())
+
+
+
+    // ---------------------------------------------------------------------------------------------
+
     // ✅ Templates: only observe when we have an active profile
     val templatesFlow = remember(activeProfileUserId) {
         if (activeProfileUserId == null) null
@@ -98,8 +130,11 @@ fun HomeScreen(
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
+
+        // ✅ Bottom bar: ONE start/resume button + ONE active workout banner + the nav bar
         bottomBar = {
             Column {
+                // Thumb-friendly primary action button (ONLY PLACE IT EXISTS)
                 Button(
                     onClick = {
                         if (isWorkoutInProgress) navController.navigate("activeWorkout")
@@ -115,6 +150,7 @@ fun HomeScreen(
                     Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
 
+                // Reusable banner + nav bar
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
                 AppBottomBar(navController)
             }
@@ -185,6 +221,8 @@ fun HomeScreen(
 
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
 
+            // ✅ Removed the duplicate Start/Resume button that was in the list
+
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
@@ -203,7 +241,14 @@ fun HomeScreen(
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
-            item { StatsCard() }
+            item { StatsCard(
+                weeklyHours = weeklyHours,
+                weeklyVolume = weeklyVolume,
+                distribution = distribution,
+                statsRange = statsRange,
+                onRangeChange = { activeWorkoutViewModel.setStatsRange(it) }
+            ) }
+
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
@@ -229,17 +274,146 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
 }
 
 @Composable
-fun StatsCard() {
+private fun SegmentedToggle(
+    leftText: String,
+    rightText: String,
+    isLeftSelected: Boolean,
+    onLeftClick: () -> Unit,
+    onRightClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val selectedColors = androidx.compose.material3.ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
+    )
+    val unselectedColors = androidx.compose.material3.ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Button(
+            onClick = onLeftClick,
+            shape = RoundedCornerShape(999.dp),
+            colors = if (isLeftSelected) selectedColors else unselectedColors,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        ) { Text(leftText) }
+
+        Button(
+            onClick = onRightClick,
+            shape = RoundedCornerShape(999.dp),
+            colors = if (!isLeftSelected) selectedColors else unselectedColors,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        ) { Text(rightText) }
+    }
+}
+
+enum class WeeklyGraphMode { HOURS, VOLUME }
+
+@Composable
+fun StatsCard(
+    weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
+    weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
+    distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
+    statsRange: com.example.gymlocker.viewmodel.StatsRange,
+    onRangeChange: (com.example.gymlocker.viewmodel.StatsRange) -> Unit
+) {
+    var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Stats")
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Graph will be here")
+            Text("Stats", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ===== Toggles row (Range + Mode) =====
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Week / Month (controls distribution range)
+                SegmentedToggle(
+                    leftText = "Week",
+                    rightText = "Month",
+                    isLeftSelected = statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK,
+                    onLeftClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
+                    onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
+                )
+
+                // Hours / Volume (controls weekly chart mode)
+                SegmentedToggle(
+                    leftText = "Hours",
+                    rightText = "Volume",
+                    isLeftSelected = mode == WeeklyGraphMode.HOURS,
+                    onLeftClick = { mode = WeeklyGraphMode.HOURS },
+                    onRightClick = { mode = WeeklyGraphMode.VOLUME }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // ===== Weekly chart =====
+            Text(
+                text = if (mode == WeeklyGraphMode.HOURS)
+                    "Hours trained per week (last 3 months)"
+                else
+                    "Volume per week (last 3 months)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (mode == WeeklyGraphMode.HOURS) {
+                WeeklyBarChart(
+                    data = weeklyHours,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.hours },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            } else {
+                WeeklyBarChart(
+                    data = weeklyVolume,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.volume },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // ===== Distribution chart =====
+            Text(
+                text = if (statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK)
+                    "Training balance (this week)"
+                else
+                    "Training balance (this month)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            MuscleGroupDistributionChart(
+                rows = distribution,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
+
 /**
+ * ✅ Pretty date:
  * Input: "yyyy-MM-dd HH:mm:ss.SSS"
  * Output: "Jan 7 2026"
  */
