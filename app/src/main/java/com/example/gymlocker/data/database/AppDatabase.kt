@@ -303,7 +303,7 @@ abstract class AppDatabase : RoomDatabase() {
             now.minusDays(43),
             now.minusDays(50),
             now.minusDays(57),
-        )
+        ).reversed()
 
         fun pick3DistinctMuscleGroups(seed: Int): List<Long> =
             usableMgIds.shuffled(Random(seed)).take(3)
