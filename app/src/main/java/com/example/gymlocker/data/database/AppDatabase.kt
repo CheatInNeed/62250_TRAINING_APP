@@ -21,7 +21,7 @@ import kotlin.random.Random
     entities = [
         User::class,
         AuthAccount::class,
-        AuthProfile::class, // ✅ NEW
+        AuthProfile::class,
 
         Workout::class,
         MuscleGroup::class,
@@ -42,7 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun authAccountDao(): AuthAccountDao
-    abstract fun authProfileDao(): AuthProfileDao // ✅ NEW
+    abstract fun authProfileDao(): AuthProfileDao
 
     abstract fun workoutDao(): WorkoutDao
     abstract fun muscleGroupDao(): MuscleGroupDao
@@ -50,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun exerciseLogDao(): ExerciseLogDao
     abstract fun performedSetDao(): PerformedSetDao
     abstract fun workoutLogDao(): WorkoutLogDao
+
     abstract fun workoutTemplateDao(): WorkoutTemplateDao
     abstract fun templateExerciseDao(): TemplateExerciseDao
     abstract fun templateSetDao(): TemplateSetDao
@@ -60,7 +61,15 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile private var INSTANCE: AppDatabase? = null
         private const val DB_NAME = "gymlocker.db"
 
-        // 🔥 Toggle this when debugging
+        /**
+         * ✅ ONLY when true:
+         * - wipe database + session
+         * - seed test account/user/profile
+         * - seed muscle groups + exercises
+         * - seed workout data for graphs
+         *
+         * ❌ when false: NONE of the above happens.
+         */
         private const val DEBUG_WIPE_DB = true
 
         fun getDatabase(context: Context): AppDatabase {
@@ -70,16 +79,22 @@ abstract class AppDatabase : RoomDatabase() {
                     wipeDatabaseAndSession(context)
                 }
 
-                val instance =
-                    Room.databaseBuilder(
-                        context.applicationContext,
-                        AppDatabase::class.java,
-                        DB_NAME
-                    )
-                        .fallbackToDestructiveMigration()
-                        .addCallback(SeedCallback())
-                        .build()
+                val builder = Room.databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    DB_NAME
+                )
 
+                // Strongly recommended: only destructive migration in debug.
+                if (DEBUG_WIPE_DB) {
+                    builder.fallbackToDestructiveMigration()
+                    builder.addCallback(DebugSeedCallback())
+                } else {
+                    // In production you should provide real migrations.
+                    // Intentionally NO callback and NO wipe.
+                }
+
+                val instance = builder.build()
                 INSTANCE = instance
                 instance
             }
@@ -92,34 +107,88 @@ abstract class AppDatabase : RoomDatabase() {
             File(dbFile.path + "-shm").delete()
             File(dbFile.path + "-wal").delete()
 
+            // adjust if your session file name/path differs
             val sessionFile = File(context.filesDir, "datastore/session.preferences_pb")
             if (sessionFile.exists()) sessionFile.delete()
         }
     }
 
-    private class SeedCallback : Callback() {
+    /**
+     * Only registered when DEBUG_WIPE_DB = true.
+     */
+    private class DebugSeedCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
-            INSTANCE?.let { database ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    database.seedIfEmpty()
-                    database.seed10WorkoutsForGraphTesting(database, userId = 1L)
-                }
+            val database = INSTANCE ?: return
+            CoroutineScope(Dispatchers.IO).launch {
+                database.debugSeedEverything()
             }
         }
     }
 
-    private suspend fun seedIfEmpty() {
+    /**
+     * Runs ONLY in debug wipe mode.
+     * Creates:
+     * - test auth account
+     * - test user (forced id=1)
+     * - auth profile link
+     * - muscle groups + exercises
+     * - 10 workouts across many weeks with performed sets
+     */
+    private suspend fun debugSeedEverything() {
+        // Extra safety: if someone accidentally calls this, do nothing unless toggle is true.
+        if (!DEBUG_WIPE_DB) return
+
+        seedTestLoginAndProfile()
+        seedMuscleGroupsAndExercisesIfEmpty()
+        seed10WorkoutsForGraphTesting(userId = 1L)
+    }
+
+    private suspend fun seedTestLoginAndProfile() {
+        val authDao = authAccountDao()
+        val userDao = userDao()
+        val profileDao = authProfileDao()
+
+        // TODO remove before launch (but this function only runs with DEBUG_WIPE_DB=true)
+        val email = "test@test.dk"
+        val password = "password"
+        val normalizedEmail = email.trim().lowercase()
+
+        val existingAccount = authDao.findByEmail(normalizedEmail)
+        val authId = existingAccount?.authId ?: authDao.insert(
+            AuthAccount(
+                email = normalizedEmail,
+                passwordHash = com.example.gymlocker.data.auth.PasswordHasher.sha256(password)
+            )
+        )
+
+        val seededUserId = 1L
+        val existingUser = userDao.getUserOnce(seededUserId)
+        if (existingUser == null) {
+            userDao.insert(
+                User(
+                    userId = seededUserId,
+                    name = "Test",
+                    height = 180,
+                    weight = 80
+                )
+            )
+        }
+
+        // Link auth -> profile.
+        // If your DAO uses OnConflict=ABORT, this might throw on re-run; we guard it.
+        runCatching {
+            profileDao.insert(AuthProfile(authId = authId, userId = seededUserId))
+        }
+    }
+
+    private suspend fun seedMuscleGroupsAndExercisesIfEmpty() {
         val exerciseDao = exerciseDao()
         val muscleGroupDao = muscleGroupDao()
 
         val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
         if (exercisesCount > 0) return
 
-        // ✅ Do NOT seed a default user/profile anymore.
-        // Profile should be created by the user via Create Profile flow.
-
-        // Seed muscle groups
         val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
         val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
         val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
@@ -189,56 +258,42 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = armsId
             )
         )
-
-        // ✅ No template seeding here (templates belong to profiles)
     }
 
-    /*
+    /**
      * Seeds 10 completed workouts spread across many weeks and muscle groups,
-     * so WeeklyHoursChart + Training balance chart have data to show.
+     * so WeeklyHoursChart + Training balance chart have data.
      *
      * Assumptions:
      * - Workouts have `time: Long` (seconds)
-     * - You already have MuscleGroups + Exercises prepopulated
      * - exercise_log + performed_set are used for completion / muscle distribution
+     * - ExerciseLogDao has: suspend fun getOrCreateLogId(workoutId: Long, exerciseId: Long): Long
      */
-    suspend fun seed10WorkoutsForGraphTesting(
-        db: AppDatabase,
-        userId: Long = 1L
-    ) {
-        val workoutDao = db.workoutDao()
-        val exerciseDao = db.exerciseDao()
-        val muscleGroupDao = db.muscleGroupDao()
-        val exerciseLogDao = db.exerciseLogDao()
-        val performedSetDao = db.performedSetDao()
+    private suspend fun seed10WorkoutsForGraphTesting(userId: Long = 1L) {
+        val workoutDao = workoutDao()
+        val exerciseDao = exerciseDao()
+        val muscleGroupDao = muscleGroupDao()
+        val exerciseLogDao = exerciseLogDao()
+        val performedSetDao = performedSetDao()
 
-        // Safety: require exercises + muscle groups
         val exercises = exerciseDao.getAllOnce()
         val muscleGroups = muscleGroupDao.getAllOnce()
-
         if (exercises.isEmpty() || muscleGroups.isEmpty()) return
 
-        // Group exercises by muscle group so we can pick diverse ones
         val exercisesByMg: Map<Long, List<Long>> =
             exercises.groupBy { it.muscleGroupId }.mapValues { (_, exs) -> exs.map { it.exerciseId } }
 
-        // Pick muscle groups that actually have exercises
         val usableMgIds = muscleGroups
             .map { it.muscleGroupId }
             .filter { (exercisesByMg[it]?.isNotEmpty() == true) }
 
-        if (usableMgIds.size < 3) return // need at least 3 groups for “spread”
-
-        // If you want to avoid duplicating on every app start, you can add a guard here.
-        // Example: bail out if there are already >=10 workouts.
-        // (Add this DAO helper if you want it: @Query("SELECT COUNT(*) FROM workouts WHERE userId=:userId") suspend fun countWorkouts(userId: Long): Int)
-        // if (workoutDao.countWorkouts(userId) >= 10) return
+        if (usableMgIds.size < 3) return
 
         val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-
-        // Dates spread across ~3 months (roughly 11 weeks), not all same week
         val now = LocalDateTime.now()
+
         val workoutDates = listOf(
+            now.minusDays(0),
             now.minusDays(2),
             now.minusDays(8),
             now.minusDays(15),
@@ -248,17 +303,11 @@ abstract class AppDatabase : RoomDatabase() {
             now.minusDays(43),
             now.minusDays(50),
             now.minusDays(57),
-            now.minusDays(71)
         )
 
-        // Rotate through muscle groups so distribution chart is varied
-        // We'll pick 3 different groups per workout
-        fun pick3DistinctMuscleGroups(seed: Int): List<Long> {
-            val shuffled = usableMgIds.shuffled(Random(seed))
-            return shuffled.take(3)
-        }
+        fun pick3DistinctMuscleGroups(seed: Int): List<Long> =
+            usableMgIds.shuffled(Random(seed)).take(3)
 
-        // Helper to pick one exercise id from a muscle group
         fun pickExerciseId(mgId: Long, seed: Int): Long {
             val ids = exercisesByMg[mgId] ?: emptyList()
             return ids[seed % ids.size]
@@ -267,8 +316,9 @@ abstract class AppDatabase : RoomDatabase() {
         workoutDates.forEachIndexed { i, dt ->
             val dateString = dt.format(fmt)
 
-            // workout time in seconds (30–95 minutes)
-            val timeSeconds = listOf(1800L, 2400L, 2700L, 3300L, 3600L, 4200L, 4800L, 5400L, 5700L).random(Random(1000 + i))
+            val timeSeconds = listOf(
+                1800L, 2400L, 2700L, 3300L, 3600L, 4200L, 4800L, 5400L, 5700L
+            ).random(Random(1000 + i))
 
             val workoutId = workoutDao.insert(
                 Workout(
@@ -284,11 +334,8 @@ abstract class AppDatabase : RoomDatabase() {
             mgIds.forEachIndexed { j, mgId ->
                 val exerciseId = pickExerciseId(mgId, seed = 3000 + i * 10 + j)
 
-                // ensure exercise_log row exists
                 val logId = exerciseLogDao.getOrCreateLogId(workoutId, exerciseId)
 
-                // 3 completed sets with semi-realistic weights/reps
-                // Keep it varied so PR + “last set” features still look plausible.
                 val baseReps = listOf(6, 8, 10, 12).random(Random(4000 + i * 10 + j))
                 val baseWeight = listOf(20f, 30f, 40f, 50f, 60f).random(Random(5000 + i * 10 + j))
 
@@ -309,5 +356,4 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
     }
-
 }

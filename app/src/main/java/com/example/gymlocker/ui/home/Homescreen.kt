@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -54,6 +55,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import com.example.gymlocker.data.auth.SessionManager
+
+
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +68,7 @@ fun HomeScreen(
     activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
+
 
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
@@ -257,6 +263,17 @@ fun HomeScreen(
 }
 
 @Composable
+fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("This week", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("$workoutsThisWeek workouts this week")
+        }
+    }
+}
+
+@Composable
 private fun SegmentedToggle(
     leftText: String,
     rightText: String,
@@ -265,50 +282,36 @@ private fun SegmentedToggle(
     onRightClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val selectedColors = androidx.compose.material3.ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
+    )
+    val unselectedColors = androidx.compose.material3.ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
     Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Container (light gray pill)
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(999.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(6.dp)
-        ) {
-            // Left
-            Button(
-                onClick = onLeftClick,
-                shape = RoundedCornerShape(999.dp),
-                enabled = !isLeftSelected
-            ) {
-                Text(leftText)
-            }
+        Button(
+            onClick = onLeftClick,
+            shape = RoundedCornerShape(999.dp),
+            colors = if (isLeftSelected) selectedColors else unselectedColors,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        ) { Text(leftText) }
 
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Right
-            Button(
-                onClick = onRightClick,
-                shape = RoundedCornerShape(999.dp),
-                enabled = isLeftSelected
-            ) {
-                Text(rightText)
-            }
-        }
-    }
-}
-
-
-@Composable
-fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("This week", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("$workoutsThisWeek workouts this week")
-        }
+        Button(
+            onClick = onRightClick,
+            shape = RoundedCornerShape(999.dp),
+            colors = if (!isLeftSelected) selectedColors else unselectedColors,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        ) { Text(rightText) }
     }
 }
 
@@ -326,16 +329,87 @@ fun StatsCard(
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Text("Stats", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // ===== Toggles row (Range + Mode) =====
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Week / Month (controls distribution range)
+                SegmentedToggle(
+                    leftText = "Week",
+                    rightText = "Month",
+                    isLeftSelected = statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK,
+                    onLeftClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
+                    onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
+                )
+
+                // Hours / Volume (controls weekly chart mode)
+                SegmentedToggle(
+                    leftText = "Hours",
+                    rightText = "Volume",
+                    isLeftSelected = mode == WeeklyGraphMode.HOURS,
+                    onLeftClick = { mode = WeeklyGraphMode.HOURS },
+                    onRightClick = { mode = WeeklyGraphMode.VOLUME }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // ===== Weekly chart =====
-            Text("Stats", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Graph will be here")
+            Text(
+                text = if (mode == WeeklyGraphMode.HOURS)
+                    "Hours trained per week (last 3 months)"
+                else
+                    "Volume per week (last 3 months)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (mode == WeeklyGraphMode.HOURS) {
+                WeeklyBarChart(
+                    data = weeklyHours,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.hours },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            } else {
+                WeeklyBarChart(
+                    data = weeklyVolume,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.volume },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // ===== Distribution chart =====
+            Text(
+                text = if (statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK)
+                    "Training balance (this week)"
+                else
+                    "Training balance (this month)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            MuscleGroupDistributionChart(
+                rows = distribution,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
-
-
 
 
 /**

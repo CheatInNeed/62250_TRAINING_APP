@@ -5,37 +5,39 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.*
-import com.example.gymlocker.data.entity.template.*
 import com.example.gymlocker.data.dao.*
 import com.example.gymlocker.data.dao.template.*
+import com.example.gymlocker.data.entity.*
+import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.text.SimpleDateFormat
+import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import com.example.gymlocker.data.dao.WorkoutSummary
-import kotlinx.coroutines.flow.map
-import java.time.LocalDate
 import java.time.temporal.ChronoUnit
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.flowOf
-import java.time.DayOfWeek
 import java.time.temporal.TemporalAdjusters
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.flatMapLatest
+import java.util.Date
+import java.util.Locale
+import com.example.gymlocker.data.auth.SessionManager
 
 
 // Ét sæt (1 række i tabellen)
+
+enum class StatsRange { WEEK, MONTH }
+
 data class ExerciseSetState(
     val setNumber: Int,
     val weight: Int = 0,
@@ -56,7 +58,6 @@ data class ActiveExerciseState(
     val sets: List<ExerciseSetState> = listOf(ExerciseSetState(setNumber = 1))
 )
 
-
 data class WeekHoursUi(
     val weekStart: LocalDate,   // Monday
     val hours: Float
@@ -67,7 +68,6 @@ data class WeekVolumeUi(
     val volume: Float
 )
 
-
 /**
  * Stable UI model for Exercise details popup (and future screen reuse).
  */
@@ -75,7 +75,6 @@ data class ExerciseStatsUi(
     val prText: String,
     val lastTrainedText: String
 )
-
 
 data class RestTimerState(
     val isActive: Boolean = false,
@@ -99,7 +98,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
     private val templateSetDao by lazy { db.templateSetDao() }
 
-    // ✅ NEW: session holds active profile id (phase 1)
+    // ✅ session holds active profile id (phase 1)
     private val session by lazy { SessionManager(appContext) }
 
     private var timerJob: Job? = null
@@ -236,11 +235,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             )
         )
 
-
         currentWorkoutId = workoutId
         workoutId
     }
-
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
         return ex.sets.filter { it.reps > 0 && it.weight > 0 }
@@ -535,13 +532,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 }
             }
 
-            // ✅ NEW: store workout duration (seconds)
+            // ✅ store workout duration (seconds)
             workoutDao.updateWorkoutTime(workoutId, _elapsedTime.value)
 
             resetLocalState()
         }
     }
-
 
     fun finishWorkoutWithName(baseName: String) {
         viewModelScope.launch {
@@ -552,7 +548,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
             val userId = requireActiveProfileUserIdOrNull()
                 ?: run {
-                    // No profile selected -> just finish without renaming
                     finishWorkout()
                     return@launch
                 }
@@ -616,8 +611,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     companion object {
-
-        // ✅ Used by the ActiveWorkout name dialog
         const val MAX_WORKOUT_NAME_LENGTH = 40
 
         fun provideFactory(context: Context): ViewModelProvider.Factory {
@@ -637,7 +630,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String
     ) {
         viewModelScope.launch {
-            // 1) Create template root
             val templateId = workoutTemplateDao.insert(
                 WorkoutTemplate(
                     name = templateName,
@@ -646,10 +638,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
             )
 
-            // 2) Read workout structure
             val logs = exerciseLogDao.getLogsForWorkoutOnce(workoutId)
 
-            // 3) Copy each ExerciseLog -> TemplateExercise and its sets
             for (log in logs) {
                 val templateExerciseId = templateExerciseDao.insert(
                     TemplateExercise(
@@ -680,15 +670,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String,
         nameOverride: String? = null
     ) {
-        // Guard: don't start a new workout if one is already in progress
         if (_isWorkoutInProgress.value || currentWorkoutId != null) return
 
         viewModelScope.launch {
-            // 1) Load template structure
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
                 ?: return@launch
 
-            // 2) Create new workout (time = 0 because it's a fresh session)
             val newWorkoutId = workoutDao.insert(
                 Workout(
                     date = date,
@@ -700,15 +687,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
             currentWorkoutId = newWorkoutId
 
-            // 3) Reset UI state for the new workout
             _activeExercises.value = emptyList()
             _elapsedTime.value = 0L
 
-            // Mark in progress + start timer (safe even if called elsewhere, since startTimer guards)
             _isWorkoutInProgress.value = true
             startTimer()
 
-            // 4) Copy template exercises -> UI + DB
             for (tex in tpl.exercises) {
                 val exerciseId = tex.templateExercise.exerciseId
 
@@ -729,7 +713,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     exerciseId = exerciseId,
                     exerciseName = exName,
                     muscleGroupId = muscleGroupId,
-                    sets = uiSets.toMutableList()
+                    sets = uiSets
                 )
 
                 val logId = exerciseLogDao.getOrCreateLogId(newWorkoutId, exerciseId)
@@ -748,7 +732,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
     }
-
 
     private fun formatPrevious(weight: Float, reps: Int): String =
         "${weight.toInt()} kg x $reps"
@@ -818,25 +801,23 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     fun deleteTemplateExerciseById(templateExerciseId: Long) {
         viewModelScope.launch {
-            // Because TemplateSet has FK with onDelete = CASCADE,
-            // deleting the template_exercise row will also delete its template_set rows.
             templateExerciseDao.deleteById(templateExerciseId)
         }
     }
 
-    //Rest timer
+    // Rest timer
     private suspend fun getDefaultRestSeconds(userId: Long, exerciseId: Long): Int? {
         return restPrefDao.getRestSeconds(userId, exerciseId)
     }
 
     fun setDefaultRestSeconds(userId: Long = 1L, exerciseId: Long, restSeconds: Int) {
-        val clamped = restSeconds.coerceIn(0, 60 * 30) // max 30 min
+        val clamped = restSeconds.coerceIn(0, 60 * 30)
         viewModelScope.launch {
             if (clamped <= 0) {
                 restPrefDao.delete(userId, exerciseId)
             } else {
                 restPrefDao.upsert(
-                    com.example.gymlocker.data.entity.ExerciseRestPreference(
+                    ExerciseRestPreference(
                         userId = userId,
                         exerciseId = exerciseId,
                         restSeconds = clamped
@@ -871,7 +852,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
         restTimerJob = viewModelScope.launch {
             while (true) {
-                val remaining = ((endAt - System.currentTimeMillis()) / 1000L).toInt().coerceAtLeast(0)
+                val remaining = ((endAt - System.currentTimeMillis()) / 1000L)
+                    .toInt()
+                    .coerceAtLeast(0)
 
                 _restTimerState.value = _restTimerState.value.copy(
                     remainingSeconds = remaining,
@@ -879,15 +862,15 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
 
                 if (remaining <= 0) {
-                    // Timer done -> hide bar (US14.3 kan hookes her)
                     skipRestTimer()
                     return@launch
                 }
 
-                kotlinx.coroutines.delay(250L)
+                delay(250L)
             }
         }
     }
+
     /**
      * ✅ Session helper: returns active profile or null.
      * Using firstOrNull avoids blocking the coroutine.
@@ -895,7 +878,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private suspend fun requireActiveProfileUserIdOrNull(): Long? {
         return session.activeProfileUserId.firstOrNull()
     }
-}
+
+    // ----------------------------
+    // Stats: weekly hours / volume
+    // ----------------------------
+
     fun weeklyHoursLast3Months(userId: Long = 1L): Flow<List<WeekHoursUi>> {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
@@ -908,16 +895,16 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
         return workoutDao.observeWorkoutsFrom(userId = userId, startInclusive = startInclusive)
             .map { workouts ->
-                // group by weekStart (Monday)
                 val byWeek = mutableMapOf<LocalDate, Long>() // weekStart -> totalSeconds
 
                 workouts.forEach { w ->
-                    val ldt = runCatching { LocalDateTime.parse(w.date, formatter) }.getOrNull() ?: return@forEach
-                    val weekStart = ldt.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    val ldt = runCatching { LocalDateTime.parse(w.date, formatter) }.getOrNull()
+                        ?: return@forEach
+                    val weekStart = ldt.toLocalDate()
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                     byWeek[weekStart] = (byWeek[weekStart] ?: 0L) + w.time
                 }
 
-                // build a continuous list of weeks so chart always shows every week (even 0h)
                 val firstWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val weeks = ChronoUnit.WEEKS.between(firstWeek, lastWeek).toInt().coerceAtLeast(0)
@@ -931,7 +918,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     )
                 }
             }
-        }
+    }
 
     fun weeklyVolumeLast3Months(userId: Long = 1L): Flow<List<WeekVolumeUi>> {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
@@ -946,16 +933,16 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         return performedSetDao
             .observeWorkoutVolumesFrom(userId = userId, startInclusive = startInclusive)
             .map { rows ->
-                // weekStart -> totalVolume
-                val byWeek = mutableMapOf<LocalDate, Float>()
+                val byWeek = mutableMapOf<LocalDate, Float>() // weekStart -> totalVolume
 
                 rows.forEach { r ->
-                    val ldt = runCatching { LocalDateTime.parse(r.date, formatter) }.getOrNull() ?: return@forEach
-                    val weekStart = ldt.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    val ldt = runCatching { LocalDateTime.parse(r.date, formatter) }.getOrNull()
+                        ?: return@forEach
+                    val weekStart = ldt.toLocalDate()
+                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                     byWeek[weekStart] = (byWeek[weekStart] ?: 0f) + r.volume.toFloat()
                 }
 
-                // continuous list of weeks (even if 0 volume)
                 val firstWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 val weeks = ChronoUnit.WEEKS.between(firstWeek, lastWeek).toInt().coerceAtLeast(0)
@@ -969,6 +956,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 }
             }
     }
+
+    // ----------------------------
+    // Stats: range + distribution
+    // ----------------------------
+
     private val _statsRange = MutableStateFlow(StatsRange.WEEK)
     val statsRange: StateFlow<StatsRange> = _statsRange
 
@@ -988,7 +980,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
 
             val startInclusive = start.format(fmt)
-            val endExclusive = now.plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0).format(fmt)
+            val endExclusive = now.plusDays(1)
+                .withHour(0).withMinute(0).withSecond(0).withNano(0)
+                .format(fmt)
 
             performedSetDao.observeMuscleGroupDistribution(
                 userId = userId,
@@ -996,5 +990,4 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 endExclusive = endExclusive
             )
         }
-    }
-
+}
