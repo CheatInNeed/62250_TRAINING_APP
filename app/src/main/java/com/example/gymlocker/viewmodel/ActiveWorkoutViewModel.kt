@@ -26,7 +26,16 @@ import com.example.gymlocker.data.dao.WorkoutSummary
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import java.time.DayOfWeek
+import java.time.temporal.TemporalAdjusters
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
 
+
+
+
+enum class StatsRange { WEEK, MONTH }
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
     val setNumber: Int,
@@ -47,6 +56,13 @@ data class ActiveExerciseState(
     val muscleGroupId: Long,
     val sets: List<ExerciseSetState> = listOf(ExerciseSetState(setNumber = 1))
 )
+
+
+data class WeekHoursUi(
+    val weekStart: LocalDate,   // Monday
+    val hours: Float
+)
+
 
 /**
  * Stable UI model for Exercise details popup (and future screen reuse).
@@ -80,6 +96,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     private val _activeExercises = MutableStateFlow<List<ActiveExerciseState>>(emptyList())
     val activeExercises: StateFlow<List<ActiveExerciseState>> = _activeExercises.asStateFlow()
+
 
     fun completedWorkouts() = workoutDao.getWorkoutSummaries()
 
@@ -171,9 +188,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             Workout(
                 date = dateString,
                 name = name,
-                userId = userId
+                userId = userId,
+                time = 0L
             )
         )
+
 
         currentWorkoutId = workoutId
         workoutId
@@ -469,9 +488,13 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 }
             }
 
+            // ✅ NEW: store workout duration (seconds)
+            workoutDao.updateWorkoutTime(workoutId, _elapsedTime.value)
+
             resetLocalState()
         }
     }
+
 
     fun finishWorkoutWithName(baseName: String) {
         viewModelScope.launch {
@@ -607,19 +630,25 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
                 ?: return@launch
 
-            // 2) Create new workout
+            // 2) Create new workout (time = 0 because it's a fresh session)
             val newWorkoutId = workoutDao.insert(
                 Workout(
                     date = date,
                     name = nameOverride ?: tpl.template.name,
-                    userId = userId
+                    userId = userId,
+                    time = 0L
                 )
             )
 
             currentWorkoutId = newWorkoutId
 
-            // 3) Reset UI state
+            // 3) Reset UI state for the new workout
             _activeExercises.value = emptyList()
+            _elapsedTime.value = 0L
+
+            // Mark in progress + start timer (safe even if called elsewhere, since startTimer guards)
+            _isWorkoutInProgress.value = true
+            startTimer()
 
             // 4) Copy template exercises -> UI + DB
             for (tex in tpl.exercises) {
@@ -661,6 +690,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
     }
+
 
     private fun formatPrevious(weight: Float, reps: Int): String =
         "${weight.toInt()} kg x $reps"
@@ -735,4 +765,74 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-}
+    fun weeklyHoursLast3Months(userId: Long = 1L): Flow<List<WeekHoursUi>> {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
+        val today = LocalDate.now()
+        val startDate = today.minusMonths(3)
+
+        val startInclusive = startDate
+            .atStartOfDay()
+            .format(formatter)
+
+        return workoutDao.observeWorkoutsFrom(userId = userId, startInclusive = startInclusive)
+            .map { workouts ->
+                // group by weekStart (Monday)
+                val byWeek = mutableMapOf<LocalDate, Long>() // weekStart -> totalSeconds
+
+                workouts.forEach { w ->
+                    val ldt = runCatching { LocalDateTime.parse(w.date, formatter) }.getOrNull() ?: return@forEach
+                    val weekStart = ldt.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    byWeek[weekStart] = (byWeek[weekStart] ?: 0L) + w.time
+                }
+
+                // build a continuous list of weeks so chart always shows every week (even 0h)
+                val firstWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                val lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                val weeks = ChronoUnit.WEEKS.between(firstWeek, lastWeek).toInt().coerceAtLeast(0)
+
+                (0..weeks).map { i ->
+                    val ws = firstWeek.plusWeeks(i.toLong())
+                    val seconds = byWeek[ws] ?: 0L
+                    WeekHoursUi(
+                        weekStart = ws,
+                        hours = seconds / 3600f
+                    )
+                }
+            }
+        }
+    private val _statsRange = MutableStateFlow(StatsRange.WEEK)
+    val statsRange: StateFlow<StatsRange> = _statsRange
+
+    fun setStatsRange(range: StatsRange) {
+        _statsRange.value = range
+    }
+
+    fun muscleGroupDistribution(userId: Long = 1L) =
+        _statsRange.flatMapLatest { range ->
+            val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+            val now = LocalDateTime.now()
+
+            val start = when (range) {
+                StatsRange.WEEK -> now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    .toLocalDate().atStartOfDay()
+                StatsRange.MONTH -> now.withDayOfMonth(1).toLocalDate().atStartOfDay()
+            }
+
+            val startInclusive = start.format(fmt)
+            val endExclusive = now.plusDays(1).withHour(0).withMinute(0).withSecond(0).withNano(0).format(fmt)
+
+            performedSetDao.observeMuscleGroupDistribution(
+                userId = userId,
+                startInclusive = startInclusive,
+                endExclusive = endExclusive
+            )
+        }
+
+
+
+
+
+
+    }
+

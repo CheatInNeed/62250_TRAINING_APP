@@ -8,6 +8,15 @@ import androidx.room.Update
 import com.example.gymlocker.data.entity.PerformedSet
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Row projection for "training distribution" chart (by muscle group).
+ * Kept in DAO package so Room can use it without UI-module coupling.
+ */
+data class MuscleGroupDistributionRow(
+    val muscleGroupName: String,
+    val completedSets: Int
+)
+
 @Dao
 interface PerformedSetDao {
 
@@ -206,4 +215,32 @@ interface PerformedSetDao {
         exerciseId: Long,
         excludeWorkoutId: Long?
     ): String?
+
+    // =========================
+    // ✅ NEW: Distribution query
+    // =========================
+
+    @Query(
+        """
+        SELECT 
+            mg.name AS muscleGroupName,
+            COUNT(ps.sid) AS completedSets
+        FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        JOIN exercises e ON e.exerciseId = el.exerciseId
+        JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+        WHERE w.userId = :userId
+          AND w.date >= :startInclusive
+          AND w.date < :endExclusive
+          AND ps.isCompleted = 1
+        GROUP BY mg.muscleGroupId, mg.name
+        ORDER BY completedSets DESC
+        """
+    )
+    fun observeMuscleGroupDistribution(
+        userId: Long,
+        startInclusive: String,
+        endExclusive: String
+    ): Flow<List<MuscleGroupDistributionRow>>
 }

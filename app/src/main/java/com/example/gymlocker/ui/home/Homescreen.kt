@@ -43,6 +43,9 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.example.gymlocker.ui.components.WeeklyHoursChart
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +79,16 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             endInclusive = endInclusive
         )
         .collectAsState(initial = 0)
+
+    val weeklyHours by activeWorkoutViewModel
+        .weeklyHoursLast3Months(1L)
+        .collectAsState(initial = emptyList())
+
+    val statsRange by activeWorkoutViewModel.statsRange.collectAsState()
+    val distribution by activeWorkoutViewModel.muscleGroupDistribution(1L).collectAsState(initial = emptyList())
+
+
+
     // ---------------------------------------------------------------------------------------------
 
     // Observe templates for default user (still 1L for now)
@@ -154,7 +167,12 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
-            item { StatsCard() }
+            item { StatsCard(
+                weeklyHours = weeklyHours,
+                distribution = distribution,
+                statsRange = statsRange,
+                onRangeChange = { activeWorkoutViewModel.setStatsRange(it) }
+            ) }
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
@@ -180,15 +198,70 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
 }
 
 @Composable
-fun StatsCard() {
+fun StatsCard(
+    weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
+    distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
+    statsRange: com.example.gymlocker.viewmodel.StatsRange,
+    onRangeChange: (com.example.gymlocker.viewmodel.StatsRange) -> Unit
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Stats")
+
+            // ===== Weekly hours =====
+            Text("Stats", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Graph will be here")
+
+            Text(
+                "Hours trained per week (last 3 months)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            WeeklyHoursChart(
+                data = weeklyHours,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // ===== Distribution =====
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                "Training balance",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
+                    enabled = statsRange != com.example.gymlocker.viewmodel.StatsRange.WEEK
+                ) {
+                    Text("Week")
+                }
+
+                Button(
+                    onClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) },
+                    enabled = statsRange != com.example.gymlocker.viewmodel.StatsRange.MONTH
+                ) {
+                    Text("Month")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // If you named your chart composable differently, change it here.
+            MuscleGroupDistributionChart(
+                rows = distribution,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
+
+
 
 /**
  * ✅ Pretty date:

@@ -15,14 +15,13 @@ interface WorkoutDao {
     @Query("DELETE FROM workouts WHERE workoutId = :workoutId")
     suspend fun deleteById(workoutId: Long)
 
-    // ✅ Update workout name (called right before finishWorkout())
     @Query("UPDATE workouts SET name = :name WHERE workoutId = :workoutId")
     suspend fun updateWorkoutName(workoutId: Long, name: String)
 
-    /**
-     * ✅ Auto-suffixing helper:
-     * fetch names for same user where name == baseName OR name starts with "baseName ("
-     */
+    // ✅ NEW: persist duration
+    @Query("UPDATE workouts SET time = :timeSeconds WHERE workoutId = :workoutId")
+    suspend fun updateWorkoutTime(workoutId: Long, timeSeconds: Long)
+
     @Query(
         """
         SELECT name FROM workouts
@@ -50,4 +49,15 @@ interface WorkoutDao {
         """
     )
     fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+
+    // ✅ NEW: pull workouts from a date-string boundary (works because your date format is lexicographically sortable)
+    @Query(
+        """
+        SELECT * FROM workouts
+        WHERE userId = :userId
+          AND date >= :startInclusive
+        ORDER BY date ASC
+        """
+    )
+    fun observeWorkoutsFrom(userId: Long, startInclusive: String): Flow<List<Workout>>
 }

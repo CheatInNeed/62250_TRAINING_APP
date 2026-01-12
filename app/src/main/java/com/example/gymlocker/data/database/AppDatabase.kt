@@ -13,6 +13,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.random.Random
 
 @Database(
     entities = [
@@ -29,7 +32,7 @@ import java.io.File
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -97,6 +100,7 @@ abstract class AppDatabase : RoomDatabase() {
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     database.seedIfEmpty()
+                    database.seed10WorkoutsForGraphTesting(database, userId = 1L)
                 }
             }
         }
@@ -270,4 +274,122 @@ abstract class AppDatabase : RoomDatabase() {
 
         addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
     }
+
+    /*
+     * Seeds 10 completed workouts spread across many weeks and muscle groups,
+     * so WeeklyHoursChart + Training balance chart have data to show.
+     *
+     * Assumptions:
+     * - Workouts have `time: Long` (seconds)
+     * - You already have MuscleGroups + Exercises prepopulated
+     * - exercise_log + performed_set are used for completion / muscle distribution
+     */
+    suspend fun seed10WorkoutsForGraphTesting(
+        db: AppDatabase,
+        userId: Long = 1L
+    ) {
+        val workoutDao = db.workoutDao()
+        val exerciseDao = db.exerciseDao()
+        val muscleGroupDao = db.muscleGroupDao()
+        val exerciseLogDao = db.exerciseLogDao()
+        val performedSetDao = db.performedSetDao()
+
+        // Safety: require exercises + muscle groups
+        val exercises = exerciseDao.getAllOnce()
+        val muscleGroups = muscleGroupDao.getAllOnce()
+
+        if (exercises.isEmpty() || muscleGroups.isEmpty()) return
+
+        // Group exercises by muscle group so we can pick diverse ones
+        val exercisesByMg: Map<Long, List<Long>> =
+            exercises.groupBy { it.muscleGroupId }.mapValues { (_, exs) -> exs.map { it.exerciseId } }
+
+        // Pick muscle groups that actually have exercises
+        val usableMgIds = muscleGroups
+            .map { it.muscleGroupId }
+            .filter { (exercisesByMg[it]?.isNotEmpty() == true) }
+
+        if (usableMgIds.size < 3) return // need at least 3 groups for “spread”
+
+        // If you want to avoid duplicating on every app start, you can add a guard here.
+        // Example: bail out if there are already >=10 workouts.
+        // (Add this DAO helper if you want it: @Query("SELECT COUNT(*) FROM workouts WHERE userId=:userId") suspend fun countWorkouts(userId: Long): Int)
+        // if (workoutDao.countWorkouts(userId) >= 10) return
+
+        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
+        // Dates spread across ~3 months (roughly 11 weeks), not all same week
+        val now = LocalDateTime.now()
+        val workoutDates = listOf(
+            now.minusDays(2),
+            now.minusDays(8),
+            now.minusDays(15),
+            now.minusDays(22),
+            now.minusDays(29),
+            now.minusDays(36),
+            now.minusDays(43),
+            now.minusDays(50),
+            now.minusDays(57),
+            now.minusDays(71)
+        )
+
+        // Rotate through muscle groups so distribution chart is varied
+        // We'll pick 3 different groups per workout
+        fun pick3DistinctMuscleGroups(seed: Int): List<Long> {
+            val shuffled = usableMgIds.shuffled(Random(seed))
+            return shuffled.take(3)
+        }
+
+        // Helper to pick one exercise id from a muscle group
+        fun pickExerciseId(mgId: Long, seed: Int): Long {
+            val ids = exercisesByMg[mgId] ?: emptyList()
+            return ids[seed % ids.size]
+        }
+
+        workoutDates.forEachIndexed { i, dt ->
+            val dateString = dt.format(fmt)
+
+            // workout time in seconds (30–95 minutes)
+            val timeSeconds = listOf(1800L, 2400L, 2700L, 3300L, 3600L, 4200L, 4800L, 5400L, 5700L).random(Random(1000 + i))
+
+            val workoutId = workoutDao.insert(
+                Workout(
+                    date = dateString,
+                    name = "Seed Workout ${i + 1}",
+                    userId = userId,
+                    time = timeSeconds
+                )
+            )
+
+            val mgIds = pick3DistinctMuscleGroups(seed = 2000 + i)
+
+            mgIds.forEachIndexed { j, mgId ->
+                val exerciseId = pickExerciseId(mgId, seed = 3000 + i * 10 + j)
+
+                // ensure exercise_log row exists
+                val logId = exerciseLogDao.getOrCreateLogId(workoutId, exerciseId)
+
+                // 3 completed sets with semi-realistic weights/reps
+                // Keep it varied so PR + “last set” features still look plausible.
+                val baseReps = listOf(6, 8, 10, 12).random(Random(4000 + i * 10 + j))
+                val baseWeight = listOf(20f, 30f, 40f, 50f, 60f).random(Random(5000 + i * 10 + j))
+
+                (1..3).forEach { setNo ->
+                    val reps = (baseReps - (setNo - 1)).coerceAtLeast(4)
+                    val weight = baseWeight + (setNo - 1) * 2.5f
+
+                    performedSetDao.insert(
+                        PerformedSet(
+                            exerciseLogId = logId,
+                            setNumber = setNo,
+                            weight = weight,
+                            reps = reps,
+                            isCompleted = true
+                        )
+                    )
+                }
+            }
+        }
+    }
+
 }
