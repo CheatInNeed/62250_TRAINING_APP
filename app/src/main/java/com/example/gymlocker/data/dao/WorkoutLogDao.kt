@@ -13,4 +13,3 @@ interface WorkoutLogDao {
     @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
     fun observeLogsWithSets(workoutId: Long): Flow<List<ExerciseLogWithSets>>
 }
-

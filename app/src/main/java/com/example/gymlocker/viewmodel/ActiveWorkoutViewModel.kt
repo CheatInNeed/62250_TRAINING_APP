@@ -29,6 +29,7 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -71,7 +72,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
     private val templateSetDao by lazy { db.templateSetDao() }
 
-    // ✅ NEW: session holds active profile id (phase 1)
+    // ✅ session holds active profile id
     private val session by lazy { SessionManager(appContext) }
 
     private var timerJob: Job? = null
@@ -87,11 +88,23 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val _activeExercises = MutableStateFlow<List<ActiveExerciseState>>(emptyList())
     val activeExercises: StateFlow<List<ActiveExerciseState>> = _activeExercises.asStateFlow()
 
-    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
+    /**
+     * ✅ FIX: Completed workouts are now profile-scoped.
+     * If no active profile -> empty list.
+     */
+    fun completedWorkouts() =
+        session.activeProfileUserId.flatMapLatest { userId ->
+            if (userId == null) flowOf(emptyList())
+            else workoutDao.getWorkoutSummariesForUser(userId)
+        }
 
-    fun lastWorkoutLabel() = workoutDao.getWorkoutSummaries().map { workouts ->
-        makeLastWorkoutLabel(workouts)
-    }
+    /**
+     * ✅ FIX: Last-workout label must use the same profile-scoped list.
+     */
+    fun lastWorkoutLabel() =
+        completedWorkouts().map { workouts ->
+            makeLastWorkoutLabel(workouts)
+        }
 
     private fun makeLastWorkoutLabel(workouts: List<WorkoutSummary>): String {
         if (workouts.isEmpty()) return "Ingen tidligere workouts — klar til din første? 🚀"
@@ -114,7 +127,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     /**
-     * ✅ Templates now depend on selected profile.
+     * ✅ Templates depend on selected profile.
      * If no profile selected -> empty list.
      */
     fun observeTemplates(userId: Long?) =
@@ -191,7 +204,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         currentWorkoutId = workoutId
         workoutId
     }
-
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
         return ex.sets.filter { it.reps > 0 && it.weight > 0 }
@@ -580,12 +592,14 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String
     ) {
         viewModelScope.launch {
+            val effectiveUserId = if (userId > 0) userId else (requireActiveProfileUserIdOrNull() ?: return@launch)
+
             // 1) Create template root
             val templateId = workoutTemplateDao.insert(
                 WorkoutTemplate(
                     name = templateName,
                     date = date,
-                    userId = userId
+                    userId = effectiveUserId
                 )
             )
 
@@ -627,6 +641,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         if (_isWorkoutInProgress.value || currentWorkoutId != null) return
 
         viewModelScope.launch {
+            val effectiveUserId = if (userId > 0) userId else (requireActiveProfileUserIdOrNull() ?: return@launch)
+
             // 1) Load template structure
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
                 ?: return@launch
@@ -636,7 +652,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 Workout(
                     date = date,
                     name = nameOverride ?: tpl.template.name,
-                    userId = userId
+                    userId = effectiveUserId
                 )
             )
 

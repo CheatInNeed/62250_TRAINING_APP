@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,8 +46,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import androidx.compose.foundation.layout.Row
-
+import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +66,7 @@ fun HomeScreen(
 
     val context = LocalContext.current
 
-    // ✅ Active profile (Phase 2 will add UI to create/select this)
+    // ✅ Active profile
     val session = remember { SessionManager(context.applicationContext) }
     val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
 
@@ -82,9 +82,16 @@ fun HomeScreen(
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
-    val workoutsThisWeek by exerciseLogDao
-        .observeCompletedWorkoutCountInRange(startInclusive = startInclusive, endInclusive = endInclusive)
-        .collectAsState(initial = 0)
+    // ✅ FIX: weekly count per active profile
+    val workoutsThisWeek by (if (activeProfileUserId == null) {
+        flowOf(0)
+    } else {
+        exerciseLogDao.observeCompletedWorkoutCountInRangeForUser(
+            userId = activeProfileUserId!!,
+            startInclusive = startInclusive,
+            endInclusive = endInclusive
+        )
+    }).collectAsState(initial = 0)
     // ---------------------------------------------
 
     // ✅ Templates: only observe when we have an active profile
@@ -121,7 +128,6 @@ fun HomeScreen(
         }
     ) { innerPadding ->
 
-        // ✅ Phase-gate: no active profile selected yet
         // ✅ Phase-gate: no active profile selected yet
         if (activeProfileUserId == null) {
             Box(
@@ -161,7 +167,6 @@ fun HomeScreen(
             }
             return@Scaffold
         }
-
 
         // ✅ Normal home content
         LazyColumn(
