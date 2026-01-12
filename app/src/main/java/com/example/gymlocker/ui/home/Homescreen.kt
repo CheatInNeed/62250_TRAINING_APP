@@ -122,6 +122,7 @@ fun HomeScreen(
     ) { innerPadding ->
 
         // ✅ Phase-gate: no active profile selected yet
+        // ✅ Phase-gate: no active profile selected yet
         if (activeProfileUserId == null) {
             Box(
                 modifier = Modifier
@@ -130,21 +131,37 @@ fun HomeScreen(
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No profile selected", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
-                        "Phase 2 will add: Create Profile + pick active profile.\nFor now templates and workouts are disabled.",
+                        text = "Create a profile to get started",
+                        style = MaterialTheme.typography.titleLarge,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { navController.navigate("profile") }) {
-                        Text("Go to Profile")
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        text = "Your profile stores your name, height, weight, and workout summary.\nYou can create one from the Profile page.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Button(
+                        onClick = { navController.navigate("profile") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Create Profile")
                     }
                 }
             }
             return@Scaffold
         }
+
 
         // ✅ Normal home content
         LazyColumn(
