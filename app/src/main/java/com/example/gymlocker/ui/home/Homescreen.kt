@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel.StatsRange
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
@@ -304,8 +305,8 @@ fun StatsCard(
     weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
     weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
     distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
-    statsRange: com.example.gymlocker.viewmodel.StatsRange,
-    onRangeChange: (com.example.gymlocker.viewmodel.StatsRange) -> Unit
+    statsRange: StatsRange,
+    onRangeChange: (StatsRange) -> Unit
 ) {
     var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
 
@@ -322,9 +323,10 @@ fun StatsCard(
                 SegmentedToggle(
                     leftText = "Week",
                     rightText = "Month",
-                    isLeftSelected = statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK,
-                    onLeftClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
-                    onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
+                    isLeftSelected = statsRange == StatsRange.WEEK,
+                    onLeftClick = { onRangeChange(StatsRange.WEEK) },
+                    onRightClick = { onRangeChange(StatsRange.MONTH) }
+
                 )
 
                 SegmentedToggle(
@@ -339,11 +341,12 @@ fun StatsCard(
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = if (mode == WeeklyGraphMode.HOURS)
-                    "Hours trained per week (last 3 months)"
+                text = if (statsRange == StatsRange.WEEK)
+                    "Training balance (this week)"
                 else
-                    "Volume per week (last 3 months)",
-                style = MaterialTheme.typography.bodyMedium,
+                    "Training balance (this month)",
+
+                        style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline
             )
 
@@ -370,7 +373,7 @@ fun StatsCard(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = if (statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK)
+                text = if (statsRange == StatsRange.WEEK)
                     "Training balance (this week)"
                 else
                     "Training balance (this month)",
