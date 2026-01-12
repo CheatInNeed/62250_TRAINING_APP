@@ -15,12 +15,14 @@ import com.example.gymlocker.ui.history.WorkoutHistoryScreen
 import com.example.gymlocker.ui.home.HomeScreen
 import com.example.gymlocker.ui.profile.ProfileScreen
 import com.example.gymlocker.ui.template.CreateTemplateScreen
+import com.example.gymlocker.ui.template.EditTemplateScreen
 import com.example.gymlocker.ui.template.TemplateDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutScreen
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
+import com.example.gymlocker.viewmodel.EditTemplateViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 
 @Composable
@@ -124,6 +126,22 @@ fun AppNavigation() {
             TemplateDetailScreen(
                 templateId = templateId,
                 navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
+        }
+
+        composable(
+            route = "editTemplate/{templateId}",
+            arguments = listOf(navArgument("templateId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val templateId = backStackEntry.arguments?.getLong("templateId") ?: 0L
+            val editTemplateViewModel: EditTemplateViewModel = viewModel(
+                factory = EditTemplateViewModel.provideFactory(context, templateId)
+            )
+            EditTemplateScreen(
+                templateId = templateId,
+                navController = navController,
+                viewModel = editTemplateViewModel,
                 activeWorkoutViewModel = activeWorkoutViewModel
             )
         }

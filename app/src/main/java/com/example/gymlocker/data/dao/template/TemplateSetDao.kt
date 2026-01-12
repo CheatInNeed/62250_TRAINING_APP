@@ -21,4 +21,7 @@ interface TemplateSetDao {
 
     @Query("SELECT * FROM template_set WHERE templateExerciseId = :templateExerciseId ORDER BY setNumber ASC")
     suspend fun getByTemplateExerciseOnce(templateExerciseId: Long): List<TemplateSet>
+
+    @Query("DELETE FROM template_set WHERE templateExerciseId = :templateExerciseId")
+    suspend fun deleteByTemplateExerciseId(templateExerciseId: Long)
 }

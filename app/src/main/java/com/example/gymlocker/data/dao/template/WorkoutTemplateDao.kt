@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.flow.Flow
 
@@ -13,6 +14,9 @@ interface WorkoutTemplateDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(template: WorkoutTemplate): Long
+
+    @Update
+    suspend fun update(template: WorkoutTemplate)
 
     @Query("DELETE FROM workout_templates WHERE templateId = :templateId")
     suspend fun deleteById(templateId: Long)

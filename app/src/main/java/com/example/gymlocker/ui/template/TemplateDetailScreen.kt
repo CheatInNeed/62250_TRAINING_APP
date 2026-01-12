@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -26,9 +27,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -54,6 +57,7 @@ fun TemplateDetailScreen(
 ) {
     val templateState = remember { mutableStateOf<WorkoutTemplateWithExercises?>(null) }
     val isLoading = remember { mutableStateOf(true) }
+    var reloadCounter by remember { mutableStateOf(0) }
 
     val pendingDeleteTemplateExerciseId = remember { mutableStateOf<Long?>(null) }
     val showDeleteConfirm = remember { mutableStateOf(false) }
@@ -67,9 +71,29 @@ fun TemplateDetailScreen(
         }
     }
 
-    LaunchedEffect(templateId) {
+    LaunchedEffect(templateId, reloadCounter) {
         templateState.value = activeWorkoutViewModel.getTemplateWithExercises(templateId)
         isLoading.value = false
+    }
+
+    // Reload template whenever we come back to this screen
+    LaunchedEffect(Unit) {
+        val navBackStackEntry = navController.currentBackStackEntry
+        val savedStateHandle = navBackStackEntry?.savedStateHandle
+
+        val observer = { shouldReload: Boolean ->
+            if (shouldReload) {
+                reloadCounter++
+                savedStateHandle?.set("shouldReloadTemplate", false)
+            }
+        }
+
+        // Check if we should reload (set by EditTemplateScreen on save)
+        val shouldReload = savedStateHandle?.get<Boolean>("shouldReloadTemplate") ?: false
+        if (shouldReload) {
+            reloadCounter++
+            savedStateHandle?.set("shouldReloadTemplate", false)
+        }
     }
 
     if (showDeleteConfirm.value && pendingDeleteTemplateExerciseId.value != null) {
@@ -169,6 +193,13 @@ fun TemplateDetailScreen(
                         }
                     ) {
                         Icon(Icons.Filled.PlayArrow, contentDescription = "Start workout")
+                    }
+                    IconButton(
+                        onClick = {
+                            navController.navigate("editTemplate/$templateId")
+                        }
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Edit template")
                     }
                 }
 
