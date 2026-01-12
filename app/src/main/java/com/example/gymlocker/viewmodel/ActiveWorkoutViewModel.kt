@@ -8,6 +8,7 @@ import com.example.gymlocker.data.database.AppDatabase
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import com.example.gymlocker.data.entity.*
+import java.time.DayOfWeek
 import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -118,9 +119,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val _restTimerState = MutableStateFlow(RestTimerState())
     val restTimerState: StateFlow<RestTimerState> = _restTimerState.asStateFlow()
 
-    suspend fun readDefaultRestSeconds(userId: Long = 1L, exerciseId: Long): Int? {
-        return restPrefDao.getRestSeconds(userId, exerciseId)
+    suspend fun readDefaultRestSeconds(exerciseId: Long): Int? {
+        val uid = activeUserIdOrNull() ?: return null
+        return restPrefDao.getRestSeconds(uid, exerciseId)
     }
+
 
 
     /**
@@ -310,6 +313,14 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             }
         }
     }
+    private suspend fun activeUserIdOrNull(): Long? {
+        return session.activeProfileUserId.firstOrNull()
+    }
+
+    private suspend fun activeUserIdOrDefault(): Long {
+        return activeUserIdOrNull() ?: 1L
+    }
+
 
     fun stopTimer() {
         timerJob?.cancel()
@@ -622,7 +633,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     isCompleted = isDone
                 )
                 if (isDone) {
-                    val seconds = getDefaultRestSeconds(userId = 1L, exerciseId = exerciseId) ?: 90
+                    val uid = activeUserIdOrDefault()
+                    val seconds = getDefaultRestSeconds(userId = uid, exerciseId = exerciseId) ?: 90
+
                     startRestTimer(exerciseId, before.exerciseName, seconds)
                 }
             }
@@ -951,22 +964,22 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         return restPrefDao.getRestSeconds(userId, exerciseId)
     }
 
-    fun setDefaultRestSeconds(userId: Long = 1L, exerciseId: Long, restSeconds: Int) {
-        val clamped = restSeconds.coerceIn(0, 60 * 30)
+    fun setDefaultRestSeconds(exerciseId: Long, restSeconds: Int) {
         viewModelScope.launch {
-            if (clamped <= 0) {
-                restPrefDao.delete(userId, exerciseId)
-            } else {
-                restPrefDao.upsert(
-                    ExerciseRestPreference(
-                        userId = userId,
-                        exerciseId = exerciseId,
-                        restSeconds = clamped
-                    )
+            val uid = activeUserIdOrNull() ?: return@launch
+            val clamped = restSeconds.coerceIn(0, 60 * 30)
+
+            if (clamped <= 0) restPrefDao.delete(uid, exerciseId)
+            else restPrefDao.upsert(
+                ExerciseRestPreference(
+                    userId = uid,
+                    exerciseId = exerciseId,
+                    restSeconds = clamped
                 )
-            }
+            )
         }
     }
+
 
     fun skipRestTimer(cancelAlarm: Boolean = true) {
         if (cancelAlarm) {

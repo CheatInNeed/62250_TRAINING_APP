@@ -461,7 +461,8 @@ fun ActiveWorkoutExerciseItem(
 
 // Hent saved default rest for denne exercise (per user)
     LaunchedEffect(exercise.exerciseId) {
-        restSeconds = viewModel.readDefaultRestSeconds(userId = 1L, exerciseId = exercise.exerciseId)
+        restSeconds = viewModel.readDefaultRestSeconds(exerciseId = exercise.exerciseId)
+
     }
 
     if (showDeleteConfirm) {
@@ -639,12 +640,11 @@ fun ActiveWorkoutExerciseItem(
             initialSeconds = restSeconds,
             onDismiss = { showRestDialog = false },
             onSave = { seconds ->
-                viewModel.setDefaultRestSeconds(userId = 1L, exerciseId = exercise.exerciseId, restSeconds = seconds)
-                restSeconds = seconds
-                showRestDialog = false
+                viewModel.setDefaultRestSeconds(exerciseId = exercise.exerciseId, restSeconds = seconds)
+
             },
             onClear = {
-                viewModel.setDefaultRestSeconds(userId = 1L, exerciseId = exercise.exerciseId, restSeconds = 0)
+                viewModel.setDefaultRestSeconds(exerciseId = exercise.exerciseId, restSeconds = 0)
                 restSeconds = null
                 showRestDialog = false
             }
