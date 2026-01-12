@@ -2,16 +2,15 @@ package com.example.gymlocker.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
@@ -27,6 +26,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,26 +43,16 @@ import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.WeeklyBarChart
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import kotlinx.coroutines.flow.flowOf
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.example.gymlocker.ui.components.*
-import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
-import com.example.gymlocker.ui.components.WeeklyBarChart
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import com.example.gymlocker.data.auth.SessionManager
-
-
-
-import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +62,13 @@ fun HomeScreen(
 ) {
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
 
+    val context = LocalContext.current
 
+    // ✅ Active profile
+    val session = remember { SessionManager(context.applicationContext) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+
+    // ✅ Completed workouts (profile-scoped)
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
@@ -81,19 +77,7 @@ fun HomeScreen(
         .lastWorkoutLabel()
         .collectAsState(initial = "Finder seneste workout…")
 
-    val weeklyVolume by activeWorkoutViewModel
-        .weeklyVolumeLast3Months(1L)
-        .collectAsState(initial = emptyList())
-
-
-    // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
-    val context = LocalContext.current
-
-    // ✅ Active profile
-    val session = remember { SessionManager(context.applicationContext) }
-    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
-
-    // --- Query workouts in current week (Mon–Sun) ---
+    // --- Weekly count (Mon–Sun), per active profile ---
     val db = remember { AppDatabase.getDatabase(context) }
     val exerciseLogDao = remember { db.exerciseLogDao() }
 
@@ -106,7 +90,6 @@ fun HomeScreen(
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
-    // ✅ FIX: weekly count per active profile
     val workoutsThisWeek by (if (activeProfileUserId == null) {
         flowOf(0)
     } else {
@@ -116,18 +99,20 @@ fun HomeScreen(
             endInclusive = endInclusive
         )
     }).collectAsState(initial = 0)
-    // ---------------------------------------------
 
-    val weeklyHours by activeWorkoutViewModel
-        .weeklyHoursLast3Months(1L)
-        .collectAsState(initial = emptyList())
+    // ✅ Stats flows should use activeProfileUserId, not hardcoded 1L
+    val weeklyVolume by (if (activeProfileUserId == null) flowOf(emptyList())
+    else activeWorkoutViewModel.weeklyVolumeLast3Months(activeProfileUserId!!)
+            ).collectAsState(initial = emptyList())
+
+    val weeklyHours by (if (activeProfileUserId == null) flowOf(emptyList())
+    else activeWorkoutViewModel.weeklyHoursLast3Months(activeProfileUserId!!)
+            ).collectAsState(initial = emptyList())
 
     val statsRange by activeWorkoutViewModel.statsRange.collectAsState()
-    val distribution by activeWorkoutViewModel.muscleGroupDistribution(1L).collectAsState(initial = emptyList())
-
-
-
-    // ---------------------------------------------------------------------------------------------
+    val distribution by (if (activeProfileUserId == null) flowOf(emptyList())
+    else activeWorkoutViewModel.muscleGroupDistribution(activeProfileUserId!!)
+            ).collectAsState(initial = emptyList())
 
     // ✅ Templates: only observe when we have an active profile
     val templatesFlow = remember(activeProfileUserId) {
@@ -140,11 +125,8 @@ fun HomeScreen(
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
-
-        // ✅ Bottom bar: ONE start/resume button + ONE active workout banner + the nav bar
         bottomBar = {
             Column {
-                // Thumb-friendly primary action button (ONLY PLACE IT EXISTS)
                 Button(
                     onClick = {
                         if (isWorkoutInProgress) navController.navigate("activeWorkout")
@@ -160,14 +142,12 @@ fun HomeScreen(
                     Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
 
-                // Reusable banner + nav bar
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
                 AppBottomBar(navController)
             }
         }
     ) { innerPadding ->
 
-        // ✅ Phase-gate: no active profile selected yet
         if (activeProfileUserId == null) {
             Box(
                 modifier = Modifier
@@ -199,15 +179,12 @@ fun HomeScreen(
                     Button(
                         onClick = { navController.navigate("profile") },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Create Profile")
-                    }
+                    ) { Text("Create Profile") }
                 }
             }
             return@Scaffold
         }
 
-        // ✅ Normal home content
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -226,11 +203,7 @@ fun HomeScreen(
             }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
-
-            // ✅ Removed the duplicate Start/Resume button that was in the list
-
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
@@ -249,14 +222,15 @@ fun HomeScreen(
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
-            item { StatsCard(
-                weeklyHours = weeklyHours,
-                weeklyVolume = weeklyVolume,
-                distribution = distribution,
-                statsRange = statsRange,
-                onRangeChange = { activeWorkoutViewModel.setStatsRange(it) }
-            ) }
-
+            item {
+                StatsCard(
+                    weeklyHours = weeklyHours,
+                    weeklyVolume = weeklyVolume,
+                    distribution = distribution,
+                    statsRange = statsRange,
+                    onRangeChange = { activeWorkoutViewModel.setStatsRange(it) }
+                )
+            }
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
@@ -340,13 +314,11 @@ fun StatsCard(
             Text("Stats", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ===== Toggles row (Range + Mode) =====
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Week / Month (controls distribution range)
                 SegmentedToggle(
                     leftText = "Week",
                     rightText = "Month",
@@ -355,7 +327,6 @@ fun StatsCard(
                     onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
                 )
 
-                // Hours / Volume (controls weekly chart mode)
                 SegmentedToggle(
                     leftText = "Hours",
                     rightText = "Volume",
@@ -367,7 +338,6 @@ fun StatsCard(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // ===== Weekly chart =====
             Text(
                 text = if (mode == WeeklyGraphMode.HOURS)
                     "Hours trained per week (last 3 months)"
@@ -399,7 +369,6 @@ fun StatsCard(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // ===== Distribution chart =====
             Text(
                 text = if (statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK)
                     "Training balance (this week)"
@@ -419,12 +388,6 @@ fun StatsCard(
     }
 }
 
-
-/**
- * ✅ Pretty date:
- * Input: "yyyy-MM-dd HH:mm:ss.SSS"
- * Output: "Jan 7 2026"
- */
 private fun prettyWorkoutDate(raw: String): String {
     return try {
         val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())

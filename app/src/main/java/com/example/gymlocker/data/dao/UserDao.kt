@@ -13,11 +13,16 @@ interface UserDao {
     suspend fun insert(user: User): Long
 
     /**
-     * Active profile lookup.
-     * IMPORTANT: should return nullable if the row might not exist.
+     * Active profile lookup (Flow).
      */
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
     fun getUser(userId: Long): Flow<User?>
+
+    /**
+     * ✅ One-shot lookup (needed by debug seed).
+     */
+    @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
+    suspend fun getUserOnce(userId: Long): User?
 
     @Query("SELECT COUNT(*) FROM users")
     suspend fun countUsers(): Int

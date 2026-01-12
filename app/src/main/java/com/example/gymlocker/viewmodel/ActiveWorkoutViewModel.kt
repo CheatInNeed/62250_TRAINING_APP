@@ -7,6 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.dao.*
 import com.example.gymlocker.data.dao.template.*
+import com.example.gymlocker.data.auth.SessionManager
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import com.example.gymlocker.data.entity.*
 import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.Job
@@ -111,11 +114,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
      * ✅ FIX: Completed workouts are now profile-scoped.
      * If no active profile -> empty list.
      */
-    fun completedWorkouts() =
-        session.activeProfileUserId.flatMapLatest { userId ->
-            if (userId == null) flowOf(emptyList())
-            else workoutDao.getWorkoutSummariesForUser(userId)
-        }
     // Rest timer
     private val restPrefDao by lazy { db.exerciseRestPreferenceDao() }
 
@@ -127,7 +125,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         return restPrefDao.getRestSeconds(userId, exerciseId)
     }
 
-    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
 
     /**
      * ✅ FIX: Last-workout label must use the same profile-scoped list.
@@ -156,6 +153,17 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             else -> "Sidste workout: $days dage siden — tid til at komme afsted 🚀"
         }
     }
+    /**
+     * ✅ Completed workouts are profile-scoped.
+     * If no active profile -> empty list.
+     */
+    fun completedWorkouts(): Flow<List<WorkoutSummary>> =
+        session.activeProfileUserId.flatMapLatest { userId ->
+            if (userId == null) flowOf(emptyList())
+            else workoutDao.getWorkoutSummariesForUser(userId)
+        }
+
+
 
     /**
      * ✅ Templates depend on selected profile.

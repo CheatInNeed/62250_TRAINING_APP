@@ -60,11 +60,11 @@ abstract class AppDatabase : RoomDatabase() {
         /**
          * ✅ ONLY when true:
          * - wipe database + session
-         * - seed test account/user/profile
+         * - seed test auth + profile
          * - seed muscle groups + exercises
          * - seed workout data for graphs
          *
-         * ❌ when false: NONE of the above happens.
+         * ❌ when false: none of the above happens.
          */
         private const val DEBUG_WIPE_DB = true
 
@@ -81,13 +81,11 @@ abstract class AppDatabase : RoomDatabase() {
                     DB_NAME
                 )
 
-                // Strongly recommended: only destructive migration in debug.
                 if (DEBUG_WIPE_DB) {
                     builder.fallbackToDestructiveMigration()
                     builder.addCallback(DebugSeedCallback())
                 } else {
-                    // In production you should provide real migrations.
-                    // Intentionally NO callback and NO wipe.
+                    // Production should provide real migrations.
                 }
 
                 val instance = builder.build()
@@ -103,7 +101,7 @@ abstract class AppDatabase : RoomDatabase() {
             File(dbFile.path + "-shm").delete()
             File(dbFile.path + "-wal").delete()
 
-            // adjust if your session file name/path differs
+            // DataStore backing file
             val sessionFile = File(context.filesDir, "datastore/session.preferences_pb")
             if (sessionFile.exists()) sessionFile.delete()
         }
@@ -124,15 +122,8 @@ abstract class AppDatabase : RoomDatabase() {
 
     /**
      * Runs ONLY in debug wipe mode.
-     * Creates:
-     * - test auth account
-     * - test user (forced id=1)
-     * - auth profile link
-     * - muscle groups + exercises
-     * - 10 workouts across many weeks with performed sets
      */
     private suspend fun debugSeedEverything() {
-        // Extra safety: if someone accidentally calls this, do nothing unless toggle is true.
         if (!DEBUG_WIPE_DB) return
 
         seedTestLoginAndProfile()
@@ -140,12 +131,17 @@ abstract class AppDatabase : RoomDatabase() {
         seed10WorkoutsForGraphTesting(userId = 1L)
     }
 
+    /**
+     * ✅ Seeds:
+     * - AuthAccount for test@test.dk
+     * - ONE User profile (userId = 1) owned by that auth account (authOwnerId = authId)
+     *
+     * No authProfileDao exists anymore – ownership is stored directly on User.authOwnerId
+     */
     private suspend fun seedTestLoginAndProfile() {
         val authDao = authAccountDao()
         val userDao = userDao()
-        val profileDao = authProfileDao()
 
-        // TODO remove before launch (but this function only runs with DEBUG_WIPE_DB=true)
         val email = "test@test.dk"
         val password = "password"
         val normalizedEmail = email.trim().lowercase()
@@ -159,11 +155,13 @@ abstract class AppDatabase : RoomDatabase() {
         )
 
         val seededUserId = 1L
+
         val existingUser = userDao.getUserOnce(seededUserId)
         if (existingUser == null) {
             userDao.insert(
                 User(
                     userId = seededUserId,
+                    authOwnerId = authId,  // ✅ REQUIRED now
                     name = "Test",
                     height = 180,
                     weight = 80
@@ -250,15 +248,6 @@ abstract class AppDatabase : RoomDatabase() {
         )
     }
 
-    /**
-     * Seeds 10 completed workouts spread across many weeks and muscle groups,
-     * so WeeklyHoursChart + Training balance chart have data.
-     *
-     * Assumptions:
-     * - Workouts have `time: Long` (seconds)
-     * - exercise_log + performed_set are used for completion / muscle distribution
-     * - ExerciseLogDao has: suspend fun getOrCreateLogId(workoutId: Long, exerciseId: Long): Long
-     */
     private suspend fun seed10WorkoutsForGraphTesting(userId: Long = 1L) {
         val workoutDao = workoutDao()
         val exerciseDao = exerciseDao()
