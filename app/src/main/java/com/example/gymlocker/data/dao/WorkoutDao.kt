@@ -15,14 +15,9 @@ interface WorkoutDao {
     @Query("DELETE FROM workouts WHERE workoutId = :workoutId")
     suspend fun deleteById(workoutId: Long)
 
-    // ✅ Update workout name (called right before finishWorkout())
     @Query("UPDATE workouts SET name = :name WHERE workoutId = :workoutId")
     suspend fun updateWorkoutName(workoutId: Long, name: String)
 
-    /**
-     * ✅ Auto-suffixing helper:
-     * fetch names for same user where name == baseName OR name starts with "baseName ("
-     */
     @Query(
         """
         SELECT name FROM workouts
@@ -36,6 +31,7 @@ interface WorkoutDao {
         likePattern: String
     ): List<String>
 
+    // Existing (global) summaries (you already have it)
     @Query(
         """
         SELECT 
@@ -50,4 +46,37 @@ interface WorkoutDao {
         """
     )
     fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+
+    // ✅ NEW: user-filtered summaries (Profile needs this)
+    @Query(
+        """
+        SELECT 
+            w.workoutId AS workoutId,
+            w.date AS date,
+            w.name AS name,
+            COUNT(el.id) AS exerciseCount
+        FROM workouts w
+        LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
+        WHERE w.userId = :userId
+        GROUP BY w.workoutId
+        ORDER BY w.workoutId DESC
+        """
+    )
+    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>
+
+    // ✅ NEW: total workouts for Profile summary
+    @Query("SELECT COUNT(*) FROM workouts WHERE userId = :userId")
+    suspend fun countWorkoutsForUser(userId: Long): Int
+
+    // ✅ NEW: most recent workout (name/date)
+    @Query(
+        """
+        SELECT workoutId AS workoutId, date AS date, name AS name, 0 AS exerciseCount
+        FROM workouts
+        WHERE userId = :userId
+        ORDER BY workoutId DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getMostRecentWorkoutForUser(userId: Long): WorkoutSummary?
 }

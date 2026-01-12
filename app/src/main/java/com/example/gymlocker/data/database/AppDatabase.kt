@@ -18,6 +18,7 @@ import java.io.File
     entities = [
         User::class,
         AuthAccount::class,
+        AuthProfile::class, // ✅ NEW
 
         Workout::class,
         MuscleGroup::class,
@@ -29,13 +30,14 @@ import java.io.File
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 4,
+    version = 4, // ✅ bumped
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun authAccountDao(): AuthAccountDao
+    abstract fun authProfileDao(): AuthProfileDao // ✅ NEW
 
     abstract fun workoutDao(): WorkoutDao
     abstract fun muscleGroupDao(): MuscleGroupDao
@@ -50,8 +52,6 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
         private const val DB_NAME = "gymlocker.db"
-
-        // 🔥 Toggle this when debugging
         private const val DEBUG_WIPE_DB = false
 
         fun getDatabase(context: Context): AppDatabase {
@@ -77,14 +77,12 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         private fun wipeDatabaseAndSession(context: Context) {
-            // --- Room DB ---
             context.deleteDatabase(DB_NAME)
 
             val dbFile = context.getDatabasePath(DB_NAME)
             File(dbFile.path + "-shm").delete()
             File(dbFile.path + "-wal").delete()
 
-            // --- DataStore session ---
             val sessionFile = File(context.filesDir, "datastore/session.preferences_pb")
             if (sessionFile.exists()) sessionFile.delete()
         }
@@ -108,6 +106,9 @@ abstract class AppDatabase : RoomDatabase() {
         val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
         if (exercisesCount > 0) return
 
+        // ✅ Do NOT seed a default user/profile anymore.
+        // Profile should be created by the user via Create Profile flow.
+
         // Seed muscle groups
         val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
         val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
@@ -115,7 +116,6 @@ abstract class AppDatabase : RoomDatabase() {
         val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
         val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
 
-        // ✅ IMPORTANT: use named params so types match your entity
         exerciseDao.insert(
             Exercises(
                 name = "Bench Press",
@@ -179,5 +179,7 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = armsId
             )
         )
+
+        // ✅ No template seeding here (templates belong to profiles)
     }
 }
