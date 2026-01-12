@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,12 +47,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
@@ -62,13 +65,23 @@ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveExerciseState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
-
+import com.example.gymlocker.ui.components.RestTimerBar
+import com.example.gymlocker.ui.components.RestTimerInputDialog
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.Icon
+import androidx.compose.ui.text.font.FontWeight
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
     navController: NavController,
     viewModel: ActiveWorkoutViewModel
 ) {
+    val context = LocalContext.current
+    val session = remember { SessionManager(context.applicationContext) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+    val hasActiveProfile = activeProfileUserId != null
+
     var showAddExerciseSheet by remember { mutableStateOf(false) }
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
@@ -80,6 +93,9 @@ fun ActiveWorkoutScreen(
     var showQuickFinishWarning by remember { mutableStateOf(false) }
     var showNameDialog by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
+
+    //Rest timer
+    val restTimer by viewModel.restTimerState.collectAsState()
 
     // ✅ Live validation state for name length
     val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
@@ -110,8 +126,25 @@ fun ActiveWorkoutScreen(
         else String.format("%.2f", totalVolume)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.startTimer()
+    // ✅ Only start the timer if a profile exists.
+    LaunchedEffect(hasActiveProfile) {
+        if (hasActiveProfile) {
+            viewModel.startTimer()
+        } else {
+            // Be safe: if user somehow navigates here without a profile,
+            // make sure the VM isn't "running" a workout.
+            viewModel.stopTimer()
+        }
+    }
+
+    // Block all dialogs if there is no profile
+    if (!hasActiveProfile) {
+        showAddExerciseSheet = false
+        showDiscardDialog = false
+        showUnfinishedSetsDialog = false
+        showQuickFinishWarning = false
+        showNameDialog = false
+        detailExercise = null
     }
 
     if (showDiscardDialog) {
@@ -195,12 +228,9 @@ fun ActiveWorkoutScreen(
                 OutlinedTextField(
                     value = workoutNameInput,
                     onValueChange = { newValue ->
-                        // live enforcement: allow typing but block exceeding max
-                        // (or switch to `workoutNameInput = newValue.take(maxLen)` if you prefer hard-trim)
                         if (newValue.length <= maxLen) {
                             workoutNameInput = newValue
                         } else {
-                            // Keep current text; user sees error + counter.
                             workoutNameInput = newValue
                         }
                     },
@@ -233,7 +263,6 @@ fun ActiveWorkoutScreen(
         )
     }
 
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -244,10 +273,14 @@ fun ActiveWorkoutScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showDiscardDialog = true }) { Text("Discard") }
+                    TextButton(
+                        onClick = { showDiscardDialog = true },
+                        enabled = hasActiveProfile
+                    ) { Text("Discard") }
 
                     Button(
                         onClick = {
+                            if (!hasActiveProfile) return@Button
                             when {
                                 elapsedTime < 60 -> showQuickFinishWarning = true
                                 viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
@@ -258,18 +291,60 @@ fun ActiveWorkoutScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 8.dp),
+                        enabled = hasActiveProfile
                     ) { Text("Finish") }
                 }
             )
         },
         bottomBar = {
             Column {
+                RestTimerBar(
+                    state = restTimer,
+                    onSkip = { viewModel.skipRestTimer() }
+                )
                 ActiveWorkoutBanner(navController, viewModel)
                 AppBottomBar(navController)
             }
         }
     ) { innerPadding ->
+
+        // ✅ No active profile -> friendly gate
+        if (!hasActiveProfile) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "No profile selected",
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Create or select a profile before starting a workout.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { navController.navigate("profile") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Go to Profile")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                    Text("Back")
+                }
+            }
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -312,6 +387,7 @@ fun ActiveWorkoutScreen(
                     items(activeExercises) { exercise ->
                         ActiveWorkoutExerciseItem(
                             exercise = exercise,
+                            viewModel = viewModel,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onMarkAllSetsDone = { viewModel.markAllSetsDone(exercise.exerciseId) },
                             onWeightChange = { setNumber, text ->
@@ -366,6 +442,7 @@ fun ActiveWorkoutScreen(
 @Composable
 fun ActiveWorkoutExerciseItem(
     exercise: ActiveExerciseState,
+    viewModel: ActiveWorkoutViewModel,
     onAddSet: () -> Unit,
     onMarkAllSetsDone: () -> Unit,
     onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
@@ -378,6 +455,14 @@ fun ActiveWorkoutExerciseItem(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var deleteSetsMode by remember { mutableStateOf(false) }
+
+    var showRestDialog by remember { mutableStateOf(false) }
+    var restSeconds by remember(exercise.exerciseId) { mutableStateOf<Int?>(null) }
+
+// Hent saved default rest for denne exercise (per user)
+    LaunchedEffect(exercise.exerciseId) {
+        restSeconds = viewModel.readDefaultRestSeconds(userId = 1L, exerciseId = exercise.exerciseId)
+    }
 
     if (showDeleteConfirm) {
         AlertDialog(
@@ -406,14 +491,37 @@ fun ActiveWorkoutExerciseItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = exercise.exerciseName,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.combinedClickable(
-                    onClick = { onOpenDetails() },
-                    onLongClick = { onMarkAllSetsDone() }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable(
+                        onClick = { onOpenDetails() },
+                        onLongClick = { onMarkAllSetsDone() }
+                    )
+            ) {
+                Text(
+                    text = exercise.exerciseName,
+                    style = MaterialTheme.typography.titleMedium
                 )
-            )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { showRestDialog = true }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Timer,
+                        contentDescription = "Rest timer",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text(
+                        text = "  Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
             Box {
                 IconButton(onClick = { showMenu = true }) {
@@ -438,7 +546,6 @@ fun ActiveWorkoutExerciseItem(
                             showDeleteConfirm = true
                         }
                     )
-
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
@@ -525,6 +632,23 @@ fun ActiveWorkoutExerciseItem(
             onClick = onAddSet,
             modifier = Modifier.fillMaxWidth()
         ) { Text("+ Add Set") }
+    }
+
+    if (showRestDialog) {
+        RestTimerInputDialog(
+            initialSeconds = restSeconds,
+            onDismiss = { showRestDialog = false },
+            onSave = { seconds ->
+                viewModel.setDefaultRestSeconds(userId = 1L, exerciseId = exercise.exerciseId, restSeconds = seconds)
+                restSeconds = seconds
+                showRestDialog = false
+            },
+            onClear = {
+                viewModel.setDefaultRestSeconds(userId = 1L, exerciseId = exercise.exerciseId, restSeconds = 0)
+                restSeconds = null
+                showRestDialog = false
+            }
+        )
     }
 }
 

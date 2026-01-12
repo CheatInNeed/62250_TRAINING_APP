@@ -1,13 +1,6 @@
 package com.example.gymlocker.ui.template
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -15,6 +8,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
@@ -39,11 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.template.TemplateExerciseWithSets
-import com.example.gymlocker.data.entity.template.WorkoutTemplateWithExercises
-import com.example.gymlocker.ui.components.ActiveWorkoutBanner
-import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -53,11 +44,15 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TemplateDetailScreen(
-    templateId: Long,
     navController: NavController,
+    templateId: Long,
     activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
-    val templateState = remember { mutableStateOf<WorkoutTemplateWithExercises?>(null) }
+    val context = LocalContext.current
+    val session = remember { SessionManager(context.applicationContext) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+
+    val templateState = remember { mutableStateOf<com.example.gymlocker.data.entity.template.WorkoutTemplateWithExercises?>(null) }
     val isLoading = remember { mutableStateOf(true) }
     var reloadCounter by remember { mutableStateOf(0) }
 
@@ -105,20 +100,7 @@ fun TemplateDetailScreen(
                     showDeleteConfirm.value = false
                     pendingDeleteTemplateExerciseId.value = null
 
-                    scope.launch {
-                        activeWorkoutViewModel.deleteTemplateExerciseById(id)
-                        reloadTemplate()
-                    }
-                }) { Text("Remove") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteConfirm.value = false
-                    pendingDeleteTemplateExerciseId.value = null
-                }) { Text("Cancel") }
-            }
-        )
-    }
+    LaunchedEffect(templateId) { reloadTemplate() }
 
     val template = templateState.value
 
@@ -132,14 +114,9 @@ fun TemplateDetailScreen(
                     }
                 }
             )
-        },
-        bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
-            }
         }
     ) { innerPadding ->
+
         if (isLoading.value) {
             Box(
                 modifier = Modifier
@@ -147,41 +124,58 @@ fun TemplateDetailScreen(
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Loading...")
+                Text("Loading.")
             }
-        } else if (template != null) {
-            Column(
+            return@Scaffold
+        }
+
+        if (template == null) {
+            Box(
                 modifier = Modifier
                     .padding(innerPadding)
-                    .padding(16.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = template.template.name,
-                            style = MaterialTheme.typography.headlineSmall
+                Text("Template not found.")
+            }
+            return@Scaffold
+        }
+
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = template.template.name, style = MaterialTheme.typography.headlineSmall)
+                    Text(text = template.template.date, style = MaterialTheme.typography.bodySmall)
+                }
+
+                IconButton(
+                    enabled = activeProfileUserId != null,
+                    onClick = {
+                        val profileId = activeProfileUserId ?: return@IconButton
+
+                        val dateString =
+                            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+                        activeWorkoutViewModel.startWorkoutFromTemplate(
+                            templateId = templateId,
+                            userId = profileId,
+                            date = dateString
                         )
-                        Text(
-                            text = template.template.date,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+
+                        navController.navigate("activeWorkout") { launchSingleTop = true }
                     }
-                    IconButton(
-                        onClick = {
-                            val dateString =
-                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                                    .format(Date())
-
-                            activeWorkoutViewModel.startWorkoutFromTemplate(
-                                templateId = templateId,
-                                userId = 1L,
-                                date = dateString
-                            )
-
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = "Start workout")
+                }
+            }
                             navController.navigate("activeWorkout") {
                                 launchSingleTop = true
                             }
@@ -212,77 +206,15 @@ fun TemplateDetailScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                Text(text = "Exercises", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn {
-                    items(template.exercises) { exerciseWithSets ->
-                        ExerciseCard(
-                            exerciseWithSets = exerciseWithSets,
-                            onRequestDelete = {
-                                pendingDeleteTemplateExerciseId.value = exerciseWithSets.templateExercise.id
-                                showDeleteConfirm.value = true
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Template not found")
-            }
-        }
-    }
-}
-
-@Composable
-fun ExerciseCard(
-    exerciseWithSets: TemplateExerciseWithSets,
-    onRequestDelete: () -> Unit,
-    exerciseName: String = "Unknown Exercise"
-) {
-    val context = LocalContext.current
-    val fetchedExerciseName = remember { mutableStateOf(exerciseName) }
-
-    LaunchedEffect(exerciseWithSets.templateExercise.exerciseId) {
-        val db = AppDatabase.getDatabase(context)
-        val exercise = db.exerciseDao().getById(exerciseWithSets.templateExercise.exerciseId)
-        fetchedExerciseName.value = exercise?.name ?: "Unknown Exercise"
-    }
-
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = fetchedExerciseName.value,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onRequestDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete exercise")
-                }
-            }
-
+            Text(text = "Exercises", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Sets", style = MaterialTheme.typography.labelMedium)
-            Spacer(modifier = Modifier.height(4.dp))
-            exerciseWithSets.sets.forEach { set ->
-                Text(
-                    text = "Set ${set.setNumber}: ${set.weight}kg × ${set.reps} reps",
-                    style = MaterialTheme.typography.bodySmall
-                )
+
+            LazyColumn {
+                items(template.exercises) { exerciseWithSets ->
+                    Text("• ExerciseId: ${exerciseWithSets.templateExercise.exerciseId} (${exerciseWithSets.sets.size} sets)")
+                }
             }
         }
     }
