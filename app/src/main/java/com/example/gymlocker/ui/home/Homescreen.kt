@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -21,9 +23,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,8 +47,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.example.gymlocker.ui.components.WeeklyHoursChart
+import com.example.gymlocker.ui.components.*
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.WeeklyBarChart
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,6 +65,11 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val lastWorkoutLabel by activeWorkoutViewModel
         .lastWorkoutLabel()
         .collectAsState(initial = "Finder seneste workout…")
+
+    val weeklyVolume by activeWorkoutViewModel
+        .weeklyVolumeLast3Months(1L)
+        .collectAsState(initial = emptyList())
+
 
     // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
@@ -169,10 +181,12 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
             item { StatsCard(
                 weeklyHours = weeklyHours,
+                weeklyVolume = weeklyVolume,
                 distribution = distribution,
                 statsRange = statsRange,
                 onRangeChange = { activeWorkoutViewModel.setStatsRange(it) }
             ) }
+
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
@@ -187,6 +201,51 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 }
 
 @Composable
+private fun SegmentedToggle(
+    leftText: String,
+    rightText: String,
+    isLeftSelected: Boolean,
+    onLeftClick: () -> Unit,
+    onRightClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Container (light gray pill)
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(6.dp)
+        ) {
+            // Left
+            Button(
+                onClick = onLeftClick,
+                shape = RoundedCornerShape(999.dp),
+                enabled = !isLeftSelected
+            ) {
+                Text(leftText)
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Right
+            Button(
+                onClick = onRightClick,
+                shape = RoundedCornerShape(999.dp),
+                enabled = isLeftSelected
+            ) {
+                Text(rightText)
+            }
+        }
+    }
+}
+
+
+@Composable
 fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -197,62 +256,82 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
     }
 }
 
+enum class WeeklyGraphMode { HOURS, VOLUME }
+
 @Composable
 fun StatsCard(
     weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
+    weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
     distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
     statsRange: com.example.gymlocker.viewmodel.StatsRange,
     onRangeChange: (com.example.gymlocker.viewmodel.StatsRange) -> Unit
 ) {
+    var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
 
-            // ===== Weekly hours =====
+            // ===== Weekly chart =====
             Text("Stats", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
+            SegmentedToggle(
+                leftText = "Hours",
+                rightText = "Volume",
+                isLeftSelected = mode == WeeklyGraphMode.HOURS,
+                onLeftClick = { mode = WeeklyGraphMode.HOURS },
+                onRightClick = { mode = WeeklyGraphMode.VOLUME }
+            )
+
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                "Hours trained per week (last 3 months)",
+                text = if (mode == WeeklyGraphMode.HOURS)
+                    "Hours trained per week (last 3 months)"
+                else
+                    "Volume per week (last 3 months)",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            WeeklyHoursChart(
-                data = weeklyHours,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (mode == WeeklyGraphMode.HOURS) {
+                WeeklyBarChart(
+                    data = weeklyHours,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.hours },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            } else {
+                WeeklyBarChart(
+                    data = weeklyVolume,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.volume },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            }
 
             // ===== Distribution =====
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                "Training balance",
-                style = MaterialTheme.typography.titleMedium
-            )
-
+            Text("Training balance", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
-                    enabled = statsRange != com.example.gymlocker.viewmodel.StatsRange.WEEK
-                ) {
-                    Text("Week")
-                }
+            SegmentedToggle(
+                leftText = "Week",
+                rightText = "Month",
+                isLeftSelected = statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK,
+                onLeftClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
+                onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
+            )
 
-                Button(
-                    onClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) },
-                    enabled = statsRange != com.example.gymlocker.viewmodel.StatsRange.MONTH
-                ) {
-                    Text("Month")
-                }
-            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // If you named your chart composable differently, change it here.
             MuscleGroupDistributionChart(
                 rows = distribution,
                 modifier = Modifier.fillMaxWidth()
@@ -260,6 +339,7 @@ fun StatsCard(
         }
     }
 }
+
 
 
 

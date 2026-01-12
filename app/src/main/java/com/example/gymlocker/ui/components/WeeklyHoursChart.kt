@@ -23,24 +23,25 @@ private fun weekNumber(date: LocalDate): Int {
 }
 
 @Composable
-fun WeeklyHoursChart(
-    data: List<WeekHoursUi>,
-    modifier: Modifier = Modifier
+fun <T> WeeklyBarChart(
+    data: List<T>,
+    weekStartOf: (T) -> java.time.LocalDate,
+    valueOf: (T) -> Float,
+    modifier: Modifier = Modifier,
+    legendPrefix: String = "Week:"
 ) {
     if (data.isEmpty()) {
         Text("No data", style = MaterialTheme.typography.bodyMedium)
         return
     }
 
-    val maxHours = max(1f, data.maxOf { it.hours })
+    val maxValue = kotlin.math.max(1f, data.maxOf { valueOf(it) })
 
-    // ✅ Read theme values OUTSIDE Canvas
     val barColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
     val axisColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
     val labelColor: Color = MaterialTheme.colorScheme.outline
 
     Column(modifier = modifier) {
-
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -55,7 +56,8 @@ fun WeeklyHoursChart(
 
             data.forEachIndexed { i, item ->
                 val x = i * (barWidth + gap)
-                val barHeight = (item.hours / maxHours) * size.height
+                val v = valueOf(item)
+                val barHeight = (v / maxValue) * size.height
 
                 drawRect(
                     color = barColor,
@@ -64,7 +66,6 @@ fun WeeklyHoursChart(
                 )
             }
 
-            // baseline
             drawLine(
                 color = axisColor,
                 start = Offset(0f, size.height),
@@ -75,8 +76,6 @@ fun WeeklyHoursChart(
 
         Spacer(Modifier.height(8.dp))
 
-        // ✅ Legend: "Week:" + 5 week numbers
-        // Pick 5 indices evenly spread from 0..last
         val count = data.size
         val slots = 5
         val indices = (0 until slots).map { s ->
@@ -89,15 +88,14 @@ fun WeeklyHoursChart(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Week:",
+                text = legendPrefix,
                 style = MaterialTheme.typography.labelSmall,
                 color = labelColor,
                 modifier = Modifier.padding(end = 8.dp)
             )
 
-            // Render 5 week numbers (numbers only)
             indices.forEach { idx ->
-                val wk = weekNumber(data[idx].weekStart)
+                val wk = weekNumber(weekStartOf(data[idx]))
                 Text(
                     text = wk.toString(),
                     modifier = Modifier.weight(1f),

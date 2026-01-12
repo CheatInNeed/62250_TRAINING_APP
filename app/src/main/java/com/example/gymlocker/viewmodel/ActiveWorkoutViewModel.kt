@@ -63,6 +63,11 @@ data class WeekHoursUi(
     val hours: Float
 )
 
+data class WeekVolumeUi(
+    val weekStart: LocalDate, // Monday
+    val volume: Float
+)
+
 
 /**
  * Stable UI model for Exercise details popup (and future screen reuse).
@@ -801,6 +806,43 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 }
             }
         }
+
+    fun weeklyVolumeLast3Months(userId: Long = 1L): Flow<List<WeekVolumeUi>> {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
+        val today = LocalDate.now()
+        val startDate = today.minusMonths(3)
+
+        val startInclusive = startDate
+            .atStartOfDay()
+            .format(formatter)
+
+        return performedSetDao
+            .observeWorkoutVolumesFrom(userId = userId, startInclusive = startInclusive)
+            .map { rows ->
+                // weekStart -> totalVolume
+                val byWeek = mutableMapOf<LocalDate, Float>()
+
+                rows.forEach { r ->
+                    val ldt = runCatching { LocalDateTime.parse(r.date, formatter) }.getOrNull() ?: return@forEach
+                    val weekStart = ldt.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                    byWeek[weekStart] = (byWeek[weekStart] ?: 0f) + r.volume.toFloat()
+                }
+
+                // continuous list of weeks (even if 0 volume)
+                val firstWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                val lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                val weeks = ChronoUnit.WEEKS.between(firstWeek, lastWeek).toInt().coerceAtLeast(0)
+
+                (0..weeks).map { i ->
+                    val ws = firstWeek.plusWeeks(i.toLong())
+                    WeekVolumeUi(
+                        weekStart = ws,
+                        volume = byWeek[ws] ?: 0f
+                    )
+                }
+            }
+    }
     private val _statsRange = MutableStateFlow(StatsRange.WEEK)
     val statsRange: StateFlow<StatsRange> = _statsRange
 
@@ -828,11 +870,5 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 endExclusive = endExclusive
             )
         }
-
-
-
-
-
-
     }
 

@@ -16,6 +16,10 @@ data class MuscleGroupDistributionRow(
     val muscleGroupName: String,
     val completedSets: Int
 )
+data class WorkoutVolumeRow(
+    val date: String,     // workouts.date ("yyyy-MM-dd HH:mm:ss.SSS")
+    val volume: Double    // SUM(weight * reps)
+)
 
 @Dao
 interface PerformedSetDao {
@@ -243,4 +247,25 @@ interface PerformedSetDao {
         startInclusive: String,
         endExclusive: String
     ): Flow<List<MuscleGroupDistributionRow>>
+
+
+    @Query(
+        """
+    SELECT 
+        w.date AS date,
+        COALESCE(SUM(ps.weight * ps.reps), 0) AS volume
+    FROM workouts w
+    JOIN exercise_log el ON el.workoutId = w.workoutId
+    JOIN performed_set ps ON ps.exerciseLogId = el.id
+    WHERE w.userId = :userId
+      AND w.date >= :startInclusive
+      AND ps.isCompleted = 1
+    GROUP BY w.workoutId
+    ORDER BY w.date ASC
+    """
+    )
+    fun observeWorkoutVolumesFrom(
+        userId: Long,
+        startInclusive: String
+    ): kotlinx.coroutines.flow.Flow<List<WorkoutVolumeRow>>
 }
