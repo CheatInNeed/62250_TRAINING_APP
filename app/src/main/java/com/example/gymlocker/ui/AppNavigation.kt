@@ -24,7 +24,6 @@ import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
-import com.example.gymlocker.ui.profile.CreateProfileScreen
 
 @Composable
 fun AppNavigation() {
@@ -47,6 +46,10 @@ fun AppNavigation() {
         factory = AuthViewModel.provideFactory(context)
     )
 
+    // ✅ CREATE IT (this was missing)
+    val profileViewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModel.provideFactory(context)
+    )
 
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState(initial = false)
 
@@ -102,15 +105,15 @@ fun AppNavigation() {
             ProfileScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                activeWorkoutViewModel = activeWorkoutViewModel
+                activeWorkoutViewModel = activeWorkoutViewModel,
+                profileViewModel = profileViewModel
             )
         }
 
-            // ✅ NEW route
         composable("createProfile") {
             CreateProfileScreen(
                 navController = navController,
-                authViewModel = authViewModel
+                profileViewModel = profileViewModel
             )
         }
 

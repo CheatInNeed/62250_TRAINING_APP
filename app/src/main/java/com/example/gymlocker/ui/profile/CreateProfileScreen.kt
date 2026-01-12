@@ -19,27 +19,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.User
-import com.example.gymlocker.viewmodel.AuthViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.example.gymlocker.viewmodel.ProfileViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateProfileScreen(
     navController: NavController,
-    authViewModel: AuthViewModel
+    profileViewModel: ProfileViewModel
 ) {
-    val context = LocalContext.current
-    val db = remember { AppDatabase.getDatabase(context) }
-    val userDao = remember { db.userDao() }
-
-    val authId by authViewModel.authId.collectAsState(initial = null)
+    // If authId is null, user isn't logged in (or session not ready)
+    val authId by profileViewModel.authId.collectAsState(initial = null)
 
     var name by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
@@ -86,29 +77,20 @@ fun CreateProfileScreen(
 
             Button(
                 onClick = {
-                    val owner = authId ?: return@Button
                     val cleanName = name.trim()
-                    if (cleanName.isBlank()) return@Button
+                    if (authId == null || cleanName.isBlank()) return@Button
 
                     val h = height.toIntOrNull() ?: 0
                     val w = weight.toIntOrNull() ?: 0
 
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val newId = userDao.insert(
-                            User(
-                                authOwnerId = owner,
-                                name = cleanName,
-                                height = h,
-                                weight = w
-                            )
-                        )
-                        // ✅ auto-select newly created profile
-                        authViewModel.setActiveProfile(newId)
-
-                        // go back to Profile hub
-                        CoroutineScope(Dispatchers.Main).launch {
-                            navController.popBackStack()
-                        }
+                    // ✅ Create + auto-select happens inside VM
+                    profileViewModel.createProfile(
+                        name = cleanName,
+                        height = h,
+                        weight = w
+                    ) {
+                        // Go back to Profile screen
+                        navController.popBackStack()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

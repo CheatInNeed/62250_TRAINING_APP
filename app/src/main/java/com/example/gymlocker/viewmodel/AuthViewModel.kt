@@ -14,7 +14,6 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
 
     val isLoggedIn: Flow<Boolean> = repo.isLoggedIn()
     val activeProfileUserId: Flow<Long?> = repo.activeProfileUserId()
-    val authId: Flow<Long?> = repo.authId()
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState

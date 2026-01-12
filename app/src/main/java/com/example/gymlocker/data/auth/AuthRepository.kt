@@ -2,15 +2,17 @@ package com.example.gymlocker.data.auth
 
 import android.content.Context
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.AuthAccount
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class AuthRepository(context: Context) {
 
     private val appContext = context.applicationContext
     private val db = AppDatabase.getDatabase(appContext)
+
     private val authDao = db.authAccountDao()
     private val userDao = db.userDao()
+
     private val session = SessionManager(appContext)
 
     suspend fun register(email: String, password: String): Result<Unit> {
@@ -24,17 +26,15 @@ class AuthRepository(context: Context) {
         val hash = PasswordHasher.sha256(password)
 
         val authId = authDao.insert(
-            AuthAccount(
+            com.example.gymlocker.data.entity.AuthAccount(
                 email = normalizedEmail,
                 passwordHash = hash
             )
         )
 
-        // ✅ login session
+        // Logged in, but no profile yet.
         session.setLoggedIn(authId)
-
-        // ✅ try auto-select (likely none yet)
-        autoSelectProfileIfPossible(authId)
+        session.clearActiveProfile()
 
         return Result.success(Unit)
     }
@@ -50,25 +50,27 @@ class AuthRepository(context: Context) {
             return Result.failure(IllegalArgumentException("Incorrect email or password"))
         }
 
-        // ✅ login session
+        // 1) set auth session
         session.setLoggedIn(account.authId)
 
-        // ✅ Auto-select:
-        // - if exactly 1 profile exists -> set it active
-        // - otherwise leave null so UI can prompt user to create/pick
-        autoSelectProfileIfPossible(account.authId)
+        // 2) try auto-select last used profile (if it belongs to this auth)
+        val last = session.lastProfileUserId.first()
 
-        return Result.success(Unit)
-    }
+        val selectedProfileId: Long? = when {
+            last != null && userDao.belongsToAuth(last, account.authId) > 0 -> last
+            else -> {
+                // fallback: first profile for this auth (if any)
+                userDao.listProfilesForAuth(account.authId).firstOrNull()?.userId
+            }
+        }
 
-    private suspend fun autoSelectProfileIfPossible(authId: Long) {
-        val profiles = userDao.getProfilesForAuthOnce(authId)
-        if (profiles.size == 1) {
-            session.setActiveProfile(profiles.first().userId)
+        if (selectedProfileId != null) {
+            session.setActiveProfile(selectedProfileId)
         } else {
-            // keep null (user must create or pick)
             session.clearActiveProfile()
         }
+
+        return Result.success(Unit)
     }
 
     suspend fun logout() {
@@ -76,8 +78,8 @@ class AuthRepository(context: Context) {
     }
 
     fun isLoggedIn(): Flow<Boolean> = session.isLoggedIn
+
     fun activeProfileUserId(): Flow<Long?> = session.activeProfileUserId
-    fun authId(): Flow<Long?> = session.authId
 
     suspend fun setActiveProfile(profileUserId: Long) {
         session.setActiveProfile(profileUserId)

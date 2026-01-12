@@ -23,16 +23,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
+import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,15 +39,9 @@ import kotlinx.coroutines.flow.collectLatest
 fun ProfileScreen(
     navController: NavController,
     authViewModel: AuthViewModel,
-    activeWorkoutViewModel: ActiveWorkoutViewModel
+    activeWorkoutViewModel: ActiveWorkoutViewModel,
+    profileViewModel: ProfileViewModel
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val db = remember { AppDatabase.getDatabase(context) }
-    val userDao = remember { db.userDao() }
-
-    val authId by authViewModel.authId.collectAsState(initial = null)
-    val activeProfileUserId by authViewModel.activeProfileUserId.collectAsState(initial = null)
-
     // If logged out, send to login
     LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
@@ -60,11 +53,8 @@ fun ProfileScreen(
         }
     }
 
-    val profiles by (if (authId == null) {
-        remember { kotlinx.coroutines.flow.flowOf(emptyList()) }
-    } else {
-        userDao.observeProfilesForAuth(authId!!)
-    }).collectAsState(initial = emptyList())
+    val profiles by profileViewModel.profiles.collectAsState()
+    val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
 
     Scaffold(
         topBar = {
@@ -114,7 +104,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 6.dp)
-                            .clickable { authViewModel.setActiveProfile(p.userId) }
+                            .clickable { profileViewModel.setActiveProfile(p.userId) }
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
