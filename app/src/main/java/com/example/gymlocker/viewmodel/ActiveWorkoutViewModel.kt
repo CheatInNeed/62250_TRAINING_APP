@@ -191,6 +191,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     private fun resetLocalState() {
+        skipRestTimer(cancelAlarm = true)
         stopTimer()
         _elapsedTime.value = 0
         _isWorkoutInProgress.value = false
