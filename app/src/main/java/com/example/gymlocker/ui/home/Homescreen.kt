@@ -1,15 +1,16 @@
 package com.example.gymlocker.ui.home
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
@@ -43,26 +45,36 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.foundation.layout.Row
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorkoutViewModel) {
+fun HomeScreen(
+    navController: NavController,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
+) {
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
-    val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
+
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+
     val lastWorkoutLabel by activeWorkoutViewModel
         .lastWorkoutLabel()
         .collectAsState(initial = "Finder seneste workout…")
 
-    // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
+
+    // ✅ Active profile (Phase 2 will add UI to create/select this)
+    val session = remember { SessionManager(context.applicationContext) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+
+    // --- Query workouts in current week (Mon–Sun) ---
     val db = remember { AppDatabase.getDatabase(context) }
     val exerciseLogDao = remember { db.exerciseLogDao() }
 
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
-
     val today = LocalDate.now()
     val startOfWeek = today.minusDays((today.dayOfWeek.value - DayOfWeek.MONDAY.value).toLong())
     val endOfWeek = startOfWeek.plusDays(6)
@@ -71,48 +83,87 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
     val workoutsThisWeek by exerciseLogDao
-        .observeCompletedWorkoutCountInRange(
-            startInclusive = startInclusive,
-            endInclusive = endInclusive
-        )
+        .observeCompletedWorkoutCountInRange(startInclusive = startInclusive, endInclusive = endInclusive)
         .collectAsState(initial = 0)
-    // ---------------------------------------------------------------------------------------------
+    // ---------------------------------------------
 
-    // Observe templates for default user (still 1L for now)
-    val templatesFlow = activeWorkoutViewModel.observeTemplates(1L)
-    val templates by templatesFlow.collectAsState(initial = emptyList())
+    // ✅ Templates: only observe when we have an active profile
+    val templatesFlow = remember(activeProfileUserId) {
+        if (activeProfileUserId == null) null
+        else activeWorkoutViewModel.observeTemplates(activeProfileUserId!!)
+    }
+    val templates by (templatesFlow?.collectAsState(initial = emptyList()) ?: remember {
+        androidx.compose.runtime.mutableStateOf(emptyList<WorkoutTemplate>())
+    })
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
-
-        // ✅ Bottom bar: ONE start/resume button + ONE active workout banner + the nav bar
         bottomBar = {
             Column {
-                // Thumb-friendly primary action button (ONLY PLACE IT EXISTS)
                 Button(
                     onClick = {
-                        if (isWorkoutInProgress) {
-                            navController.navigate("activeWorkout")
-                        } else {
-                            navController.navigate("workout")
-                        }
+                        if (isWorkoutInProgress) navController.navigate("activeWorkout")
+                        else navController.navigate("workout")
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                         .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = activeProfileUserId != null
                 ) {
                     Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
 
-                // Reusable banner + nav bar
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
                 AppBottomBar(navController)
             }
         }
     ) { innerPadding ->
 
+        // ✅ Phase-gate: no active profile selected yet
+        // ✅ Phase-gate: no active profile selected yet
+        if (activeProfileUserId == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Create a profile to get started",
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        text = "Your profile stores your name, height, weight, and workout summary.\nYou can create one from the Profile page.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Button(
+                        onClick = { navController.navigate("profile") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Create Profile")
+                    }
+                }
+            }
+            return@Scaffold
+        }
+
+
+        // ✅ Normal home content
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -133,8 +184,6 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
-
-            // ✅ Removed the duplicate Start/Resume button that was in the list
 
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
@@ -191,7 +240,6 @@ fun StatsCard() {
 }
 
 /**
- * ✅ Pretty date:
  * Input: "yyyy-MM-dd HH:mm:ss.SSS"
  * Output: "Jan 7 2026"
  */

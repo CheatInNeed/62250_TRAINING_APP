@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.*
 import com.example.gymlocker.data.entity.template.*
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import com.example.gymlocker.notifications.RestTimerAlarm
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOf
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -80,6 +83,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
     private val templateSetDao by lazy { db.templateSetDao() }
 
+    // ✅ NEW: session holds active profile id (phase 1)
+    private val session by lazy { SessionManager(appContext) }
+
     private var timerJob: Job? = null
     private var currentWorkoutId: Long? = null
     private val workoutCreateMutex = Mutex()
@@ -131,9 +137,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     /**
-     * Home screen templates: observe seeded/user templates for the default user (1L).
+     * ✅ Templates now depend on selected profile.
+     * If no profile selected -> empty list.
      */
-    fun observeTemplates(userId: Long = 1L) = workoutTemplateDao.observeTemplates(userId)
+    fun observeTemplates(userId: Long?) =
+        if (userId == null) flowOf(emptyList()) else workoutTemplateDao.observeTemplates(userId)
 
     /**
      * Fetch a specific template with its exercises for the detail screen.
@@ -190,12 +198,17 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     // --- Core persistence helpers ---
 
-    private suspend fun ensureWorkoutExists(): Long = workoutCreateMutex.withLock {
+    private suspend fun ensureWorkoutExists(): Long? = workoutCreateMutex.withLock {
         val existing = currentWorkoutId
         if (existing != null) return existing
 
-        val userId = 1L
-        val dateString = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()).format(Date())
+        val userId = requireActiveProfileUserIdOrNull() ?: return null
+
+        val dateString = SimpleDateFormat(
+            "yyyy-MM-dd HH:mm:ss.SSS",
+            Locale.getDefault()
+        ).format(Date())
+
         val name = "Workout $dateString"
 
         val workoutId = workoutDao.insert(
@@ -209,6 +222,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         currentWorkoutId = workoutId
         workoutId
     }
+
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
         return ex.sets.filter { it.reps > 0 && it.weight > 0 }
@@ -259,7 +273,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
 
         viewModelScope.launch {
-            val workoutId = ensureWorkoutExists()
+            val workoutId = ensureWorkoutExists() ?: return@launch
             exerciseLogDao.getOrCreateLogId(workoutId, exercise.exerciseId)
         }
     }
@@ -378,7 +392,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
 
         viewModelScope.launch {
-            val workoutId = ensureWorkoutExists()
+            val workoutId = ensureWorkoutExists() ?: return@launch
             val logId = exerciseLogDao.getOrCreateLogId(workoutId, exerciseId)
 
             setsBefore
@@ -413,8 +427,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
 
         viewModelScope.launch {
-            val workoutId = ensureWorkoutExists()
-
+            val workoutId = ensureWorkoutExists() ?: return@launch
             snapshot.forEach { ex ->
                 val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
 
@@ -447,7 +460,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
 
         viewModelScope.launch {
-            val workoutId = ensureWorkoutExists()
+            val workoutId = ensureWorkoutExists() ?: return@launch
             val logId = exerciseLogDao.getOrCreateLogId(workoutId, exerciseId)
 
             if (setBefore.reps > 0 && setBefore.weight > 0) {
@@ -515,7 +528,13 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 return@launch
             }
 
-            val userId = 1L
+            val userId = requireActiveProfileUserIdOrNull()
+                ?: run {
+                    // No profile selected -> just finish without renaming
+                    finishWorkout()
+                    return@launch
+                }
+
             val finalName = makeUniqueWorkoutName(userId = userId, baseName = baseName.trim())
             workoutDao.updateWorkoutName(workoutId, finalName)
 
@@ -530,7 +549,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 return@launch
             }
 
-            val userId = 1L
+            val userId = requireActiveProfileUserIdOrNull()
+                ?: run {
+                    finishWorkout()
+                    return@launch
+                }
+
             val defaultName = defaultNameFromWorkoutDate()
             val finalName = makeUniqueWorkoutName(userId = userId, baseName = defaultName)
             workoutDao.updateWorkoutName(workoutId, finalName)
@@ -762,6 +786,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             dbDateString
         }
     }
+
     fun deleteTemplateExerciseById(templateExerciseId: Long) {
         viewModelScope.launch {
             // Because TemplateSet has FK with onDelete = CASCADE,
@@ -842,5 +867,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 kotlinx.coroutines.delay(250L)
             }
         }
+    }
+    /**
+     * ✅ Session helper: returns active profile or null.
+     * Using firstOrNull avoids blocking the coroutine.
+     */
+    private suspend fun requireActiveProfileUserIdOrNull(): Long? {
+        return session.activeProfileUserId.firstOrNull()
     }
 }

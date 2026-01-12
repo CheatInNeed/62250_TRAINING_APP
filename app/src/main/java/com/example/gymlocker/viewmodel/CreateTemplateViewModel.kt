@@ -4,32 +4,30 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.data.entity.template.TemplateExercise
 import com.example.gymlocker.data.entity.template.TemplateSet
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Represents a template exercise with its sets
-data class TemplateExerciseState(
-    val templateExerciseId: Long = 0L,
-    val exerciseId: Long,
-    val exerciseName: String,
-    val muscleGroupId: Long,
-    val sets: List<TemplateSetState> = listOf(TemplateSetState(setNumber = 1))
-)
-
 data class TemplateSetState(
     val setNumber: Int,
     val weight: Float = 0f,
     val reps: Int = 0
+)
+
+data class TemplateExerciseState(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val sets: List<TemplateSetState> = listOf(TemplateSetState(setNumber = 1))
 )
 
 class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
@@ -38,11 +36,13 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
     private val workoutTemplateDao by lazy { db.workoutTemplateDao() }
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
     private val templateSetDao by lazy { db.templateSetDao() }
+    private val exerciseDao by lazy { db.exerciseDao() }
+
+    private val session by lazy { SessionManager(appContext) }
 
     private val _templateName = MutableStateFlow("")
     val templateName: StateFlow<String> = _templateName.asStateFlow()
 
-    // ✅ Error message for live validation
     private val _templateNameError = MutableStateFlow<String?>(null)
     val templateNameError: StateFlow<String?> = _templateNameError.asStateFlow()
 
@@ -52,39 +52,23 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
-    /**
-     * Live validation:
-     * - Blank => error
-     * - Too long => error
-     * - Otherwise => ok
-     *
-     * Hard max-length: we keep previous value if the user tries to exceed MAX_TEMPLATE_NAME_LENGTH.
-     */
-    fun updateTemplateName(name: String) {
-        if (name.length <= MAX_TEMPLATE_NAME_LENGTH) {
-            _templateName.value = name
-        }
-        val current = _templateName.value
-
+    fun updateTemplateName(value: String) {
+        _templateName.value = value
         _templateNameError.value = when {
-            current.isBlank() -> "Please enter a name."
-            current.length > MAX_TEMPLATE_NAME_LENGTH -> "Max $MAX_TEMPLATE_NAME_LENGTH characters."
+            value.isBlank() -> "Name cannot be empty"
+            value.length > MAX_TEMPLATE_NAME_LENGTH -> "Max $MAX_TEMPLATE_NAME_LENGTH characters"
             else -> null
         }
     }
 
-    fun addExercise(exercise: Exercises) {
-        val currentList = _selectedExercises.value.toMutableList()
-        if (!currentList.any { it.exerciseId == exercise.exerciseId }) {
-            currentList.add(
-                TemplateExerciseState(
-                    exerciseId = exercise.exerciseId,
-                    exerciseName = exercise.name,
-                    muscleGroupId = exercise.muscleGroupId,
-                    sets = listOf(TemplateSetState(setNumber = 1))
-                )
+    fun addExercise(exerciseId: Long) {
+        viewModelScope.launch {
+            val exerciseName = exerciseDao.getById(exerciseId)?.name ?: "Unknown"
+            if (_selectedExercises.value.any { it.exerciseId == exerciseId }) return@launch
+            _selectedExercises.value = _selectedExercises.value + TemplateExerciseState(
+                exerciseId = exerciseId,
+                exerciseName = exerciseName
             )
-            _selectedExercises.value = currentList
         }
     }
 
@@ -151,8 +135,6 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
 
     fun saveTemplate() {
         val name = _templateName.value.trim()
-
-        // Validate one last time (also sets the correct error message)
         updateTemplateName(name)
 
         if (_templateNameError.value != null) return
@@ -161,6 +143,9 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
         viewModelScope.launch {
             _isSaving.value = true
             try {
+                val profileUserId = session.activeProfileUserId.firstOrNull()
+                    ?: return@launch // no profile selected -> do nothing (Phase 2 gate will handle UI)
+
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val currentDate = dateFormat.format(Date())
 
@@ -168,7 +153,7 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
                     WorkoutTemplate(
                         date = currentDate,
                         name = name,
-                        userId = 1L // TODO: Use actual user ID
+                        userId = profileUserId
                     )
                 )
 

@@ -47,12 +47,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
@@ -75,6 +77,11 @@ fun ActiveWorkoutScreen(
     navController: NavController,
     viewModel: ActiveWorkoutViewModel
 ) {
+    val context = LocalContext.current
+    val session = remember { SessionManager(context.applicationContext) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+    val hasActiveProfile = activeProfileUserId != null
+
     var showAddExerciseSheet by remember { mutableStateOf(false) }
     val elapsedTime by viewModel.elapsedTime.collectAsState()
     val activeExercises by viewModel.activeExercises.collectAsState()
@@ -119,8 +126,25 @@ fun ActiveWorkoutScreen(
         else String.format("%.2f", totalVolume)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.startTimer()
+    // ✅ Only start the timer if a profile exists.
+    LaunchedEffect(hasActiveProfile) {
+        if (hasActiveProfile) {
+            viewModel.startTimer()
+        } else {
+            // Be safe: if user somehow navigates here without a profile,
+            // make sure the VM isn't "running" a workout.
+            viewModel.stopTimer()
+        }
+    }
+
+    // Block all dialogs if there is no profile
+    if (!hasActiveProfile) {
+        showAddExerciseSheet = false
+        showDiscardDialog = false
+        showUnfinishedSetsDialog = false
+        showQuickFinishWarning = false
+        showNameDialog = false
+        detailExercise = null
     }
 
     if (showDiscardDialog) {
@@ -204,12 +228,9 @@ fun ActiveWorkoutScreen(
                 OutlinedTextField(
                     value = workoutNameInput,
                     onValueChange = { newValue ->
-                        // live enforcement: allow typing but block exceeding max
-                        // (or switch to `workoutNameInput = newValue.take(maxLen)` if you prefer hard-trim)
                         if (newValue.length <= maxLen) {
                             workoutNameInput = newValue
                         } else {
-                            // Keep current text; user sees error + counter.
                             workoutNameInput = newValue
                         }
                     },
@@ -242,7 +263,6 @@ fun ActiveWorkoutScreen(
         )
     }
 
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -253,10 +273,14 @@ fun ActiveWorkoutScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showDiscardDialog = true }) { Text("Discard") }
+                    TextButton(
+                        onClick = { showDiscardDialog = true },
+                        enabled = hasActiveProfile
+                    ) { Text("Discard") }
 
                     Button(
                         onClick = {
+                            if (!hasActiveProfile) return@Button
                             when {
                                 elapsedTime < 60 -> showQuickFinishWarning = true
                                 viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
@@ -267,7 +291,8 @@ fun ActiveWorkoutScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 8.dp),
+                        enabled = hasActiveProfile
                     ) { Text("Finish") }
                 }
             )
@@ -283,6 +308,43 @@ fun ActiveWorkoutScreen(
             }
         }
     ) { innerPadding ->
+
+        // ✅ No active profile -> friendly gate
+        if (!hasActiveProfile) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "No profile selected",
+                    style = MaterialTheme.typography.headlineSmall,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Create or select a profile before starting a workout.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = { navController.navigate("profile") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Go to Profile")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                    Text("Back")
+                }
+            }
+            return@Scaffold
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -484,7 +546,6 @@ fun ActiveWorkoutExerciseItem(
                             showDeleteConfirm = true
                         }
                     )
-
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
