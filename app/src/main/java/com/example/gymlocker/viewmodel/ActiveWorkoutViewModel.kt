@@ -118,6 +118,13 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     suspend fun getTemplateWithExercises(templateId: Long) =
         workoutTemplateDao.getTemplateWithExercises(templateId)
 
+    /**
+     * Toggle favorite status for a template.
+     */
+    suspend fun toggleTemplateFavorite(templateId: Long) {
+        workoutTemplateDao.toggleFavorite(templateId)
+    }
+
     // --- Timer/state ---
 
     fun startTimer() {

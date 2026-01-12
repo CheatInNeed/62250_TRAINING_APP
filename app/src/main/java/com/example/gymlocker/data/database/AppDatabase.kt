@@ -29,7 +29,7 @@ import java.io.File
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -94,6 +94,17 @@ abstract class AppDatabase : RoomDatabase() {
     private class SeedCallback : Callback() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
+            println("📦 DATABASE: onCreate called - running seed")
+            INSTANCE?.let { database ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    database.seedIfEmpty()
+                }
+            }
+        }
+
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
+            println("📦 DATABASE: onOpen called - checking if seed is needed")
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     database.seedIfEmpty()
@@ -106,168 +117,196 @@ abstract class AppDatabase : RoomDatabase() {
         val userDao = userDao()
         val exerciseDao = exerciseDao()
         val muscleGroupDao = muscleGroupDao()
-
-        val usersCount = runCatching { userDao.countUsers() }.getOrNull() ?: 0
-        val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
-
-        if (usersCount > 0 || exercisesCount > 0) return
-
-        // Seed a profile row (dummy)
-        val defaultUserId = userDao.insert(
-            User(
-                name = "Default User",
-                height = 0,
-                weight = 0
-            )
-        )
-
-        // Seed muscle groups
-        val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
-        val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
-        val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
-        val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
-        val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
-
-        // ✅ IMPORTANT: use named params so types match your entity
-        exerciseDao.insert(
-            Exercises(
-                name = "Bench Press",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = true,
-                muscleGroupId = chestId
-            )
-        )
-        exerciseDao.insert(
-            Exercises(
-                name = "Squat",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = true,
-                muscleGroupId = legsId
-            )
-        )
-        exerciseDao.insert(
-            Exercises(
-                name = "Deadlift",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = false,
-                muscleGroupId = backId
-            )
-        )
-        exerciseDao.insert(
-            Exercises(
-                name = "Overhead Press",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = false,
-                muscleGroupId = shouldersId
-            )
-        )
-        exerciseDao.insert(
-            Exercises(
-                name = "Barbell Row",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = false,
-                muscleGroupId = backId
-            )
-        )
-        exerciseDao.insert(
-            Exercises(
-                name = "Pull-up",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = false,
-                muscleGroupId = backId
-            )
-        )
-        exerciseDao.insert(
-            Exercises(
-                name = "Bicep Curl",
-                startWeight = 0,
-                startReps = 0,
-                isRecent = false,
-                muscleGroupId = armsId
-            )
-        )
-
-        seedDummyTemplates(userId = defaultUserId)
-    }
-
-    private suspend fun seedDummyTemplates(userId: Long) {
         val workoutTemplateDao = workoutTemplateDao()
 
-        val existingCount = runCatching {
-            workoutTemplateDao.countTemplatesByUserId(userId)
-        }.getOrNull() ?: 0
-        if (existingCount > 0) return
+        try {
+            // Check if we have ANY data at all
+            val usersCount = runCatching { userDao.countUsers() }.getOrNull() ?: 0
+            val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
+            val templatesCount = runCatching { workoutTemplateDao.countTemplatesByUserId(1L) }.getOrNull() ?: 0
 
-        val templateExerciseDao = templateExerciseDao()
-        val templateSetDao = templateSetDao()
-        val exerciseDao = exerciseDao()
+            println("🔍 SEED DEBUG: users=$usersCount, exercises=$exercisesCount, templates=$templatesCount")
 
-        suspend fun exId(name: String): Long =
-            exerciseDao.getExerciseIdByName(name)
-                ?: error("Missing exercise '$name' - did seed exercises run?")
+            // If we have users AND exercises AND templates, skip seeding (data already exists)
+            if (usersCount > 0 && exercisesCount > 0 && templatesCount > 0) {
+                println("✅ SEED DEBUG: All data exists, skipping seed")
+                return
+            }
 
-        suspend fun addExerciseWithSets(
-            templateId: Long,
-            exerciseName: String,
-            sets: List<Pair<Float, Int>>
-        ) {
-            // ✅ named params so it matches your TemplateExercise entity (likely Long, Long)
-            val templateExerciseId = templateExerciseDao.insert(
-                TemplateExercise(
-                    templateId = templateId,
-                    exerciseId = exId(exerciseName)
+            // Seed a profile row (dummy)
+            val defaultUserId = if (usersCount == 0) {
+                userDao.insert(
+                    User(
+                        name = "Default User",
+                        height = 0,
+                        weight = 0
+                    )
                 )
-            )
+            } else {
+                1L
+            }
 
-            sets.forEachIndexed { index, (weight, reps) ->
-                // ✅ named params to match your TemplateSet entity
-                templateSetDao.insert(
-                    TemplateSet(
-                        templateExerciseId = templateExerciseId,
-                        setNumber = index + 1,
-                        weight = weight,
-                        reps = reps
+            // Seed muscle groups (only if no exercises yet)
+            if (exercisesCount == 0) {
+                val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
+                val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
+                val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
+                val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
+                val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
+
+                // ✅ IMPORTANT: use named params so types match your entity
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Bench Press",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = true,
+                        muscleGroupId = chestId
+                    )
+                )
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Squat",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = true,
+                        muscleGroupId = legsId
+                    )
+                )
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Deadlift",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = false,
+                        muscleGroupId = backId
+                    )
+                )
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Overhead Press",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = false,
+                        muscleGroupId = shouldersId
+                    )
+                )
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Barbell Row",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = false,
+                        muscleGroupId = backId
+                    )
+                )
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Pull-up",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = false,
+                        muscleGroupId = backId
+                    )
+                )
+                exerciseDao.insert(
+                    Exercises(
+                        name = "Bicep Curl",
+                        startWeight = 0,
+                        startReps = 0,
+                        isRecent = false,
+                        muscleGroupId = armsId
                     )
                 )
             }
+
+            seedDummyTemplates(userId = defaultUserId)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+    }
 
-        // ✅ named params so date/name stay String and userId stays Long
-        val pushId = workoutTemplateDao.insert(
-            WorkoutTemplate(
-                date = "2026-01-07",
-                name = "Push (Dummy)",
-                userId = userId
+    private suspend fun seedDummyTemplates(userId: Long) {
+        try {
+            val workoutTemplateDao = workoutTemplateDao()
+
+            val existingCount = runCatching {
+                workoutTemplateDao.countTemplatesByUserId(userId)
+            }.getOrNull() ?: 0
+            if (existingCount > 0) {
+                return
+            }
+
+            val templateExerciseDao = templateExerciseDao()
+            val templateSetDao = templateSetDao()
+            val exerciseDao = exerciseDao()
+
+            suspend fun exId(name: String): Long {
+                val id = exerciseDao.getExerciseIdByName(name)
+                return id ?: error("Missing exercise '$name'")
+            }
+
+            suspend fun addExerciseWithSets(
+                templateId: Long,
+                exerciseName: String,
+                sets: List<Pair<Float, Int>>
+            ) {
+                val templateExerciseId = templateExerciseDao.insert(
+                    TemplateExercise(
+                        templateId = templateId,
+                        exerciseId = exId(exerciseName)
+                    )
+                )
+
+                sets.forEachIndexed { index, (weight, reps) ->
+                    templateSetDao.insert(
+                        TemplateSet(
+                            templateExerciseId = templateExerciseId,
+                            setNumber = index + 1,
+                            weight = weight,
+                            reps = reps
+                        )
+                    )
+                }
+            }
+
+            // ...existing code...
+            val pushId = workoutTemplateDao.insert(
+                WorkoutTemplate(
+                    date = "2026-01-07",
+                    name = "Push (Dummy)",
+                    userId = userId
+                )
             )
-        )
-        val pullId = workoutTemplateDao.insert(
-            WorkoutTemplate(
-                date = "2026-01-07",
-                name = "Pull (Dummy)",
-                userId = userId
+
+            val pullId = workoutTemplateDao.insert(
+                WorkoutTemplate(
+                    date = "2026-01-07",
+                    name = "Pull (Dummy)",
+                    userId = userId
+                )
             )
-        )
-        val legsId = workoutTemplateDao.insert(
-            WorkoutTemplate(
-                date = "2026-01-07",
-                name = "Legs (Dummy)",
-                userId = userId
+
+            val legsId = workoutTemplateDao.insert(
+                WorkoutTemplate(
+                    date = "2026-01-07",
+                    name = "Legs (Dummy)",
+                    userId = userId
+                )
             )
-        )
 
-        addExerciseWithSets(pushId, "Bench Press", listOf(60f to 10, 70f to 8, 75f to 6))
-        addExerciseWithSets(pushId, "Overhead Press", listOf(30f to 10, 35f to 8, 40f to 6))
-        addExerciseWithSets(pushId, "Bicep Curl", listOf(12f to 12, 14f to 10, 16f to 8))
+            addExerciseWithSets(pushId, "Bench Press", listOf(60f to 10, 70f to 8, 75f to 6))
+            addExerciseWithSets(pushId, "Overhead Press", listOf(30f to 10, 35f to 8, 40f to 6))
+            addExerciseWithSets(pushId, "Bicep Curl", listOf(12f to 12, 14f to 10, 16f to 8))
 
-        addExerciseWithSets(pullId, "Barbell Row", listOf(50f to 10, 60f to 8, 65f to 6))
-        addExerciseWithSets(pullId, "Pull-up", listOf(0f to 8, 0f to 8, 0f to 6))
+            addExerciseWithSets(pullId, "Barbell Row", listOf(50f to 10, 60f to 8, 65f to 6))
+            addExerciseWithSets(pullId, "Pull-up", listOf(0f to 8, 0f to 8, 0f to 6))
 
-        addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
+            addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
+

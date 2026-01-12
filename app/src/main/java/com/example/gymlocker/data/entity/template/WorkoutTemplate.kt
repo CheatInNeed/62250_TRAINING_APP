@@ -28,5 +28,6 @@ data class WorkoutTemplate(
     // "Identical to workout" per your requirement
     val date: String,
     val name: String,
-    val userId: Long
+    val userId: Long,
+    val isFavorite: Boolean = false
 )

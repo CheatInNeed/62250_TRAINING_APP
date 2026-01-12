@@ -15,6 +15,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,20 +81,13 @@ fun TemplateDetailScreen(
     // Reload template whenever we come back to this screen
     LaunchedEffect(Unit) {
         val navBackStackEntry = navController.currentBackStackEntry
-        val savedStateHandle = navBackStackEntry?.savedStateHandle
-
-        val observer = { shouldReload: Boolean ->
-            if (shouldReload) {
-                reloadCounter++
-                savedStateHandle?.set("shouldReloadTemplate", false)
-            }
-        }
+        val savedStateHandle = navBackStackEntry?.savedStateHandle ?: return@LaunchedEffect
 
         // Check if we should reload (set by EditTemplateScreen on save)
-        val shouldReload = savedStateHandle?.get<Boolean>("shouldReloadTemplate") ?: false
+        val shouldReload = savedStateHandle.get<Boolean>("shouldReloadTemplate") ?: false
         if (shouldReload) {
             reloadCounter++
-            savedStateHandle?.set("shouldReloadTemplate", false)
+            savedStateHandle.set("shouldReloadTemplate", false)
         }
     }
 
@@ -200,6 +195,20 @@ fun TemplateDetailScreen(
                         }
                     ) {
                         Icon(Icons.Filled.Edit, contentDescription = "Edit template")
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                activeWorkoutViewModel.toggleTemplateFavorite(templateId)
+                                reloadTemplate()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            if (template.template.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
+                            contentDescription = "Toggle favorite",
+                            tint = if (template.template.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
