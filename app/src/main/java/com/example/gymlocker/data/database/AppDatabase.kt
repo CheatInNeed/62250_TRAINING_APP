@@ -26,11 +26,13 @@ import java.io.File
         ExerciseLog::class,
         PerformedSet::class,
 
+        ExerciseRestPreference::class,
+
         WorkoutTemplate::class,
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 4, // ✅ bumped
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -49,9 +51,13 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun templateExerciseDao(): TemplateExerciseDao
     abstract fun templateSetDao(): TemplateSetDao
 
+    abstract fun exerciseRestPreferenceDao(): ExerciseRestPreferenceDao
+
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
         private const val DB_NAME = "gymlocker.db"
+
+        // 🔥 Toggle this when debugging
         private const val DEBUG_WIPE_DB = true
 
         fun getDatabase(context: Context): AppDatabase {
