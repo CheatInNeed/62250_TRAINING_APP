@@ -32,6 +32,7 @@ import java.time.temporal.TemporalAdjusters
 import java.util.Date
 import java.util.Locale
 import com.example.gymlocker.data.auth.SessionManager
+import com.example.gymlocker.notifications.RestTimerAlarm
 
 
 // Ét sæt (1 række i tabellen)
@@ -827,7 +828,10 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    fun skipRestTimer() {
+    fun skipRestTimer(cancelAlarm: Boolean = true) {
+        if (cancelAlarm) {
+            RestTimerAlarm.cancel(appContext)
+        }
         restTimerJob?.cancel()
         restTimerJob = null
         _restTimerState.value = RestTimerState()
@@ -839,6 +843,16 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         restTimerJob?.cancel()
 
         val endAt = System.currentTimeMillis() + seconds * 1000L
+
+        // Cancel evt. gammel alarm, så vi ikke får stale notifikationer
+        RestTimerAlarm.cancel(appContext)
+
+        // Planlæg notifikation når timeren udløber
+        RestTimerAlarm.schedule(
+            context = appContext,
+            triggerAtMillis = endAt,
+            exerciseName = exerciseName
+        )
 
         _restTimerState.value = RestTimerState(
             isActive = true,
@@ -862,7 +876,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
 
                 if (remaining <= 0) {
-                    skipRestTimer()
+                    // Alarmen har (eller bør) fyre nu – cancel ikke den her
+                    skipRestTimer(cancelAlarm = false)
                     return@launch
                 }
 
