@@ -124,7 +124,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     }
 
 
-
+    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
     /**
      * ✅ FIX: Last-workout label must use the same profile-scoped list.
      */
