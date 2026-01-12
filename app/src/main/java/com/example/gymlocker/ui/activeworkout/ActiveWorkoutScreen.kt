@@ -65,7 +65,10 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
 import com.example.gymlocker.ui.components.RestTimerBar
 import com.example.gymlocker.ui.components.RestTimerInputDialog
-
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.Icon
+import androidx.compose.ui.text.font.FontWeight
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
@@ -439,12 +442,23 @@ fun ActiveWorkoutExerciseItem(
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                Text(
-                    text = "Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = androidx.compose.ui.graphics.Color.Red,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { showRestDialog = true }
-                )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Timer,
+                        contentDescription = "Rest timer",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text(
+                        text = "  Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Box {

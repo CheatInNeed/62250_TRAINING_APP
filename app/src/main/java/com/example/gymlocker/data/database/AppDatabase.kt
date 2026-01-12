@@ -56,7 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
         private const val DB_NAME = "gymlocker.db"
 
         // 🔥 Toggle this when debugging
-        private const val DEBUG_WIPE_DB = false
+        private const val DEBUG_WIPE_DB = true
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {

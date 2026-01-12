@@ -14,6 +14,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.gymlocker.viewmodel.RestTimerState
+import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Surface
 
 @Composable
 fun RestTimerBar(
@@ -24,36 +32,41 @@ fun RestTimerBar(
 
     val progress =
         if (state.totalSeconds <= 0) 0f
-        else (state.remainingSeconds.toFloat() / state.totalSeconds.toFloat()).coerceIn(0f, 1f)
+        else (state.remainingSeconds.toFloat() / state.totalSeconds.toFloat())
+            .coerceIn(0f, 1f)
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp
     ) {
-        Text(
-            text = buildString {
-                append("Rest")
-                state.exerciseName?.let { append(" • ").append(it) }
-                append(" • ").append(state.remainingText)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
-        )
+        androidx.compose.foundation.layout.Column {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 6.dp, bottom = 10.dp),
+                progress = progress
+            )
 
-        OutlinedButton(
-            onClick = onSkip,
-            contentPadding = ButtonDefaults.ContentPadding
-        ) { Text("Skip") }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = state.remainingText,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+
+                Button(onClick = onSkip) {
+                    Text("Skip")
+                }
+            }
+        }
     }
-
-    LinearProgressIndicator(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 6.dp),
-        progress = progress
-    )
 }
+
+
