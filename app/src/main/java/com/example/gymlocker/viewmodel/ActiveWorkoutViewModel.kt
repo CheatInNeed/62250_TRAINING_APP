@@ -193,6 +193,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun resetLocalState() {
+        skipRestTimer(cancelAlarm = true)
         stopTimer()
         _elapsedTime.value = 0
         _isWorkoutInProgress.value = false
