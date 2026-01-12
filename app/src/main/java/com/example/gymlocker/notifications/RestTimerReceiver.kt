@@ -23,13 +23,15 @@ class RestTimerReceiver : BroadcastReceiver() {
 
         // Tap på notifikation -> åbner appen
         val openIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            val openIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
             putExtra("navigateTo", "activeWorkout") // valgfrit (hvis I vil deep-linke senere)
         }
 
         val openPendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            1403, // fast requestCode
             openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
