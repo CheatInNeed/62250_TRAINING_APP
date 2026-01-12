@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.auth.SessionManager
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import com.example.gymlocker.data.entity.*
@@ -27,11 +26,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import com.example.gymlocker.data.dao.WorkoutSummary
 import kotlinx.coroutines.flow.map
-import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.firstOrNull
-import java.time.DayOfWeek
 import java.time.temporal.TemporalAdjusters
+import com.example.gymlocker.data.auth.SessionManager
+import com.example.gymlocker.notifications.RestTimerAlarm
+import java.time.LocalDate
+
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -110,10 +111,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val _activeExercises = MutableStateFlow<List<ActiveExerciseState>>(emptyList())
     val activeExercises: StateFlow<List<ActiveExerciseState>> = _activeExercises.asStateFlow()
 
-    /**
-     * ✅ FIX: Completed workouts are now profile-scoped.
-     * If no active profile -> empty list.
-     */
     // Rest timer
     private val restPrefDao by lazy { db.exerciseRestPreferenceDao() }
 
@@ -327,6 +324,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     private fun resetLocalState() {
+        skipRestTimer(cancelAlarm = true)
         stopTimer()
         _elapsedTime.value = 0
         _isWorkoutInProgress.value = false
@@ -375,7 +373,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         currentWorkoutId = workoutId
         workoutId
     }
-
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
         return ex.sets.filter { it.reps > 0 && it.weight > 0 }
@@ -832,6 +829,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
             // 3) Reset UI state
             _activeExercises.value = emptyList()
+            _elapsedTime.value = 0L
 
             _isWorkoutInProgress.value = true
             startTimer()
@@ -970,7 +968,10 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    fun skipRestTimer() {
+    fun skipRestTimer(cancelAlarm: Boolean = true) {
+        if (cancelAlarm) {
+            RestTimerAlarm.cancel(appContext)
+        }
         restTimerJob?.cancel()
         restTimerJob = null
         _restTimerState.value = RestTimerState()
@@ -982,6 +983,16 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         restTimerJob?.cancel()
 
         val endAt = System.currentTimeMillis() + seconds * 1000L
+
+        // Cancel evt. gammel alarm, så vi ikke får stale notifikationer
+        RestTimerAlarm.cancel(appContext)
+
+        // Planlæg notifikation når timeren udløber
+        RestTimerAlarm.schedule(
+            context = appContext,
+            triggerAtMillis = endAt,
+            exerciseName = exerciseName
+        )
 
         _restTimerState.value = RestTimerState(
             isActive = true,
@@ -1005,7 +1016,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
 
                 if (remaining <= 0) {
-                    skipRestTimer()
+                    // Alarmen har (eller bør) fyre nu – cancel ikke den her
+                    skipRestTimer(cancelAlarm = false)
                     return@launch
                 }
 

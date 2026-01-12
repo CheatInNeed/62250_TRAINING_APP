@@ -4,17 +4,20 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.gymlocker.data.dao.*
 import com.example.gymlocker.data.dao.template.*
 import com.example.gymlocker.data.entity.*
 import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.File
+import java.time.DayOfWeek
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 import kotlin.random.Random
 
 @Database(
@@ -62,11 +65,13 @@ abstract class AppDatabase : RoomDatabase() {
          * - wipe database + session
          * - seed test auth + profile
          * - seed muscle groups + exercises
-         * - seed workout data for graphs
+         * - seed workout data for graphs (every week in last ~3 months)
          *
          * ❌ when false: none of the above happens.
          */
         private const val DEBUG_WIPE_DB = true
+
+        @Volatile private var debugSeedJob: Job? = null
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -81,16 +86,32 @@ abstract class AppDatabase : RoomDatabase() {
                     DB_NAME
                 )
 
+                // Recommended: only destructive migration in debug wipe mode.
                 if (DEBUG_WIPE_DB) {
                     builder.fallbackToDestructiveMigration()
-                    builder.addCallback(DebugSeedCallback())
-                } else {
-                    // Production should provide real migrations.
                 }
 
                 val instance = builder.build()
                 INSTANCE = instance
+
+                // ✅ Seed immediately after build (NO callback, NO INSTANCE race).
+                if (DEBUG_WIPE_DB && debugSeedJob == null) {
+                    debugSeedJob = CoroutineScope(Dispatchers.IO).launch {
+                        instance.debugSeedEverything()
+                    }
+                }
+
                 instance
+            }
+        }
+
+        /**
+         * Call this before login checks if you want to guarantee seeding finished
+         * (prevents "wrong password first try").
+         */
+        suspend fun awaitDebugSeedIfNeeded() {
+            if (DEBUG_WIPE_DB) {
+                debugSeedJob?.join()
             }
         }
 
@@ -101,34 +122,27 @@ abstract class AppDatabase : RoomDatabase() {
             File(dbFile.path + "-shm").delete()
             File(dbFile.path + "-wal").delete()
 
-            // DataStore backing file
             val sessionFile = File(context.filesDir, "datastore/session.preferences_pb")
             if (sessionFile.exists()) sessionFile.delete()
         }
     }
 
     /**
-     * Only registered when DEBUG_WIPE_DB = true.
-     */
-    private class DebugSeedCallback : Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            val database = INSTANCE ?: return
-            CoroutineScope(Dispatchers.IO).launch {
-                database.debugSeedEverything()
-            }
-        }
-    }
-
-    /**
      * Runs ONLY in debug wipe mode.
+     * Creates:
+     * - test auth account
+     * - test user (forced id=1)
+     * - auth profile link
+     * - muscle groups + exercises
+     * - workouts spread across every week in last ~3 months with performed sets
      */
     private suspend fun debugSeedEverything() {
+        // Extra safety: if someone accidentally calls this, do nothing unless toggle is true.
         if (!DEBUG_WIPE_DB) return
 
         seedTestLoginAndProfile()
         seedMuscleGroupsAndExercisesIfEmpty()
-        seed10WorkoutsForGraphTesting(userId = 1L)
+        seedWorkoutsEveryWeekLast3Months(userId = 1L)
     }
 
     /**
@@ -248,7 +262,18 @@ abstract class AppDatabase : RoomDatabase() {
         )
     }
 
-    private suspend fun seed10WorkoutsForGraphTesting(userId: Long = 1L) {
+    /**
+     * ✅ Seeds workouts so there is at least ONE workout in EVERY week across the last 3 months.
+     *
+     * This ensures your weekly charts have no missing weeks just because of seeding.
+     *
+     * Assumptions:
+     * - Workouts have `time: Long` (seconds)
+     * - exercise_log + performed_set are used for completion / muscle distribution
+     * - ExerciseLogDao has: suspend fun getOrCreateLogId(workoutId: Long, exerciseId: Long): Long
+     * - ExerciseDao has getAllOnce(), MuscleGroupDao has getAllOnce()
+     */
+    private suspend fun seedWorkoutsEveryWeekLast3Months(userId: Long = 1L) {
         val workoutDao = workoutDao()
         val exerciseDao = exerciseDao()
         val muscleGroupDao = muscleGroupDao()
