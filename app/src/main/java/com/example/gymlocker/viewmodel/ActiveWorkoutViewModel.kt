@@ -1,6 +1,8 @@
 package com.example.gymlocker.viewmodel
 
+import android.app.Application
 import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -18,9 +20,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
@@ -84,8 +83,8 @@ data class RestTimerState(
     val remainingText: String = "0:00"
 )
 
-class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
-
+class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
+    private val appContext = app.applicationContext
     private val db by lazy { AppDatabase.getDatabase(appContext) }
     private val workoutDao by lazy { db.workoutDao() }
     private val exerciseLogDao by lazy { db.exerciseLogDao() }
@@ -96,7 +95,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private val templateExerciseDao by lazy { db.templateExerciseDao() }
     private val templateSetDao by lazy { db.templateSetDao() }
 
-    // ✅ session holds active profile id
+    // ✅ session holds active profile id (phase 1)
     private val session by lazy { SessionManager(appContext) }
 
     private var timerJob: Job? = null
@@ -153,143 +152,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             else -> "Sidste workout: $days dage siden — tid til at komme afsted 🚀"
         }
     }
-    /**
-     * ✅ Completed workouts are profile-scoped.
-     * If no active profile -> empty list.
-     */
-    fun completedWorkouts(): Flow<List<WorkoutSummary>> =
-        session.activeProfileUserId.flatMapLatest { userId ->
-            if (userId == null) flowOf(emptyList())
-            else workoutDao.getWorkoutSummariesForUser(userId)
-        }
-
-// -------------------- Stats (restored from master) --------------------
-
-    enum class StatsRange { WEEK, MONTH }
-
-    private val _statsRange = MutableStateFlow(StatsRange.WEEK)
-    val statsRange: StateFlow<StatsRange> = _statsRange
-
-    fun setStatsRange(range: StatsRange) {
-        _statsRange.value = range
-    }
 
     /**
-     * Uses workoutDao.observeWorkoutsFrom(userId, startInclusive)
-     * Produces a list of weeks (Mon-start) with 0-filled weeks.
-     */
-    fun weeklyHoursLast3Months(userId: Long): Flow<List<WeekHoursUi>> {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-
-        val today = LocalDate.now()
-        val startDate = today.minusMonths(3)
-
-        val startInclusive = startDate
-            .atStartOfDay()
-            .format(formatter)
-
-        return workoutDao.observeWorkoutsFrom(userId = userId, startInclusive = startInclusive)
-            .map { workouts ->
-                val byWeek = mutableMapOf<LocalDate, Long>() // weekStart -> totalSeconds
-
-                workouts.forEach { w ->
-                    val ldt = runCatching { LocalDateTime.parse(w.date, formatter) }.getOrNull()
-                        ?: return@forEach
-                    val weekStart = ldt.toLocalDate()
-                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
-                    byWeek[weekStart] = (byWeek[weekStart] ?: 0L) + w.time
-                }
-
-                val firstWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                val lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                val weeks = ChronoUnit.WEEKS.between(firstWeek, lastWeek).toInt().coerceAtLeast(0)
-
-                (0..weeks).map { i ->
-                    val ws = firstWeek.plusWeeks(i.toLong())
-                    val seconds = byWeek[ws] ?: 0L
-                    WeekHoursUi(
-                        weekStart = ws,
-                        hours = seconds / 3600f
-                    )
-                }
-            }
-    }
-
-    /**
-     * Uses performedSetDao.observeWorkoutVolumesFrom(userId, startInclusive)
-     * Expects rows that contain (date, volume).
-     */
-    fun weeklyVolumeLast3Months(userId: Long): Flow<List<WeekVolumeUi>> {
-        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-
-        val today = LocalDate.now()
-        val startDate = today.minusMonths(3)
-
-        val startInclusive = startDate
-            .atStartOfDay()
-            .format(formatter)
-
-        return performedSetDao
-            .observeWorkoutVolumesFrom(userId = userId, startInclusive = startInclusive)
-            .map { rows ->
-                val byWeek = mutableMapOf<LocalDate, Float>() // weekStart -> totalVolume
-
-                rows.forEach { r ->
-                    val ldt = runCatching { LocalDateTime.parse(r.date, formatter) }.getOrNull()
-                        ?: return@forEach
-                    val weekStart = ldt.toLocalDate()
-                        .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-
-                    byWeek[weekStart] = (byWeek[weekStart] ?: 0f) + r.volume.toFloat()
-                }
-
-                val firstWeek = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                val lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                val weeks = ChronoUnit.WEEKS.between(firstWeek, lastWeek).toInt().coerceAtLeast(0)
-
-                (0..weeks).map { i ->
-                    val ws = firstWeek.plusWeeks(i.toLong())
-                    WeekVolumeUi(
-                        weekStart = ws,
-                        volume = byWeek[ws] ?: 0f
-                    )
-                }
-            }
-    }
-
-    /**
-     * Uses performedSetDao.observeMuscleGroupDistribution(userId, startInclusive, endExclusive)
-     * Range is controlled by statsRange.
-     */
-    fun muscleGroupDistribution(userId: Long): Flow<List<MuscleGroupDistributionRow>> =
-        _statsRange.flatMapLatest { range ->
-            val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-            val now = LocalDateTime.now()
-
-            val start = when (range) {
-                StatsRange.WEEK -> now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                    .toLocalDate().atStartOfDay()
-                StatsRange.MONTH -> now.withDayOfMonth(1).toLocalDate().atStartOfDay()
-            }
-
-            val startInclusive = start.format(fmt)
-            val endExclusive = now.plusDays(1)
-                .withHour(0).withMinute(0).withSecond(0).withNano(0)
-                .format(fmt)
-
-            performedSetDao.observeMuscleGroupDistribution(
-                userId = userId,
-                startInclusive = startInclusive,
-                endExclusive = endExclusive
-            )
-        }
-
-// -------------------- Stats end --------------------
-
-
-    /**
-     * ✅ Templates depend on selected profile.
+     * ✅ Templates now depend on selected profile.
      * If no profile selected -> empty list.
      */
     fun observeTemplates(userId: Long?) =
@@ -765,7 +630,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return ActiveWorkoutViewModel(context.applicationContext) as T
+                    return ActiveWorkoutViewModel(context.applicationContext as Application) as T
                 }
             }
         }
@@ -840,7 +705,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
             currentWorkoutId = newWorkoutId
 
-            // 3) Reset UI state
             _activeExercises.value = emptyList()
             _elapsedTime.value = 0L
 
@@ -1046,4 +910,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     private suspend fun requireActiveProfileUserIdOrNull(): Long? {
         return session.activeProfileUserId.firstOrNull()
     }
+
+    // ----------------------------
+    // Stats: weekly hours / volume
+    // ----------------------------
+
 }
