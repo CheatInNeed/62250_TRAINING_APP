@@ -3,7 +3,6 @@ package com.example.gymlocker.ui.template
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -73,7 +72,6 @@ fun CreateTemplateScreen(
             text = { Text("Are you sure you want to discard this template?") },
             confirmButton = {
                 TextButton(onClick = {
-                    // Optional: clear name (and you could also clear exercises if you want)
                     viewModel.updateTemplateName("")
                     showDiscardDialog = false
                     navController.navigateUp()
@@ -200,7 +198,8 @@ fun CreateTemplateScreen(
         AddExerciseSheet(
             onDismiss = { showAddExerciseSheet = false },
             onExerciseSelected = { ex ->
-                viewModel.addExercise(ex)
+                // ✅ FIX: pass ID (Long), not the entity
+                viewModel.addExercise(ex.exerciseId)
                 showAddExerciseSheet = false
             }
         )
@@ -242,7 +241,7 @@ fun TemplateExerciseItem(
             .fillMaxWidth()
             .padding(vertical = 8.dp)
     ) {
-        Row(
+        androidx.compose.foundation.layout.Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -292,7 +291,7 @@ fun TemplateExerciseItem(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
+        androidx.compose.foundation.layout.Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -309,8 +308,6 @@ fun TemplateExerciseItem(
                 deleteMode = deleteSetsMode,
                 onDelete = {
                     onDeleteSet(set.setNumber)
-                    // if there was only 1 set left (size==1), after delete it's 0;
-                    // if you want to auto-exit delete mode when empty/small, tweak this:
                     if (exercise.sets.size <= 2) deleteSetsMode = false
                 },
                 onWeightChange = { onWeightChange(set.setNumber, it) },
@@ -338,7 +335,7 @@ fun TemplateSetRow(
         .fillMaxWidth()
         .padding(vertical = 4.dp)
 
-    Row(
+    androidx.compose.foundation.layout.Row(
         modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
