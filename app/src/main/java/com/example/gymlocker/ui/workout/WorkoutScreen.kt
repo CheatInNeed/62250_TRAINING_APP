@@ -92,7 +92,7 @@ fun WorkoutScreen(
                 Text("Start Empty Workout")
             }
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Or choose a routine:", style = MaterialTheme.typography.titleMedium)
+            Text("Or choose one of your favorite routines:", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(12.dp))
 
             if (favoriteTemplates.isEmpty()) {
