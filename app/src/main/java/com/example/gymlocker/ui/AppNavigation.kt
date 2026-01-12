@@ -73,7 +73,7 @@ fun AppNavigation() {
         }
 
         composable("workout") {
-            WorkoutScreen(navController)
+            WorkoutScreen(navController, activeWorkoutViewModel)
         }
 
         composable("activeWorkout") {
