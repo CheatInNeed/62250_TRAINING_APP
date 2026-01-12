@@ -53,15 +53,21 @@ import com.example.gymlocker.ui.components.WeeklyBarChart
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
+import androidx.compose.foundation.layout.Row
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorkoutViewModel) {
+fun HomeScreen(
+    navController: NavController,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
+) {
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
-    val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
+
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
+
     val lastWorkoutLabel by activeWorkoutViewModel
         .lastWorkoutLabel()
         .collectAsState(initial = "Finder seneste workout…")
@@ -73,6 +79,12 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
     // --- Query workouts in current week (Mon–Sun) from ExerciseLogDao (only "completed" workouts) ---
     val context = LocalContext.current
+
+    // ✅ Active profile (Phase 2 will add UI to create/select this)
+    val session = remember { SessionManager(context.applicationContext) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+
+    // --- Query workouts in current week (Mon–Sun) ---
     val db = remember { AppDatabase.getDatabase(context) }
     val exerciseLogDao = remember { db.exerciseLogDao() }
 
@@ -86,11 +98,9 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
     val workoutsThisWeek by exerciseLogDao
-        .observeCompletedWorkoutCountInRange(
-            startInclusive = startInclusive,
-            endInclusive = endInclusive
-        )
+        .observeCompletedWorkoutCountInRange(startInclusive = startInclusive, endInclusive = endInclusive)
         .collectAsState(initial = 0)
+    // ---------------------------------------------
 
     val weeklyHours by activeWorkoutViewModel
         .weeklyHoursLast3Months(1L)
@@ -103,9 +113,14 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
 
     // ---------------------------------------------------------------------------------------------
 
-    // Observe templates for default user (still 1L for now)
-    val templatesFlow = activeWorkoutViewModel.observeTemplates(1L)
-    val templates by templatesFlow.collectAsState(initial = emptyList())
+    // ✅ Templates: only observe when we have an active profile
+    val templatesFlow = remember(activeProfileUserId) {
+        if (activeProfileUserId == null) null
+        else activeWorkoutViewModel.observeTemplates(activeProfileUserId!!)
+    }
+    val templates by (templatesFlow?.collectAsState(initial = emptyList()) ?: remember {
+        androidx.compose.runtime.mutableStateOf(emptyList<WorkoutTemplate>())
+    })
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
@@ -116,17 +131,15 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
                 // Thumb-friendly primary action button (ONLY PLACE IT EXISTS)
                 Button(
                     onClick = {
-                        if (isWorkoutInProgress) {
-                            navController.navigate("activeWorkout")
-                        } else {
-                            navController.navigate("workout")
-                        }
+                        if (isWorkoutInProgress) navController.navigate("activeWorkout")
+                        else navController.navigate("workout")
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                         .height(56.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = activeProfileUserId != null
                 ) {
                     Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
                 }
@@ -138,6 +151,49 @@ fun HomeScreen(navController: NavController, activeWorkoutViewModel: ActiveWorko
         }
     ) { innerPadding ->
 
+        // ✅ Phase-gate: no active profile selected yet
+        // ✅ Phase-gate: no active profile selected yet
+        if (activeProfileUserId == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Create a profile to get started",
+                        style = MaterialTheme.typography.titleLarge,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text(
+                        text = "Your profile stores your name, height, weight, and workout summary.\nYou can create one from the Profile page.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Button(
+                        onClick = { navController.navigate("profile") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Create Profile")
+                    }
+                }
+            }
+            return@Scaffold
+        }
+
+
+        // ✅ Normal home content
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
@@ -274,68 +330,7 @@ fun StatsCard(
             // ===== Weekly chart =====
             Text("Stats", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-
-            SegmentedToggle(
-                leftText = "Hours",
-                rightText = "Volume",
-                isLeftSelected = mode == WeeklyGraphMode.HOURS,
-                onLeftClick = { mode = WeeklyGraphMode.HOURS },
-                onRightClick = { mode = WeeklyGraphMode.VOLUME }
-            )
-
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = if (mode == WeeklyGraphMode.HOURS)
-                    "Hours trained per week (last 3 months)"
-                else
-                    "Volume per week (last 3 months)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (mode == WeeklyGraphMode.HOURS) {
-                WeeklyBarChart(
-                    data = weeklyHours,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.hours },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
-                )
-            } else {
-                WeeklyBarChart(
-                    data = weeklyVolume,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.volume },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
-                )
-            }
-
-            // ===== Distribution =====
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text("Training balance", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            SegmentedToggle(
-                leftText = "Week",
-                rightText = "Month",
-                isLeftSelected = statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK,
-                onLeftClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
-                onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
-            )
-
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            MuscleGroupDistributionChart(
-                rows = distribution,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Text("Graph will be here")
         }
     }
 }

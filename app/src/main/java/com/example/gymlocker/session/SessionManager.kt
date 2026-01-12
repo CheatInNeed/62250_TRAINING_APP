@@ -15,21 +15,45 @@ class SessionManager(private val context: Context) {
 
     private val KEY_LOGGED_IN = booleanPreferencesKey("logged_in")
     private val KEY_AUTH_ID = longPreferencesKey("auth_id")
-    private val KEY_PROFILE_USER_ID = longPreferencesKey("profile_user_id")
+
+    /**
+     * Active profile (what the app is currently "acting as").
+     * This supports: 1 auth account -> many profiles.
+     */
+    private val KEY_ACTIVE_PROFILE_USER_ID = longPreferencesKey("active_profile_user_id")
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_LOGGED_IN] ?: false
     }
 
-    val profileUserId: Flow<Long?> = context.dataStore.data.map { prefs ->
-        prefs[KEY_PROFILE_USER_ID]
+    val authId: Flow<Long?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_AUTH_ID]
     }
 
-    suspend fun setLoggedIn(authId: Long, profileUserId: Long) {
+    val activeProfileUserId: Flow<Long?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_ACTIVE_PROFILE_USER_ID]
+    }
+
+    /**
+     * Login now only sets auth session — NOT a profile.
+     */
+    suspend fun setLoggedIn(authId: Long) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LOGGED_IN] = true
             prefs[KEY_AUTH_ID] = authId
-            prefs[KEY_PROFILE_USER_ID] = profileUserId
+            // do NOT set active profile here
+        }
+    }
+
+    suspend fun setActiveProfile(profileUserId: Long) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_ACTIVE_PROFILE_USER_ID] = profileUserId
+        }
+    }
+
+    suspend fun clearActiveProfile() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_ACTIVE_PROFILE_USER_ID)
         }
     }
 
@@ -37,7 +61,7 @@ class SessionManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs.remove(KEY_LOGGED_IN)
             prefs.remove(KEY_AUTH_ID)
-            prefs.remove(KEY_PROFILE_USER_ID)
+            prefs.remove(KEY_ACTIVE_PROFILE_USER_ID)
         }
     }
 }
