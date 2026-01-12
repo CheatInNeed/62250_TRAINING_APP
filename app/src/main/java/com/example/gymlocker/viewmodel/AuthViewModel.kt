@@ -13,6 +13,8 @@ import kotlinx.coroutines.launch
 class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
 
     val isLoggedIn: Flow<Boolean> = repo.isLoggedIn()
+    val activeProfileUserId: Flow<Long?> = repo.activeProfileUserId()
+    val authId: Flow<Long?> = repo.authId()
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState
@@ -41,6 +43,14 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
 
     fun logout() {
         viewModelScope.launch { repo.logout() }
+    }
+
+    fun setActiveProfile(profileUserId: Long) {
+        viewModelScope.launch { repo.setActiveProfile(profileUserId) }
+    }
+
+    fun clearActiveProfile() {
+        viewModelScope.launch { repo.clearActiveProfile() }
     }
 
     fun clearError() {

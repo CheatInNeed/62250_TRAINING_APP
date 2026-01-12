@@ -18,8 +18,6 @@ import java.io.File
     entities = [
         User::class,
         AuthAccount::class,
-        AuthProfile::class, // ✅ NEW
-
         Workout::class,
         MuscleGroup::class,
         Exercises::class,
@@ -37,8 +35,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun authAccountDao(): AuthAccountDao
-    abstract fun authProfileDao(): AuthProfileDao // ✅ NEW
-
     abstract fun workoutDao(): WorkoutDao
     abstract fun muscleGroupDao(): MuscleGroupDao
     abstract fun exerciseDao(): ExerciseDao

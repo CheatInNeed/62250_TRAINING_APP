@@ -6,9 +6,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.AuthProfile
 import com.example.gymlocker.data.entity.User
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class ProfileWorkoutSummaryUi(
@@ -23,7 +27,6 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
     private val session by lazy { SessionManager(appContext) }
 
     private val userDao by lazy { db.userDao() }
-    private val authProfileDao by lazy { db.authProfileDao() }
     private val workoutDao by lazy { db.workoutDao() }
 
     val authId: StateFlow<Long?> = session.authId
@@ -43,7 +46,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
     val activeProfile: StateFlow<User?> =
         activeProfileUserId.flatMapLatest { userId ->
             if (userId == null) flowOf(null)
-            else userDao.getUser(userId).map { it as User? }
+            else userDao.getUser(userId) // Flow<User?>
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     // Workout summary for active profile
@@ -52,9 +55,11 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
             if (userId == null) {
                 flowOf(ProfileWorkoutSummaryUi())
             } else {
+                // NOTE: this requires you have a user-filtered query in WorkoutDao.
+                // If you don't yet, tell me and I’ll give you the exact DAO + SQL.
                 workoutDao.getWorkoutSummariesForUser(userId).map { list ->
                     if (list.isEmpty()) {
-                        ProfileWorkoutSummaryUi(totalWorkouts = 0, mostRecentName = null, mostRecentDate = null)
+                        ProfileWorkoutSummaryUi()
                     } else {
                         val mostRecent = list.first()
                         ProfileWorkoutSummaryUi(
@@ -79,21 +84,25 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    fun createProfile(name: String, height: Int, weight: Int, onDone: (() -> Unit)? = null) {
+    fun createProfile(
+        name: String,
+        height: Int,
+        weight: Int,
+        onDone: (() -> Unit)? = null
+    ) {
         viewModelScope.launch {
             val aId = authId.value ?: return@launch
 
             val newUserId = userDao.insert(
                 User(
+                    authOwnerId = aId,          // ✅ FIX
                     name = name.trim(),
                     height = height,
                     weight = weight
                 )
             )
 
-            authProfileDao.insert(AuthProfile(authId = aId, userId = newUserId))
             session.setActiveProfile(newUserId)
-
             onDone?.invoke()
         }
     }

@@ -10,6 +10,7 @@ class AuthRepository(context: Context) {
     private val appContext = context.applicationContext
     private val db = AppDatabase.getDatabase(appContext)
     private val authDao = db.authAccountDao()
+    private val userDao = db.userDao()
     private val session = SessionManager(appContext)
 
     suspend fun register(email: String, password: String): Result<Unit> {
@@ -29,9 +30,11 @@ class AuthRepository(context: Context) {
             )
         )
 
-        // ✅ logged in, but NO profile selected/created yet
+        // ✅ login session
         session.setLoggedIn(authId)
-        session.clearActiveProfile()
+
+        // ✅ try auto-select (likely none yet)
+        autoSelectProfileIfPossible(authId)
 
         return Result.success(Unit)
     }
@@ -47,11 +50,25 @@ class AuthRepository(context: Context) {
             return Result.failure(IllegalArgumentException("Incorrect email or password"))
         }
 
-        // ✅ logged in, but NO profile selected/created yet
+        // ✅ login session
         session.setLoggedIn(account.authId)
-        session.clearActiveProfile()
+
+        // ✅ Auto-select:
+        // - if exactly 1 profile exists -> set it active
+        // - otherwise leave null so UI can prompt user to create/pick
+        autoSelectProfileIfPossible(account.authId)
 
         return Result.success(Unit)
+    }
+
+    private suspend fun autoSelectProfileIfPossible(authId: Long) {
+        val profiles = userDao.getProfilesForAuthOnce(authId)
+        if (profiles.size == 1) {
+            session.setActiveProfile(profiles.first().userId)
+        } else {
+            // keep null (user must create or pick)
+            session.clearActiveProfile()
+        }
     }
 
     suspend fun logout() {
@@ -59,8 +76,8 @@ class AuthRepository(context: Context) {
     }
 
     fun isLoggedIn(): Flow<Boolean> = session.isLoggedIn
-
     fun activeProfileUserId(): Flow<Long?> = session.activeProfileUserId
+    fun authId(): Flow<Long?> = session.authId
 
     suspend fun setActiveProfile(profileUserId: Long) {
         session.setActiveProfile(profileUserId)

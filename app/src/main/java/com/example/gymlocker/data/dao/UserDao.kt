@@ -12,23 +12,16 @@ interface UserDao {
     @Insert
     suspend fun insert(user: User): Long
 
-    @Query("SELECT * FROM users WHERE userId = :userId")
-    fun getUser(userId: Long): Flow<User>
-
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
-    suspend fun getUserOnce(userId: Long): User?
+    fun getUser(userId: Long): Flow<User?>
 
     @Query("SELECT COUNT(*) FROM users")
     suspend fun countUsers(): Int
 
-    // ✅ NEW: List profiles for the logged-in auth account
-    @Query(
-        """
-        SELECT u.* FROM users u
-        INNER JOIN auth_profiles ap ON ap.userId = u.userId
-        WHERE ap.authId = :authId
-        ORDER BY u.userId DESC
-        """
-    )
+    // ✅ List all profiles belonging to one auth account
+    @Query("SELECT * FROM users WHERE authOwnerId = :authId ORDER BY userId DESC")
     fun observeProfilesForAuth(authId: Long): Flow<List<User>>
+
+    @Query("SELECT * FROM users WHERE authOwnerId = :authId ORDER BY userId DESC")
+    suspend fun getProfilesForAuthOnce(authId: Long): List<User>
 }

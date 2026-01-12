@@ -1,51 +1,58 @@
 package com.example.gymlocker.ui.profile
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.viewmodel.ProfileViewModel
+import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.data.entity.User
+import com.example.gymlocker.viewmodel.AuthViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateProfileScreen(
     navController: NavController,
-    profileViewModel: ProfileViewModel
+    authViewModel: AuthViewModel
 ) {
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context) }
+    val userDao = remember { db.userDao() }
+
+    val authId by authViewModel.authId.collectAsState(initial = null)
+
     var name by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
 
-    val nameTrimmed = name.trim()
-    val heightInt = height.toIntOrNull() ?: 0
-    val weightInt = weight.toIntOrNull() ?: 0
-
-    val canSave = nameTrimmed.isNotBlank()
-
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Create Profile") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                }
-            )
-        }
-    ) { inner ->
+        topBar = { TopAppBar(title = { Text("Create Profile") }) }
+    ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(inner)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(innerPadding)
+                .padding(16.dp)
         ) {
             OutlinedTextField(
                 value = name,
@@ -55,40 +62,59 @@ fun CreateProfileScreen(
                 singleLine = true
             )
 
+            Spacer(Modifier.height(10.dp))
+
             OutlinedTextField(
                 value = height,
-                onValueChange = { height = it.filter { ch -> ch.isDigit() } },
+                onValueChange = { height = it },
                 label = { Text("Height (cm)") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
             )
+
+            Spacer(Modifier.height(10.dp))
 
             OutlinedTextField(
                 value = weight,
-                onValueChange = { weight = it.filter { ch -> ch.isDigit() } },
+                onValueChange = { weight = it },
                 label = { Text("Weight (kg)") },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(18.dp))
 
             Button(
                 onClick = {
-                    profileViewModel.createProfile(
-                        name = nameTrimmed,
-                        height = heightInt,
-                        weight = weightInt
-                    ) {
-                        navController.popBackStack() // back to Profile
+                    val owner = authId ?: return@Button
+                    val cleanName = name.trim()
+                    if (cleanName.isBlank()) return@Button
+
+                    val h = height.toIntOrNull() ?: 0
+                    val w = weight.toIntOrNull() ?: 0
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val newId = userDao.insert(
+                            User(
+                                authOwnerId = owner,
+                                name = cleanName,
+                                height = h,
+                                weight = w
+                            )
+                        )
+                        // ✅ auto-select newly created profile
+                        authViewModel.setActiveProfile(newId)
+
+                        // go back to Profile hub
+                        CoroutineScope(Dispatchers.Main).launch {
+                            navController.popBackStack()
+                        }
                     }
                 },
-                enabled = canSave,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = authId != null && name.trim().isNotBlank()
             ) {
-                Text("Create")
+                Text("Create & Select")
             }
         }
     }
