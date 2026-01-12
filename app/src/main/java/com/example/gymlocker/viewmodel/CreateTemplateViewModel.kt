@@ -12,6 +12,7 @@ import com.example.gymlocker.data.entity.template.WorkoutTemplate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -142,8 +143,8 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
         viewModelScope.launch {
             _isSaving.value = true
             try {
-                val profileUserId = session.activeProfileUserIdFlowOnce()
-                    ?: return@launch // no profile yet -> do nothing (phase 2 will show UI message)
+                val profileUserId = session.activeProfileUserId.firstOrNull()
+                    ?: return@launch // no profile selected -> do nothing (Phase 2 gate will handle UI)
 
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val currentDate = dateFormat.format(Date())
@@ -183,15 +184,6 @@ class CreateTemplateViewModel(private val appContext: Context) : ViewModel() {
                 _isSaving.value = false
             }
         }
-    }
-
-    private suspend fun SessionManager.activeProfileUserIdFlowOnce(): Long? {
-        var latest: Long? = null
-        activeProfileUserId.collect { v ->
-            latest = v
-            return@collect
-        }
-        return latest
     }
 
     companion object {

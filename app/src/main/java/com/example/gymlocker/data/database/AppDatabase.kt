@@ -52,7 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
         private const val DB_NAME = "gymlocker.db"
-        private const val DEBUG_WIPE_DB = false
+        private const val DEBUG_WIPE_DB = true
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
