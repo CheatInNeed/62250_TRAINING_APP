@@ -8,6 +8,19 @@ import androidx.room.Update
 import com.example.gymlocker.data.entity.PerformedSet
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Row projection for "training distribution" chart (by muscle group).
+ * Kept in DAO package so Room can use it without UI-module coupling.
+ */
+data class MuscleGroupDistributionRow(
+    val muscleGroupName: String,
+    val completedSets: Int
+)
+data class WorkoutVolumeRow(
+    val date: String,     // workouts.date ("yyyy-MM-dd HH:mm:ss.SSS")
+    val volume: Double    // SUM(weight * reps)
+)
+
 @Dao
 interface PerformedSetDao {
 
@@ -206,4 +219,53 @@ interface PerformedSetDao {
         exerciseId: Long,
         excludeWorkoutId: Long?
     ): String?
+
+    // =========================
+    // ✅ NEW: Distribution query
+    // =========================
+
+    @Query(
+        """
+        SELECT 
+            mg.name AS muscleGroupName,
+            COUNT(ps.sid) AS completedSets
+        FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        JOIN exercises e ON e.exerciseId = el.exerciseId
+        JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+        WHERE w.userId = :userId
+          AND w.date >= :startInclusive
+          AND w.date < :endExclusive
+          AND ps.isCompleted = 1
+        GROUP BY mg.muscleGroupId, mg.name
+        ORDER BY completedSets DESC
+        """
+    )
+    fun observeMuscleGroupDistribution(
+        userId: Long,
+        startInclusive: String,
+        endExclusive: String
+    ): Flow<List<MuscleGroupDistributionRow>>
+
+
+    @Query(
+        """
+    SELECT 
+        w.date AS date,
+        COALESCE(SUM(ps.weight * ps.reps), 0) AS volume
+    FROM workouts w
+    JOIN exercise_log el ON el.workoutId = w.workoutId
+    JOIN performed_set ps ON ps.exerciseLogId = el.id
+    WHERE w.userId = :userId
+      AND w.date >= :startInclusive
+      AND ps.isCompleted = 1
+    GROUP BY w.workoutId
+    ORDER BY w.date ASC
+    """
+    )
+    fun observeWorkoutVolumesFrom(
+        userId: Long,
+        startInclusive: String
+    ): kotlinx.coroutines.flow.Flow<List<WorkoutVolumeRow>>
 }

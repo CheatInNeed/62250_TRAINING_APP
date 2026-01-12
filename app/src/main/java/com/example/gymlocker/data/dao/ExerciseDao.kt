@@ -23,4 +23,7 @@ interface ExerciseDao {
     @Query("SELECT exerciseId FROM exercises WHERE name = :name LIMIT 1")
     suspend fun getExerciseIdByName(name: String): Long?
 
+    @Query("SELECT * FROM exercises ORDER BY exerciseId ASC")
+    suspend fun getAllOnce(): List<Exercises>
+
 }

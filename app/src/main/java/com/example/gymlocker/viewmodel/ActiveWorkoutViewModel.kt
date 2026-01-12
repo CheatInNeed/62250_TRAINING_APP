@@ -4,14 +4,14 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.*
-import com.example.gymlocker.data.entity.template.*
 import com.example.gymlocker.data.dao.*
 import com.example.gymlocker.data.dao.template.*
+import com.example.gymlocker.data.entity.*
+import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +29,6 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flatMapLatest
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -52,12 +51,32 @@ data class ActiveExerciseState(
     val sets: List<ExerciseSetState> = listOf(ExerciseSetState(setNumber = 1))
 )
 
+data class WeekHoursUi(
+    val weekStart: LocalDate,   // Monday
+    val hours: Float
+)
+
+data class WeekVolumeUi(
+    val weekStart: LocalDate, // Monday
+    val volume: Float
+)
+
 /**
  * Stable UI model for Exercise details popup (and future screen reuse).
  */
 data class ExerciseStatsUi(
     val prText: String,
     val lastTrainedText: String
+)
+
+data class RestTimerState(
+    val isActive: Boolean = false,
+    val exerciseId: Long? = null,
+    val exerciseName: String? = null,
+    val totalSeconds: Int = 0,
+    val endTimeMillis: Long = 0L,
+    val remainingSeconds: Int = 0,
+    val remainingText: String = "0:00"
 )
 
 class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
@@ -97,6 +116,18 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             if (userId == null) flowOf(emptyList())
             else workoutDao.getWorkoutSummariesForUser(userId)
         }
+    // Rest timer
+    private val restPrefDao by lazy { db.exerciseRestPreferenceDao() }
+
+    private var restTimerJob: Job? = null
+    private val _restTimerState = MutableStateFlow(RestTimerState())
+    val restTimerState: StateFlow<RestTimerState> = _restTimerState.asStateFlow()
+
+    suspend fun readDefaultRestSeconds(userId: Long = 1L, exerciseId: Long): Int? {
+        return restPrefDao.getRestSeconds(userId, exerciseId)
+    }
+
+    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
 
     /**
      * ✅ FIX: Last-workout label must use the same profile-scoped list.
@@ -178,6 +209,14 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         return "$minutes min $remainingSeconds sec"
     }
 
+    private fun formatMmSs(totalSeconds: Int): String {
+        val m = (totalSeconds / 60).coerceAtLeast(0)
+        val s = (totalSeconds % 60).coerceAtLeast(0)
+        return "%d:%02d".format(m, s)
+    }
+
+    fun formatRestSeconds(seconds: Int): String = formatMmSs(seconds.coerceAtLeast(0))
+
     // --- Core persistence helpers ---
 
     private suspend fun ensureWorkoutExists(): Long? = workoutCreateMutex.withLock {
@@ -197,13 +236,15 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             Workout(
                 date = dateString,
                 name = name,
-                userId = userId
+                userId = userId,
+                time = 0L
             )
         )
 
         currentWorkoutId = workoutId
         workoutId
     }
+
 
     private fun meaningfulSets(ex: ActiveExerciseState): List<ExerciseSetState> {
         return ex.sets.filter { it.reps > 0 && it.weight > 0 }
@@ -452,6 +493,10 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     reps = setBefore.reps,
                     isCompleted = isDone
                 )
+                if (isDone) {
+                    val seconds = getDefaultRestSeconds(userId = 1L, exerciseId = exerciseId) ?: 90
+                    startRestTimer(exerciseId, before.exerciseName, seconds)
+                }
             }
         }
     }
@@ -494,6 +539,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 }
             }
 
+            // ✅ store workout duration (seconds)
+            workoutDao.updateWorkoutTime(workoutId, _elapsedTime.value)
+
             resetLocalState()
         }
     }
@@ -507,7 +555,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
             val userId = requireActiveProfileUserIdOrNull()
                 ?: run {
-                    // No profile selected -> just finish without renaming
                     finishWorkout()
                     return@launch
                 }
@@ -571,8 +618,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
     }
 
     companion object {
-
-        // ✅ Used by the ActiveWorkout name dialog
         const val MAX_WORKOUT_NAME_LENGTH = 40
 
         fun provideFactory(context: Context): ViewModelProvider.Factory {
@@ -603,10 +648,8 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
             )
 
-            // 2) Read workout structure
             val logs = exerciseLogDao.getLogsForWorkoutOnce(workoutId)
 
-            // 3) Copy each ExerciseLog -> TemplateExercise and its sets
             for (log in logs) {
                 val templateExerciseId = templateExerciseDao.insert(
                     TemplateExercise(
@@ -637,7 +680,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         date: String,
         nameOverride: String? = null
     ) {
-        // Guard: don't start a new workout if one is already in progress
         if (_isWorkoutInProgress.value || currentWorkoutId != null) return
 
         viewModelScope.launch {
@@ -647,7 +689,6 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
                 ?: return@launch
 
-            // 2) Create new workout
             val newWorkoutId = workoutDao.insert(
                 Workout(
                     date = date,
@@ -661,7 +702,9 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
             // 3) Reset UI state
             _activeExercises.value = emptyList()
 
-            // 4) Copy template exercises -> UI + DB
+            _isWorkoutInProgress.value = true
+            startTimer()
+
             for (tex in tpl.exercises) {
                 val exerciseId = tex.templateExercise.exerciseId
 
@@ -682,7 +725,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     exerciseId = exerciseId,
                     exerciseName = exName,
                     muscleGroupId = muscleGroupId,
-                    sets = uiSets.toMutableList()
+                    sets = uiSets
                 )
 
                 val logId = exerciseLogDao.getOrCreateLogId(newWorkoutId, exerciseId)
@@ -770,9 +813,73 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     fun deleteTemplateExerciseById(templateExerciseId: Long) {
         viewModelScope.launch {
-            // Because TemplateSet has FK with onDelete = CASCADE,
-            // deleting the template_exercise row will also delete its template_set rows.
             templateExerciseDao.deleteById(templateExerciseId)
+        }
+    }
+
+    // Rest timer
+    private suspend fun getDefaultRestSeconds(userId: Long, exerciseId: Long): Int? {
+        return restPrefDao.getRestSeconds(userId, exerciseId)
+    }
+
+    fun setDefaultRestSeconds(userId: Long = 1L, exerciseId: Long, restSeconds: Int) {
+        val clamped = restSeconds.coerceIn(0, 60 * 30)
+        viewModelScope.launch {
+            if (clamped <= 0) {
+                restPrefDao.delete(userId, exerciseId)
+            } else {
+                restPrefDao.upsert(
+                    ExerciseRestPreference(
+                        userId = userId,
+                        exerciseId = exerciseId,
+                        restSeconds = clamped
+                    )
+                )
+            }
+        }
+    }
+
+    fun skipRestTimer() {
+        restTimerJob?.cancel()
+        restTimerJob = null
+        _restTimerState.value = RestTimerState()
+    }
+
+    private fun startRestTimer(exerciseId: Long, exerciseName: String, seconds: Int) {
+        if (seconds <= 0) return
+
+        restTimerJob?.cancel()
+
+        val endAt = System.currentTimeMillis() + seconds * 1000L
+
+        _restTimerState.value = RestTimerState(
+            isActive = true,
+            exerciseId = exerciseId,
+            exerciseName = exerciseName,
+            totalSeconds = seconds,
+            endTimeMillis = endAt,
+            remainingSeconds = seconds,
+            remainingText = formatMmSs(seconds)
+        )
+
+        restTimerJob = viewModelScope.launch {
+            while (true) {
+                val remaining = ((endAt - System.currentTimeMillis()) / 1000L)
+                    .toInt()
+                    .coerceAtLeast(0)
+
+                _restTimerState.value = _restTimerState.value.copy(
+                    remainingSeconds = remaining,
+                    remainingText = formatMmSs(remaining)
+                )
+
+                if (remaining <= 0) {
+                    skipRestTimer()
+                    return@launch
+                }
+
+                delay(250L)
+            }
         }
     }
 
