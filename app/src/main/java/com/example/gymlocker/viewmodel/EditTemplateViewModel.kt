@@ -63,10 +63,8 @@ class EditTemplateViewModel(
                     if (exercise != null) {
                         exercisesState.add(
                             TemplateExerciseState(
-                                templateExerciseId = te.id,
                                 exerciseId = te.exerciseId,
                                 exerciseName = exercise.name,
-                                muscleGroupId = exercise.muscleGroupId,
                                 sets = sets.map {
                                     TemplateSetState(
                                         setNumber = it.setNumber,
@@ -106,7 +104,6 @@ class EditTemplateViewModel(
                 TemplateExerciseState(
                     exerciseId = exercise.exerciseId,
                     exerciseName = exercise.name,
-                    muscleGroupId = exercise.muscleGroupId,
                     sets = listOf(TemplateSetState(setNumber = 1))
                 )
             )
@@ -191,9 +188,13 @@ class EditTemplateViewModel(
                 }
 
                 val existingExercises = templateExerciseDao.getByTemplateOnce(templateId)
+                val existingExerciseIds = existingExercises.associateBy { it.exerciseId }
 
+                // Process each exercise in the current state
                 _selectedExercises.value.forEach { stateExercise ->
-                    if (stateExercise.templateExerciseId == 0L) {
+                    val existingTemplateExercise = existingExerciseIds[stateExercise.exerciseId]
+
+                    if (existingTemplateExercise == null) {
                         // New exercise - insert it and its sets
                         val newTemplateExerciseId = templateExerciseDao.insert(
                             TemplateExercise(
@@ -213,11 +214,11 @@ class EditTemplateViewModel(
                         templateSetDao.insertAll(templateSets)
                     } else {
                         // Existing exercise - delete old sets and insert new ones
-                        templateSetDao.deleteByTemplateExerciseId(stateExercise.templateExerciseId)
+                        templateSetDao.deleteByTemplateExerciseId(existingTemplateExercise.id)
 
                         val templateSets = stateExercise.sets.map { set ->
                             TemplateSet(
-                                templateExerciseId = stateExercise.templateExerciseId,
+                                templateExerciseId = existingTemplateExercise.id,
                                 setNumber = set.setNumber,
                                 weight = set.weight,
                                 reps = set.reps
@@ -227,6 +228,7 @@ class EditTemplateViewModel(
                     }
                 }
 
+                // Remove exercises that are no longer in the state
                 val stateExerciseIds = _selectedExercises.value.map { it.exerciseId }.toSet()
                 existingExercises.forEach { existingExercise ->
                     if (existingExercise.exerciseId !in stateExerciseIds) {
