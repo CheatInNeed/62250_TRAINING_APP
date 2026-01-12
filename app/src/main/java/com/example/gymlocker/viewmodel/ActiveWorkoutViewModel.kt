@@ -31,7 +31,10 @@ import kotlinx.coroutines.flow.firstOrNull
 import java.time.temporal.TemporalAdjusters
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.notifications.RestTimerAlarm
+import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.util.Date
+import java.util.Locale
 
 
 // Ét sæt (1 række i tabellen)

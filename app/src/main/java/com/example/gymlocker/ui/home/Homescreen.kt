@@ -67,9 +67,6 @@ fun HomeScreen(
 
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
 
-    // ✅ Active profile
-    val session = remember { SessionManager(context.applicationContext) }
-    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
 
     // ✅ Completed workouts (profile-scoped)
     val completedWorkouts by activeWorkoutViewModel
