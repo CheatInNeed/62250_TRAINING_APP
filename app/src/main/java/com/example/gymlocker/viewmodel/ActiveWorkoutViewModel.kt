@@ -56,6 +56,17 @@ data class ExerciseStatsUi(
     val lastTrainedText: String
 )
 
+
+data class RestTimerState(
+    val isActive: Boolean = false,
+    val exerciseId: Long? = null,
+    val exerciseName: String? = null,
+    val totalSeconds: Int = 0,
+    val endTimeMillis: Long = 0L,
+    val remainingSeconds: Int = 0,
+    val remainingText: String = "0:00"
+)
+
 class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     private val db by lazy { AppDatabase.getDatabase(appContext) }
@@ -80,6 +91,17 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
 
     private val _activeExercises = MutableStateFlow<List<ActiveExerciseState>>(emptyList())
     val activeExercises: StateFlow<List<ActiveExerciseState>> = _activeExercises.asStateFlow()
+
+    // Rest timer
+    private val restPrefDao by lazy { db.exerciseRestPreferenceDao() }
+
+    private var restTimerJob: Job? = null
+    private val _restTimerState = MutableStateFlow(RestTimerState())
+    val restTimerState: StateFlow<RestTimerState> = _restTimerState.asStateFlow()
+
+    suspend fun readDefaultRestSeconds(userId: Long = 1L, exerciseId: Long): Int? {
+        return restPrefDao.getRestSeconds(userId, exerciseId)
+    }
 
     fun completedWorkouts() = workoutDao.getWorkoutSummaries()
 
@@ -156,6 +178,14 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         val remainingSeconds = seconds % 60
         return "$minutes min $remainingSeconds sec"
     }
+
+    private fun formatMmSs(totalSeconds: Int): String {
+        val m = (totalSeconds / 60).coerceAtLeast(0)
+        val s = (totalSeconds % 60).coerceAtLeast(0)
+        return "%d:%02d".format(m, s)
+    }
+
+    fun formatRestSeconds(seconds: Int): String = formatMmSs(seconds.coerceAtLeast(0))
 
     // --- Core persistence helpers ---
 
@@ -427,6 +457,10 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                     reps = setBefore.reps,
                     isCompleted = isDone
                 )
+                if (isDone) {
+                    val seconds = getDefaultRestSeconds(userId = 1L, exerciseId = exerciseId) ?: 90
+                    startRestTimer(exerciseId, before.exerciseName, seconds)
+                }
             }
         }
     }
@@ -735,4 +769,68 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
+    //Rest timer
+    private suspend fun getDefaultRestSeconds(userId: Long, exerciseId: Long): Int? {
+        return restPrefDao.getRestSeconds(userId, exerciseId)
+    }
+
+    fun setDefaultRestSeconds(userId: Long = 1L, exerciseId: Long, restSeconds: Int) {
+        val clamped = restSeconds.coerceIn(0, 60 * 30) // max 30 min
+        viewModelScope.launch {
+            if (clamped <= 0) {
+                restPrefDao.delete(userId, exerciseId)
+            } else {
+                restPrefDao.upsert(
+                    com.example.gymlocker.data.entity.ExerciseRestPreference(
+                        userId = userId,
+                        exerciseId = exerciseId,
+                        restSeconds = clamped
+                    )
+                )
+            }
+        }
+    }
+
+    fun skipRestTimer() {
+        restTimerJob?.cancel()
+        restTimerJob = null
+        _restTimerState.value = RestTimerState()
+    }
+
+    private fun startRestTimer(exerciseId: Long, exerciseName: String, seconds: Int) {
+        if (seconds <= 0) return
+
+        restTimerJob?.cancel()
+
+        val endAt = System.currentTimeMillis() + seconds * 1000L
+
+        _restTimerState.value = RestTimerState(
+            isActive = true,
+            exerciseId = exerciseId,
+            exerciseName = exerciseName,
+            totalSeconds = seconds,
+            endTimeMillis = endAt,
+            remainingSeconds = seconds,
+            remainingText = formatMmSs(seconds)
+        )
+
+        restTimerJob = viewModelScope.launch {
+            while (true) {
+                val remaining = ((endAt - System.currentTimeMillis()) / 1000L).toInt().coerceAtLeast(0)
+
+                _restTimerState.value = _restTimerState.value.copy(
+                    remainingSeconds = remaining,
+                    remainingText = formatMmSs(remaining)
+                )
+
+                if (remaining <= 0) {
+                    // Timer done -> hide bar (US14.3 kan hookes her)
+                    skipRestTimer()
+                    return@launch
+                }
+
+                kotlinx.coroutines.delay(250L)
+            }
+        }
+    }
 }
