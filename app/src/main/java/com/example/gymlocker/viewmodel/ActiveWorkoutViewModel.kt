@@ -26,6 +26,7 @@ import com.example.gymlocker.data.dao.WorkoutSummary
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import com.example.gymlocker.notifications.RestTimerAlarm
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -791,7 +792,11 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    fun skipRestTimer() {
+    fun skipRestTimer(cancelAlarm: Boolean = true) {
+        if (cancelAlarm) {
+            RestTimerAlarm.cancel(appContext)
+        }
+
         restTimerJob?.cancel()
         restTimerJob = null
         _restTimerState.value = RestTimerState()
@@ -803,6 +808,12 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
         restTimerJob?.cancel()
 
         val endAt = System.currentTimeMillis() + seconds * 1000L
+
+        RestTimerAlarm.schedule(
+            context = appContext,
+            triggerAtMillis = endAt,
+            exerciseName = exerciseName
+        )
 
         _restTimerState.value = RestTimerState(
             isActive = true,
@@ -824,8 +835,7 @@ class ActiveWorkoutViewModel(private val appContext: Context) : ViewModel() {
                 )
 
                 if (remaining <= 0) {
-                    // Timer done -> hide bar (US14.3 kan hookes her)
-                    skipRestTimer()
+                    skipRestTimer(cancelAlarm = false)
                     return@launch
                 }
 
