@@ -3,13 +3,12 @@ package com.example.gymlocker.data.auth
 import android.content.Context
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.AuthAccount
-import com.example.gymlocker.data.entity.User
+import kotlinx.coroutines.flow.Flow
 
 class AuthRepository(context: Context) {
 
     private val appContext = context.applicationContext
     private val db = AppDatabase.getDatabase(appContext)
-    private val userDao = db.userDao()
     private val authDao = db.authAccountDao()
     private val session = SessionManager(appContext)
 
@@ -21,27 +20,19 @@ class AuthRepository(context: Context) {
             return Result.failure(IllegalStateException("Email is already registered"))
         }
 
-        // Create default profile row (workouts attach to this User)
-        // NOTE: your User requires name/height/weight, so we must supply values.
-        val profileId = userDao.insert(
-            User(
-                name = "Default",
-                height = 0,
-                weight = 0
-            )
-        )
-
         val hash = PasswordHasher.sha256(password)
 
         val authId = authDao.insert(
             AuthAccount(
                 email = normalizedEmail,
-                passwordHash = hash,
-                profileUserId = profileId
+                passwordHash = hash
             )
         )
 
-        session.setLoggedIn(authId, profileId)
+        // ✅ logged in, but NO profile selected/created yet
+        session.setLoggedIn(authId)
+        session.clearActiveProfile()
+
         return Result.success(Unit)
     }
 
@@ -56,7 +47,10 @@ class AuthRepository(context: Context) {
             return Result.failure(IllegalArgumentException("Incorrect email or password"))
         }
 
-        session.setLoggedIn(account.authId, account.profileUserId)
+        // ✅ logged in, but NO profile selected/created yet
+        session.setLoggedIn(account.authId)
+        session.clearActiveProfile()
+
         return Result.success(Unit)
     }
 
@@ -64,5 +58,15 @@ class AuthRepository(context: Context) {
         session.clear()
     }
 
-    fun isLoggedIn() = session.isLoggedIn
+    fun isLoggedIn(): Flow<Boolean> = session.isLoggedIn
+
+    fun activeProfileUserId(): Flow<Long?> = session.activeProfileUserId
+
+    suspend fun setActiveProfile(profileUserId: Long) {
+        session.setActiveProfile(profileUserId)
+    }
+
+    suspend fun clearActiveProfile() {
+        session.clearActiveProfile()
+    }
 }

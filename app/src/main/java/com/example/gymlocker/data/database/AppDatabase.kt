@@ -29,7 +29,7 @@ import java.io.File
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -85,7 +85,6 @@ abstract class AppDatabase : RoomDatabase() {
             File(dbFile.path + "-wal").delete()
 
             // --- DataStore session ---
-            // preferencesDataStore(name = "session")
             val sessionFile = File(context.filesDir, "datastore/session.preferences_pb")
             if (sessionFile.exists()) sessionFile.delete()
         }
@@ -103,23 +102,11 @@ abstract class AppDatabase : RoomDatabase() {
     }
 
     private suspend fun seedIfEmpty() {
-        val userDao = userDao()
         val exerciseDao = exerciseDao()
         val muscleGroupDao = muscleGroupDao()
 
-        val usersCount = runCatching { userDao.countUsers() }.getOrNull() ?: 0
         val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
-
-        if (usersCount > 0 || exercisesCount > 0) return
-
-        // Seed a profile row (dummy)
-        val defaultUserId = userDao.insert(
-            User(
-                name = "Default User",
-                height = 0,
-                weight = 0
-            )
-        )
+        if (exercisesCount > 0) return
 
         // Seed muscle groups
         val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
@@ -192,82 +179,5 @@ abstract class AppDatabase : RoomDatabase() {
                 muscleGroupId = armsId
             )
         )
-
-        seedDummyTemplates(userId = defaultUserId)
-    }
-
-    private suspend fun seedDummyTemplates(userId: Long) {
-        val workoutTemplateDao = workoutTemplateDao()
-
-        val existingCount = runCatching {
-            workoutTemplateDao.countTemplatesByUserId(userId)
-        }.getOrNull() ?: 0
-        if (existingCount > 0) return
-
-        val templateExerciseDao = templateExerciseDao()
-        val templateSetDao = templateSetDao()
-        val exerciseDao = exerciseDao()
-
-        suspend fun exId(name: String): Long =
-            exerciseDao.getExerciseIdByName(name)
-                ?: error("Missing exercise '$name' - did seed exercises run?")
-
-        suspend fun addExerciseWithSets(
-            templateId: Long,
-            exerciseName: String,
-            sets: List<Pair<Float, Int>>
-        ) {
-            // ✅ named params so it matches your TemplateExercise entity (likely Long, Long)
-            val templateExerciseId = templateExerciseDao.insert(
-                TemplateExercise(
-                    templateId = templateId,
-                    exerciseId = exId(exerciseName)
-                )
-            )
-
-            sets.forEachIndexed { index, (weight, reps) ->
-                // ✅ named params to match your TemplateSet entity
-                templateSetDao.insert(
-                    TemplateSet(
-                        templateExerciseId = templateExerciseId,
-                        setNumber = index + 1,
-                        weight = weight,
-                        reps = reps
-                    )
-                )
-            }
-        }
-
-        // ✅ named params so date/name stay String and userId stays Long
-        val pushId = workoutTemplateDao.insert(
-            WorkoutTemplate(
-                date = "2026-01-07",
-                name = "Push (Dummy)",
-                userId = userId
-            )
-        )
-        val pullId = workoutTemplateDao.insert(
-            WorkoutTemplate(
-                date = "2026-01-07",
-                name = "Pull (Dummy)",
-                userId = userId
-            )
-        )
-        val legsId = workoutTemplateDao.insert(
-            WorkoutTemplate(
-                date = "2026-01-07",
-                name = "Legs (Dummy)",
-                userId = userId
-            )
-        )
-
-        addExerciseWithSets(pushId, "Bench Press", listOf(60f to 10, 70f to 8, 75f to 6))
-        addExerciseWithSets(pushId, "Overhead Press", listOf(30f to 10, 35f to 8, 40f to 6))
-        addExerciseWithSets(pushId, "Bicep Curl", listOf(12f to 12, 14f to 10, 16f to 8))
-
-        addExerciseWithSets(pullId, "Barbell Row", listOf(50f to 10, 60f to 8, 65f to 6))
-        addExerciseWithSets(pullId, "Pull-up", listOf(0f to 8, 0f to 8, 0f to 6))
-
-        addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
     }
 }
