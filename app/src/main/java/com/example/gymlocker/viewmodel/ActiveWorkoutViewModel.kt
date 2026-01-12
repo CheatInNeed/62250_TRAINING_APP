@@ -7,40 +7,37 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.dao.*
-import com.example.gymlocker.data.dao.template.*
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import com.example.gymlocker.data.entity.*
+import java.time.DayOfWeek
 import com.example.gymlocker.data.entity.template.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import com.example.gymlocker.data.dao.MuscleGroupDistributionRow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.text.SimpleDateFormat
-import java.time.DayOfWeek
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import com.example.gymlocker.data.dao.WorkoutSummary
+import kotlinx.coroutines.flow.map
 import java.time.temporal.ChronoUnit
+import kotlinx.coroutines.flow.firstOrNull
 import java.time.temporal.TemporalAdjusters
-import java.util.Date
-import java.util.Locale
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.notifications.RestTimerAlarm
+import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.util.Date
+import java.util.Locale
 
 
 // Ét sæt (1 række i tabellen)
-
-enum class StatsRange { WEEK, MONTH }
-
 data class ExerciseSetState(
     val setNumber: Int,
     val weight: Int = 0,
@@ -124,15 +121,20 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     private val _restTimerState = MutableStateFlow(RestTimerState())
     val restTimerState: StateFlow<RestTimerState> = _restTimerState.asStateFlow()
 
-    suspend fun readDefaultRestSeconds(userId: Long = 1L, exerciseId: Long): Int? {
-        return restPrefDao.getRestSeconds(userId, exerciseId)
+    suspend fun readDefaultRestSeconds(exerciseId: Long): Int? {
+        val uid = activeUserIdOrNull() ?: return null
+        return restPrefDao.getRestSeconds(uid, exerciseId)
     }
+
 
     fun completedWorkouts() = workoutDao.getWorkoutSummaries()
-
-    fun lastWorkoutLabel() = workoutDao.getWorkoutSummaries().map { workouts ->
-        makeLastWorkoutLabel(workouts)
-    }
+    /**
+     * ✅ FIX: Last-workout label must use the same profile-scoped list.
+     */
+    fun lastWorkoutLabel() =
+        completedWorkouts().map { workouts ->
+            makeLastWorkoutLabel(workouts)
+        }
 
     private fun makeLastWorkoutLabel(workouts: List<WorkoutSummary>): String {
         if (workouts.isEmpty()) return "Ingen tidligere workouts — klar til din første? 🚀"
@@ -186,6 +188,14 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+    private suspend fun activeUserIdOrNull(): Long? {
+        return session.activeProfileUserId.firstOrNull()
+    }
+
+    private suspend fun activeUserIdOrDefault(): Long {
+        return activeUserIdOrNull() ?: 1L
+    }
+
 
     fun stopTimer() {
         timerJob?.cancel()
@@ -498,7 +508,9 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     isCompleted = isDone
                 )
                 if (isDone) {
-                    val seconds = getDefaultRestSeconds(userId = 1L, exerciseId = exerciseId) ?: 90
+                    val uid = activeUserIdOrDefault()
+                    val seconds = getDefaultRestSeconds(userId = uid, exerciseId = exerciseId) ?: 90
+
                     startRestTimer(exerciseId, before.exerciseName, seconds)
                 }
             }
@@ -641,11 +653,14 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         date: String
     ) {
         viewModelScope.launch {
+            val effectiveUserId = if (userId > 0) userId else (requireActiveProfileUserIdOrNull() ?: return@launch)
+
+            // 1) Create template root
             val templateId = workoutTemplateDao.insert(
                 WorkoutTemplate(
                     name = templateName,
                     date = date,
-                    userId = userId
+                    userId = effectiveUserId
                 )
             )
 
@@ -684,6 +699,9 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         if (_isWorkoutInProgress.value || currentWorkoutId != null) return
 
         viewModelScope.launch {
+            val effectiveUserId = if (userId > 0) userId else (requireActiveProfileUserIdOrNull() ?: return@launch)
+
+            // 1) Load template structure
             val tpl = workoutTemplateDao.getTemplateWithExercises(templateId)
                 ?: return@launch
 
@@ -691,8 +709,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 Workout(
                     date = date,
                     name = nameOverride ?: tpl.template.name,
-                    userId = userId,
-                    time = 0L
+                    userId = effectiveUserId
                 )
             )
 
@@ -821,22 +838,22 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         return restPrefDao.getRestSeconds(userId, exerciseId)
     }
 
-    fun setDefaultRestSeconds(userId: Long = 1L, exerciseId: Long, restSeconds: Int) {
-        val clamped = restSeconds.coerceIn(0, 60 * 30)
+    fun setDefaultRestSeconds(exerciseId: Long, restSeconds: Int) {
         viewModelScope.launch {
-            if (clamped <= 0) {
-                restPrefDao.delete(userId, exerciseId)
-            } else {
-                restPrefDao.upsert(
-                    ExerciseRestPreference(
-                        userId = userId,
-                        exerciseId = exerciseId,
-                        restSeconds = clamped
-                    )
+            val uid = activeUserIdOrNull() ?: return@launch
+            val clamped = restSeconds.coerceIn(0, 60 * 30)
+
+            if (clamped <= 0) restPrefDao.delete(uid, exerciseId)
+            else restPrefDao.upsert(
+                ExerciseRestPreference(
+                    userId = uid,
+                    exerciseId = exerciseId,
+                    restSeconds = clamped
                 )
-            }
+            )
         }
     }
+
 
     fun skipRestTimer(cancelAlarm: Boolean = true) {
         if (cancelAlarm) {

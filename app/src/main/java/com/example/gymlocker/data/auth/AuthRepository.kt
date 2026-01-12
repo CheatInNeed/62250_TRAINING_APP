@@ -2,14 +2,17 @@ package com.example.gymlocker.data.auth
 
 import android.content.Context
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.AuthAccount
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class AuthRepository(context: Context) {
 
     private val appContext = context.applicationContext
     private val db = AppDatabase.getDatabase(appContext)
+
     private val authDao = db.authAccountDao()
+    private val userDao = db.userDao()
+
     private val session = SessionManager(appContext)
 
     suspend fun register(email: String, password: String): Result<Unit> {
@@ -23,13 +26,13 @@ class AuthRepository(context: Context) {
         val hash = PasswordHasher.sha256(password)
 
         val authId = authDao.insert(
-            AuthAccount(
+            com.example.gymlocker.data.entity.AuthAccount(
                 email = normalizedEmail,
                 passwordHash = hash
             )
         )
 
-        // ✅ logged in, but NO profile selected/created yet
+        // Logged in, but no profile yet.
         session.setLoggedIn(authId)
         session.clearActiveProfile()
 
@@ -47,9 +50,25 @@ class AuthRepository(context: Context) {
             return Result.failure(IllegalArgumentException("Incorrect email or password"))
         }
 
-        // ✅ logged in, but NO profile selected/created yet
+        // 1) set auth session
         session.setLoggedIn(account.authId)
-        session.clearActiveProfile()
+
+        // 2) try auto-select last used profile (if it belongs to this auth)
+        val last = session.lastProfileUserId.first()
+
+        val selectedProfileId: Long? = when {
+            last != null && userDao.belongsToAuth(last, account.authId) > 0 -> last
+            else -> {
+                // fallback: first profile for this auth (if any)
+                userDao.listProfilesForAuth(account.authId).firstOrNull()?.userId
+            }
+        }
+
+        if (selectedProfileId != null) {
+            session.setActiveProfile(selectedProfileId)
+        } else {
+            session.clearActiveProfile()
+        }
 
         return Result.success(Unit)
     }

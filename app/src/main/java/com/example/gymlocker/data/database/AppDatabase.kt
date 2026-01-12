@@ -21,8 +21,6 @@ import kotlin.random.Random
     entities = [
         User::class,
         AuthAccount::class,
-        AuthProfile::class,
-
         Workout::class,
         MuscleGroup::class,
         Exercises::class,
@@ -42,8 +40,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun authAccountDao(): AuthAccountDao
-    abstract fun authProfileDao(): AuthProfileDao
-
     abstract fun workoutDao(): WorkoutDao
     abstract fun muscleGroupDao(): MuscleGroupDao
     abstract fun exerciseDao(): ExerciseDao
@@ -64,11 +60,11 @@ abstract class AppDatabase : RoomDatabase() {
         /**
          * ✅ ONLY when true:
          * - wipe database + session
-         * - seed test account/user/profile
+         * - seed test auth + profile
          * - seed muscle groups + exercises
          * - seed workout data for graphs (every week in last ~3 months)
          *
-         * ❌ when false: NONE of the above happens.
+         * ❌ when false: none of the above happens.
          */
         private const val DEBUG_WIPE_DB = true
 
@@ -137,6 +133,7 @@ abstract class AppDatabase : RoomDatabase() {
      * - workouts spread across every week in last ~3 months with performed sets
      */
     private suspend fun debugSeedEverything() {
+        // Extra safety: if someone accidentally calls this, do nothing unless toggle is true.
         if (!DEBUG_WIPE_DB) return
 
         seedTestLoginAndProfile()
@@ -145,12 +142,17 @@ abstract class AppDatabase : RoomDatabase() {
         seedWorkoutsEveryWeekLast3Months(userId = 1L)
     }
 
+    /**
+     * ✅ Seeds:
+     * - AuthAccount for test@test.dk
+     * - ONE User profile (userId = 1) owned by that auth account (authOwnerId = authId)
+     *
+     * No authProfileDao exists anymore – ownership is stored directly on User.authOwnerId
+     */
     private suspend fun seedTestLoginAndProfile() {
         val authDao = authAccountDao()
         val userDao = userDao()
-        val profileDao = authProfileDao()
 
-        // TODO remove before launch (but this function only runs with DEBUG_WIPE_DB=true)
         val email = "test@test.dk"
         val password = "password"
         val normalizedEmail = email.trim().lowercase()
@@ -164,21 +166,18 @@ abstract class AppDatabase : RoomDatabase() {
         )
 
         val seededUserId = 1L
+
         val existingUser = userDao.getUserOnce(seededUserId)
         if (existingUser == null) {
             userDao.insert(
                 User(
                     userId = seededUserId,
+                    authOwnerId = authId,  // ✅ REQUIRED now
                     name = "Test",
                     height = 180,
                     weight = 80
                 )
             )
-        }
-
-        // Link auth -> profile (guard if it already exists)
-        runCatching {
-            profileDao.insert(AuthProfile(authId = authId, userId = seededUserId))
         }
     }
 

@@ -49,6 +49,7 @@ fun AppNavigation() {
         factory = AuthViewModel.provideFactory(context)
     )
 
+    // ✅ CREATE IT (this was missing)
     val profileViewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModel.provideFactory(context)
     )
@@ -116,13 +117,13 @@ fun AppNavigation() {
             )
         }
 
-        // ✅ NEW route
         composable("createProfile") {
             CreateProfileScreen(
                 navController = navController,
                 profileViewModel = profileViewModel
             )
         }
+
 
         composable(
             route = "workoutDetail/{workoutId}",

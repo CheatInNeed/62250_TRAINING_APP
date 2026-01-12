@@ -8,7 +8,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-// Top-level extension (must be outside the class)
 private val Context.dataStore by preferencesDataStore(name = "session")
 
 class SessionManager(private val context: Context) {
@@ -18,9 +17,14 @@ class SessionManager(private val context: Context) {
 
     /**
      * Active profile (what the app is currently "acting as").
-     * This supports: 1 auth account -> many profiles.
      */
     private val KEY_ACTIVE_PROFILE_USER_ID = longPreferencesKey("active_profile_user_id")
+
+    /**
+     * Last-used profile, persisted across logout/login.
+     * We validate it belongs to the current authId before using it.
+     */
+    private val KEY_LAST_PROFILE_USER_ID = longPreferencesKey("last_profile_user_id")
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_LOGGED_IN] ?: false
@@ -34,9 +38,10 @@ class SessionManager(private val context: Context) {
         prefs[KEY_ACTIVE_PROFILE_USER_ID]
     }
 
-    /**
-     * Login now only sets auth session — NOT a profile.
-     */
+    val lastProfileUserId: Flow<Long?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_LAST_PROFILE_USER_ID]
+    }
+
     suspend fun setLoggedIn(authId: Long) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LOGGED_IN] = true
@@ -45,23 +50,32 @@ class SessionManager(private val context: Context) {
         }
     }
 
+    /**
+     * Selecting a profile also updates "last used profile".
+     */
     suspend fun setActiveProfile(profileUserId: Long) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ACTIVE_PROFILE_USER_ID] = profileUserId
+            prefs[KEY_LAST_PROFILE_USER_ID] = profileUserId
         }
     }
 
     suspend fun clearActiveProfile() {
         context.dataStore.edit { prefs ->
             prefs.remove(KEY_ACTIVE_PROFILE_USER_ID)
+            // Keep LAST profile to support auto-select on next login
         }
     }
 
+    /**
+     * Logout clears auth + active profile, but keeps last_profile_user_id.
+     */
     suspend fun clear() {
         context.dataStore.edit { prefs ->
             prefs.remove(KEY_LOGGED_IN)
             prefs.remove(KEY_AUTH_ID)
             prefs.remove(KEY_ACTIVE_PROFILE_USER_ID)
+            // keep KEY_LAST_PROFILE_USER_ID
         }
     }
 }

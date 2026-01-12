@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +48,10 @@ import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.WeeklyBarChart
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import kotlinx.coroutines.flow.flowOf
 import com.example.gymlocker.viewmodel.StatViewModel
+import com.example.gymlocker.viewmodel.StatsRange
+
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -65,6 +69,8 @@ fun HomeScreen(
 
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
 
+
+    // ✅ Completed workouts (profile-scoped)
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
@@ -156,9 +162,7 @@ fun HomeScreen(
                     Button(
                         onClick = { navController.navigate("profile") },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Create Profile")
-                    }
+                    ) { Text("Create Profile") }
                 }
             }
             return@Scaffold
@@ -204,7 +208,11 @@ fun HomeScreen(
             }
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
+
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
+
+            // ✅ Removed the duplicate Start/Resume button that was in the list
+
             item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
@@ -389,6 +397,12 @@ fun StatsCard(
     }
 }
 
+
+/**
+ * ✅ Pretty date:
+ * Input: "yyyy-MM-dd HH:mm:ss.SSS"
+ * Output: "Jan 7 2026"
+ */
 private fun prettyWorkoutDate(raw: String): String {
     return try {
         val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())

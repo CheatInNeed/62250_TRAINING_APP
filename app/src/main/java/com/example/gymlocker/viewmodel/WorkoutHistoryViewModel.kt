@@ -38,7 +38,12 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
 
     private val session by lazy { SessionManager(appContext) }
 
-    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
+    // ✅ FIX: profile-scoped workouts (not global)
+    fun completedWorkouts() =
+        session.activeProfileUserId.flatMapLatest { userId ->
+            if (userId == null) flowOf(emptyList())
+            else workoutDao.getWorkoutSummariesForUser(userId)
+        }
 
     fun getWorkoutDetails(workoutId: Long): Flow<List<WorkoutLogDetail>> =
         exerciseLogDao.observeLogsForWorkout(workoutId).flatMapLatest { logs ->
@@ -58,7 +63,7 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
         }
 
     suspend fun createTemplateFromWorkout(workoutId: Long, templateName: String): Long {
-        val profileUserId = session.activeProfileUserIdFlowOnce()
+        val profileUserId = activeProfileUserIdFlowOnce()
             ?: throw IllegalStateException("No active profile selected")
 
         val logs = exerciseLogDao.getLogsForWorkoutOnce(workoutId)
@@ -94,9 +99,9 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
         return templateId
     }
 
-    private suspend fun SessionManager.activeProfileUserIdFlowOnce(): Long? {
+    private suspend fun activeProfileUserIdFlowOnce(): Long? {
         var latest: Long? = null
-        activeProfileUserId.collect { v ->
+        session.activeProfileUserId.collect { v ->
             latest = v
             return@collect
         }

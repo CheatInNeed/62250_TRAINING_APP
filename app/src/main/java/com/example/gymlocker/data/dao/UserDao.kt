@@ -12,23 +12,36 @@ interface UserDao {
     @Insert
     suspend fun insert(user: User): Long
 
-    @Query("SELECT * FROM users WHERE userId = :userId")
-    fun getUser(userId: Long): Flow<User>
+    /**
+     * Active profile lookup (Flow).
+     */
+    @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
+    fun getUser(userId: Long): Flow<User?>
 
+    /**
+     * ✅ One-shot lookup (needed by debug seed).
+     */
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
     suspend fun getUserOnce(userId: Long): User?
 
     @Query("SELECT COUNT(*) FROM users")
     suspend fun countUsers(): Int
 
-    // ✅ NEW: List profiles for the logged-in auth account
-    @Query(
-        """
-        SELECT u.* FROM users u
-        INNER JOIN auth_profiles ap ON ap.userId = u.userId
-        WHERE ap.authId = :authId
-        ORDER BY u.userId DESC
-        """
-    )
+    /**
+     * All profiles belonging to this auth account.
+     */
+    @Query("SELECT * FROM users WHERE authOwnerId = :authId ORDER BY userId ASC")
     fun observeProfilesForAuth(authId: Long): Flow<List<User>>
+
+    /**
+     * One-shot version (used at login for auto-select).
+     */
+    @Query("SELECT * FROM users WHERE authOwnerId = :authId ORDER BY userId ASC")
+    suspend fun listProfilesForAuth(authId: Long): List<User>
+
+    /**
+     * Validate that a profile belongs to this auth account.
+     */
+    @Query("SELECT COUNT(*) FROM users WHERE userId = :userId AND authOwnerId = :authId")
+    suspend fun belongsToAuth(userId: Long, authId: Long): Int
 }
