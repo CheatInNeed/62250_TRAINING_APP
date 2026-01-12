@@ -15,6 +15,9 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
+
+enum class StatsRange { WEEK, MONTH }
+
 /**
  * AndroidViewModel is used so we can avoid a custom ViewModelFactory.
  * It provides an Application context via getApplication().
@@ -27,6 +30,7 @@ class StatViewModel(app: Application) : AndroidViewModel(app) {
     private val db by lazy { AppDatabase.getDatabase(app.applicationContext) }
     private val workoutDao by lazy { db.workoutDao() }
     private val performedSetDao by lazy { db.performedSetDao() }
+
 
     fun weeklyHoursLast3Months(userId: Long = 1L): Flow<List<WeekHoursUi>> {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
