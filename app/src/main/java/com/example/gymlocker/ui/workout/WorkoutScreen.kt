@@ -88,7 +88,7 @@ fun WorkoutScreen(
                 shape = RoundedCornerShape(16.dp),
                 enabled = activeProfileUserId != null
             ) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
+                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
             }
 
             Spacer(Modifier.height(12.dp))
@@ -105,7 +105,7 @@ fun WorkoutScreen(
                     shape = RoundedCornerShape(16.dp),
                     enabled = activeProfileUserId != null
                 ) {
-                    Text("Opret ny template")
+                    Text("Create template")
                 }
 
                 Button(
@@ -117,7 +117,7 @@ fun WorkoutScreen(
                     enabled = activeProfileUserId != null
                 ) {
                     Text(
-                        "Custom Exercise",
+                        "Create Exercise",
                     )
                 }
             }
