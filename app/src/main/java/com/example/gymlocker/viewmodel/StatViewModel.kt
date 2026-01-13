@@ -32,7 +32,7 @@ class StatViewModel(app: Application) : AndroidViewModel(app) {
     private val performedSetDao by lazy { db.performedSetDao() }
 
 
-    fun weeklyHoursLast3Months(userId: Long = 1L): Flow<List<WeekHoursUi>> {
+    fun weeklyHoursLast3Months(userId: Long): Flow<List<WeekHoursUi>> {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
         val today = LocalDate.now()
@@ -69,7 +69,7 @@ class StatViewModel(app: Application) : AndroidViewModel(app) {
             }
     }
 
-    fun weeklyVolumeLast3Months(userId: Long = 1L): Flow<List<WeekVolumeUi>> {
+    fun weeklyVolumeLast3Months(userId: Long): Flow<List<WeekVolumeUi>> {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
         val today = LocalDate.now()
@@ -117,7 +117,7 @@ class StatViewModel(app: Application) : AndroidViewModel(app) {
         _statsRange.value = range
     }
 
-    fun muscleGroupDistribution(userId: Long = 1L): Flow<List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>> =
+    fun muscleGroupDistribution(userId: Long): Flow<List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>> =
         _statsRange.flatMapLatest { range ->
             val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
             val now = LocalDateTime.now()

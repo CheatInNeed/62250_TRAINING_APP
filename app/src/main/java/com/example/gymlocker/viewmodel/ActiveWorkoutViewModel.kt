@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import java.time.temporal.TemporalAdjusters
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.notifications.RestTimerAlarm
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
@@ -127,7 +128,13 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     }
 
 
-    fun completedWorkouts() = workoutDao.getWorkoutSummaries()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun completedWorkouts() =
+        session.activeProfileUserId.flatMapLatest { userId ->
+            if (userId == null) flowOf(emptyList())
+            else workoutDao.getWorkoutSummariesForUser(userId)
+        }
+
     /**
      * ✅ FIX: Last-workout label must use the same profile-scoped list.
      */
@@ -192,9 +199,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         return session.activeProfileUserId.firstOrNull()
     }
 
-    private suspend fun activeUserIdOrDefault(): Long {
-        return activeUserIdOrNull() ?: 1L
-    }
+
 
 
     fun stopTimer() {
@@ -508,10 +513,10 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     isCompleted = isDone
                 )
                 if (isDone) {
-                    val uid = activeUserIdOrDefault()
+                    val uid = activeUserIdOrNull() ?: return@launch
                     val seconds = getDefaultRestSeconds(userId = uid, exerciseId = exerciseId) ?: 90
-
                     startRestTimer(exerciseId, before.exerciseName, seconds)
+
                 }
             }
         }
