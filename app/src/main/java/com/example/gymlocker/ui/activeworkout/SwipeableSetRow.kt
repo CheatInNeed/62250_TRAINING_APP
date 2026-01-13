@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.FractionalThreshold
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.rememberSwipeableState
 import androidx.compose.material.swipeable
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
@@ -54,7 +56,7 @@ fun SwipeableSetRow(
     }
     val safeRevealDp = with(density) { safeRevealPx.toDp() }
 
-    // ✅ IMPORTANT: include BOTH directions (positive = right, negative = left)
+    // BOTH directions: + = right complete, - = left reveal delete
     val anchors = remember(rowWidthPx, safeRevealPx) {
         if (rowWidthPx <= 0f || safeRevealPx <= 0f) null
         else mapOf(
@@ -64,7 +66,7 @@ fun SwipeableSetRow(
         )
     }
 
-    // Classic swipe: if user releases into "Complete", trigger and snap back
+    // Complete triggers automatically then snaps back (unchanged behavior)
     LaunchedEffect(swipeState.currentValue) {
         if (swipeState.currentValue == SwipeStage.Complete) {
             if (!isDone) onComplete()
@@ -76,8 +78,8 @@ fun SwipeableSetRow(
 
     val offsetPx = swipeState.offset.value
 
-    val showingDelete = offsetPx < 0f
-    val showingComplete = offsetPx > 0f
+    val showingDelete = offsetPx < 0f          // left swipe
+    val showingComplete = offsetPx > 0f        // right swipe
     val revealDelete = swipeState.currentValue == SwipeStage.RevealDelete
     val isSwiping = abs(offsetPx) > 2f
 
@@ -86,21 +88,33 @@ fun SwipeableSetRow(
     }
     val easedProgress = progress * progress
 
-    // ✅ Stronger minimum so green is clearly visible even in dark theme
-    val maxAlpha = 0.45f
-    val bgAlphaTarget = if (isSwiping) lerp(0.12f, maxAlpha, easedProgress) else 0f
+    // Background alpha scales with swipe distance (full-width background)
+    val bgMaxAlpha = 0.65f
+    val bgAlphaTarget = if (isSwiping) lerp(0.12f, bgMaxAlpha, easedProgress) else 0f
     val bgAlpha by animateFloatAsState(
         targetValue = bgAlphaTarget,
         label = "SwipeBackgroundAlpha"
     )
 
-    // ✅ Red for left swipe, green for right swipe
-    val baseBgColor: Color = when {
-        showingDelete -> Color(0xFFD32F2F)    // red
-        showingComplete -> Color(0xFF2E7D32) // green
-        else -> MaterialTheme.colorScheme.surfaceVariant
+    // Foreground becomes slightly transparent while swiping
+    val fgMinAlpha = 0.78f
+    val fgAlphaTarget = if (isSwiping) lerp(1f, fgMinAlpha, easedProgress) else 1f
+    val fgAlpha by animateFloatAsState(
+        targetValue = fgAlphaTarget,
+        label = "SwipeForegroundAlpha"
+    )
+
+    // Directional background color (visual only)
+    // TODO: Change doneColor to transparent to disable green completion color
+    val doneColor = Color(0xFF34C759).copy(alpha = bgMaxAlpha)
+
+    val bgColor: Color = when {
+        isSwiping && showingDelete -> Color(0xFFD32F2F).copy(alpha = bgAlpha)
+        isSwiping && showingComplete -> Color(0xFF34C759).copy(alpha = bgAlpha)
+        !isSwiping && isDone -> doneColor // persistent done background
+        else -> Color.Transparent
     }
-    val bgColor = baseBgColor.copy(alpha = bgAlpha)
+
 
     val swipeableModifier = if (enabled && anchors != null) {
         Modifier.swipeable(
@@ -108,7 +122,7 @@ fun SwipeableSetRow(
             anchors = anchors,
             orientation = Orientation.Horizontal,
             thresholds = thresholds,
-            // If your layout is RTL and directions feel flipped, set this to true:
+            // If directions feel flipped in RTL, set to true:
             // reverseDirection = true
         )
     } else {
@@ -121,12 +135,38 @@ fun SwipeableSetRow(
             .onSizeChanged { rowWidthPx = it.width.toFloat().coerceAtLeast(0f) }
             .then(swipeableModifier)
     ) {
-        // Background
+        // =========================
+        // Full-width dynamic background + action affordances
+        // =========================
         Box(
             modifier = Modifier
-                .fillMaxSize()
+                .matchParentSize()
                 .background(bgColor)
         ) {
+            // ---- Complete icon (RIGHT swipe reveals LEFT side) ----
+            // Show while swiping right enough to clearly signal action.
+            // Not clickable (completion is automatic).
+            val showCompleteUi =
+                (isSwiping && showingComplete && rowWidthPx > 0f && offsetPx > (rowWidthPx * 0.10f))
+
+            if (showCompleteUi && safeRevealPx > 0f) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .width(safeRevealDp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Complete",
+                        tint = Color.White
+                    )
+                }
+            }
+
+            // ---- Delete button (LEFT swipe reveals RIGHT side) ----
+            // Keep exact behavior: reveal + lock + clickable trash
             val showDeleteUi =
                 (revealDelete && showingDelete) ||
                         (isSwiping && showingDelete && rowWidthPx > 0f && abs(offsetPx) > (rowWidthPx * 0.12f))
@@ -155,11 +195,14 @@ fun SwipeableSetRow(
             }
         }
 
-        // Foreground content
+        // =========================
+        // Foreground content (slightly transparent during swipe)
+        // =========================
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offsetPx.roundToInt(), 0) }
+                .graphicsLayer(alpha = fgAlpha)
         ) {
             content()
         }
