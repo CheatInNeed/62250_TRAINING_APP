@@ -675,11 +675,6 @@ fun ExerciseSetRow(
             .padding(vertical = 4.dp)
             .background(MaterialTheme.colorScheme.errorContainer)
 
-        set.isDone -> Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .background(Color(0xFF34C759))
-
         else -> Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)

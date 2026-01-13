@@ -45,7 +45,7 @@ fun SplashScreen(
 
         // --- "Real" loading work (warm up DB etc.) ---
         // TODO: Change this value to determine loading min time
-        val minShowMs = 5000L
+        val minShowMs = 50L
         val start = System.currentTimeMillis()
 
         // Keep this fast: just ensure DB instance is created.

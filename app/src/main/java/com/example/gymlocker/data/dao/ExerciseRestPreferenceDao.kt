@@ -19,4 +19,8 @@ interface ExerciseRestPreferenceDao {
 
     @Query("DELETE FROM exercise_rest_preference WHERE userId = :userId AND exerciseId = :exerciseId")
     suspend fun delete(userId: Long, exerciseId: Long)
+
+    // ✅ NEW: needed for "Delete profile"
+    @Query("DELETE FROM exercise_rest_preference WHERE userId = :userId")
+    suspend fun deleteAllForUser(userId: Long): Int
 }

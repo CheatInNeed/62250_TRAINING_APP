@@ -66,7 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
          *
          * ❌ when false: none of the above happens.
          */
-        private const val DEBUG_WIPE_DB = true
+        private const val DEBUG_WIPE_DB = false
 
         @Volatile private var debugSeedJob: Job? = null
 
