@@ -7,6 +7,7 @@ This document tracks known issues, technical debt, and planned improvements for 
 ---
 
 ## ✅ 🧠 Brainstorm 🧠
+> Will be user stories!
 
 - [ ] Better stats - Hevy inspiration
 - [ ] Settings page
@@ -14,7 +15,7 @@ This document tracks known issues, technical debt, and planned improvements for 
   - Choosing language and consistency revamp
 - [ ] Pretty history
   - again Hevy inspiration - Calender first
-- [ ]
+- [ ] Active workout doesn't autofill sets when db built on launch
 - [ ]
 - [ ]
 - [ ]
@@ -32,7 +33,7 @@ This document tracks known issues, technical debt, and planned improvements for 
 - [ ] Active workout banner not appearing
 - [ ] Not able to change rest timer for exercises
 - [ ] Profile launch pages appears shortly when launching app, even if we auto pick
-- [ ] 
+- [ ] On set complete swipe the color blinks when releasing the swipe
 - [ ]
 - [ ]
 - [ ]
@@ -56,6 +57,13 @@ This document tracks known issues, technical debt, and planned improvements for 
 - [ ] Add filter to history (muscle group, date range, template)
 - [ ] Add export/import of workouts/templates
 - [ ] Add "Training balance" chart (muscle group distribution)
+- [ ] Myo-rep support
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+- [ ]
+
 
 ---
 
