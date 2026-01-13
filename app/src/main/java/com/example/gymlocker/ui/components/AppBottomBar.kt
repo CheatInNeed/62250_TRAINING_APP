@@ -15,6 +15,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Add
 
 @Composable
 fun AppBottomBar(navController: NavController) {
@@ -62,10 +71,16 @@ fun AppBottomBar(navController: NavController) {
                 )
             }
 
-            // WORKOUT (midten)
+            // WORKOUT (midten) — dynamisk ikon
+            val isOnWorkoutPage = currentRoute == "workout"
+
             IconButton(
                 onClick = {
-                    if (currentRoute != "workout") {
+                    if (isOnWorkoutPage) {
+                        // På workout-siden: start tom workout
+                        navController.navigate("activeWorkout") { launchSingleTop = true }
+                    } else {
+                        // Alle andre sider: gå til workout-siden
                         navController.navigate("workout") {
                             launchSingleTop = true
                             restoreState = true
@@ -73,11 +88,29 @@ fun AppBottomBar(navController: NavController) {
                     }
                 }
             ) {
-                Icon(
-                    imageVector = Icons.Filled.FitnessCenter,
-                    contentDescription = "Workout",
-                    tint = if (isWorkoutSelected) selectedColor else unselectedColor
-                )
+                if (isOnWorkoutPage) {
+                    // Blå cirkel + hvidt plus
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "Start Workout",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                } else {
+                    // Normal dumbbell ikon
+                    Icon(
+                        imageVector = Icons.Filled.FitnessCenter,
+                        contentDescription = "Workout",
+                        tint = if (isWorkoutSelected) selectedColor else unselectedColor
+                    )
+                }
             }
 
             // PROFILE (højre)
