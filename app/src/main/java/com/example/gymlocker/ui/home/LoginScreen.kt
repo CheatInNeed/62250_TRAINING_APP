@@ -1,14 +1,14 @@
 package com.example.gymlocker.ui.auth
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.viewmodel.AuthViewModel
 import kotlinx.coroutines.flow.collectLatest
 
@@ -22,8 +22,6 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // When logged in becomes true, navigate to home
-    // (Nav gate also does this on cold start)
     LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
             if (loggedIn) {
@@ -37,10 +35,15 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(20.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text("Login", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = "Login",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
 
         Spacer(Modifier.height(16.dp))
 
@@ -72,7 +75,11 @@ fun LoginScreen(
         Spacer(Modifier.height(12.dp))
 
         uiState.error?.let { err ->
-            Text(err, color = MaterialTheme.colorScheme.error)
+            Text(
+                text = err,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium
+            )
             Spacer(Modifier.height(8.dp))
         }
 
@@ -84,7 +91,17 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = !uiState.isLoading && emailOk && passOk
         ) {
-            Text(if (uiState.isLoading) "Logging in..." else "Login")
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(Modifier.width(10.dp))
+                Text("Logging in…")
+            } else {
+                Text("Login")
+            }
         }
 
         Spacer(Modifier.height(8.dp))
