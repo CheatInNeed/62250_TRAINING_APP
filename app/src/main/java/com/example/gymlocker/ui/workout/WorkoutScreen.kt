@@ -27,6 +27,7 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -92,28 +93,33 @@ fun WorkoutScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            Button(
-                onClick = { navController.navigate("createTemplate") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Opret ny template")
-            }
+                Button(
+                    onClick = { navController.navigate("createTemplate") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = activeProfileUserId != null
+                ) {
+                    Text("Opret ny template")
+                }
 
-            Spacer(Modifier.height(12.dp))
-
-            Button(
-                onClick = { navController.navigate("createExercise") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null
-            ) {
-                Text("Create Custom Exercise")
+                Button(
+                    onClick = { navController.navigate("createExercise") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = activeProfileUserId != null
+                ) {
+                    Text(
+                        "Custom Exercise",
+                    )
+                }
             }
 
             Spacer(Modifier.height(16.dp))
