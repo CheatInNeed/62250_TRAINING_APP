@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.User
@@ -28,6 +29,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
 
     private val userDao by lazy { db.userDao() }
     private val workoutDao by lazy { db.workoutDao() }
+    private val restPrefDao by lazy { db.exerciseRestPreferenceDao() }
 
     val authId: StateFlow<Long?> = session.authId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -47,19 +49,14 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
             else userDao.getUser(userId)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    /**
-     * Requires WorkoutDao.getWorkoutSummariesForUser(userId).
-     * If your build complains here, tell me and I’ll paste the exact DAO query.
-     */
     val workoutSummary: StateFlow<ProfileWorkoutSummaryUi> =
         activeProfileUserId.flatMapLatest { userId ->
             if (userId == null) {
                 flowOf(ProfileWorkoutSummaryUi())
             } else {
                 workoutDao.getWorkoutSummariesForUser(userId).map { list ->
-                    if (list.isEmpty()) {
-                        ProfileWorkoutSummaryUi()
-                    } else {
+                    if (list.isEmpty()) ProfileWorkoutSummaryUi()
+                    else {
                         val mostRecent = list.first()
                         ProfileWorkoutSummaryUi(
                             totalWorkouts = list.size,
@@ -87,7 +84,6 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
     ) {
         viewModelScope.launch {
             val aId = authId.value ?: return@launch
-
             val newUserId = userDao.insert(
                 User(
                     authOwnerId = aId,
@@ -96,15 +92,10 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
                     weight = weight
                 )
             )
-
             session.setActiveProfile(newUserId)
             onDone?.invoke()
         }
     }
-
-    // -----------------------------------------
-    // ✅ Edit + validation + reset
-    // -----------------------------------------
 
     fun saveProfileEdits(
         name: String,
@@ -118,30 +109,23 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
 
             val cleanName = name.trim()
             if (cleanName.isBlank()) {
-                onError("Name cannot be empty.")
+                onError("Name cannot be empty")
                 return@launch
             }
 
             val h = height ?: 0
             val w = weight ?: 0
 
-            // allow 0 = Not set
             if (h != 0 && (h < 50 || h > 250)) {
-                onError("Height must be 50–250 cm, or leave it empty.")
+                onError("Height must be 50–250 cm (or leave empty)")
                 return@launch
             }
             if (w != 0 && (w < 20 || w > 300)) {
-                onError("Weight must be 20–300 kg, or leave it empty.")
+                onError("Weight must be 20–300 kg (or leave empty)")
                 return@launch
             }
 
-            userDao.updateBasics(
-                userId = userId,
-                name = cleanName,
-                height = h,
-                weight = w
-            )
-
+            userDao.updateBasics(userId = userId, name = cleanName, height = h, weight = w)
             onSuccess()
         }
     }
@@ -150,6 +134,48 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
         viewModelScope.launch {
             val userId = activeProfileUserId.value ?: return@launch
             userDao.resetBasics(userId)
+            onSuccess()
+        }
+    }
+
+    /**
+     * ✅ NEW: Delete a profile AND all its data (workouts/templates cascade).
+     * We manually delete rest preferences because that table has no FK.
+     */
+    fun deleteProfile(
+        userIdToDelete: Long,
+        onError: (String) -> Unit = {},
+        onSuccess: () -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val aId = authId.value ?: run {
+                onError("Not logged in")
+                return@launch
+            }
+
+            // Safety: don’t allow deleting someone else’s profile
+            if (userDao.belongsToAuth(userIdToDelete, aId) <= 0) {
+                onError("That profile doesn’t belong to the logged-in account")
+                return@launch
+            }
+
+            db.withTransaction {
+                // 1) manual cleanup (no FK)
+                restPrefDao.deleteAllForUser(userIdToDelete)
+
+                // 2) delete the user (cascades handle workouts/templates + children)
+                userDao.deleteById(userIdToDelete)
+            }
+
+            // 3) If we deleted the active profile, pick another or clear it
+            val active = activeProfileUserId.value
+            if (active == userIdToDelete) {
+                val remaining = userDao.listProfilesForAuth(aId)
+                val newActive = remaining.firstOrNull()?.userId
+                if (newActive != null) session.setActiveProfile(newActive)
+                else session.clearActiveProfile()
+            }
+
             onSuccess()
         }
     }
