@@ -516,9 +516,11 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 if (isDone) {
                     val uid = activeUserIdOrNull() ?: return@launch
-                    val seconds = getDefaultRestSeconds(userId = uid, exerciseId = exerciseId) ?: 90
-                    startRestTimer(exerciseId, before.exerciseName, seconds)
+                    val seconds = getDefaultRestSeconds(userId = uid, exerciseId = exerciseId)
 
+                    if (seconds != null && seconds > 0) {
+                        startRestTimer(exerciseId, before.exerciseName, seconds)
+                    }
                 }
             }
         }
