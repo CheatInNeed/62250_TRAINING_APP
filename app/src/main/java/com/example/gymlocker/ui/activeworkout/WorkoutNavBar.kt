@@ -1,23 +1,34 @@
 package com.example.gymlocker.ui.activeworkout
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,179 +46,394 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.gymlocker.ui.theme.GymLockerTheme
 
+/**
+ * A workout navigation bar with:
+ * - Left side: D-pad navigation arrows (up/down/left/right)
+ * - Center: Number pad (1-9, 0, comma, backspace)
+ * - Right side: Plus/Minus buttons, Next button, Hide keyboard button
+ */
 @Composable
 fun WorkoutNumpadBar(
+    isVisible: Boolean,
+    onHide: () -> Unit,
+    onNavigateUp: () -> Unit,
+    onNavigateDown: () -> Unit,
+    onNavigateLeft: () -> Unit,
+    onNavigateRight: () -> Unit,
+    onNumberClick: (String) -> Unit = {},
+    onBackspace: () -> Unit = {},
+    onPlus: () -> Unit = {},
+    onMinus: () -> Unit = {},
+    onNext: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val darkBackground = Color(0xFF1C1C1E)
-    val buttonBackground = Color(0xFF2C2C2E)
-    val buttonHighlight = Color(0xFF3A82F7)
+    val darkBackground = Color(0xFF2C2C2E)
+    val buttonBackground = Color(0xFF3A3A3C)
+    val accentColor = Color(0xFF3A82F7)
 
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = darkBackground
+    AnimatedVisibility(
+        visible = isVisible,
+        enter = slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = tween(durationMillis = 250)
+        ),
+        exit = slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(durationMillis = 200)
+        ),
+        modifier = modifier
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = darkBackground
         ) {
-            // Row 1: 1 2 3 [keyboard hide]
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                NumpadKey("1", buttonBackground)
-                NumpadKey("2", buttonBackground)
-                NumpadKey("3", buttonBackground)
-                NumpadIconKey(
-                    icon = Icons.Filled.KeyboardHide,
-                    backgroundColor = buttonBackground,
-                    contentDescription = "Hide keyboard"
-                )
-            }
-
-            // Row 2: 4 5 6 [tune/settings]
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                NumpadKey("4", buttonBackground)
-                NumpadKey("5", buttonBackground)
-                NumpadKey("6", buttonBackground)
-                NumpadIconKey(
-                    icon = Icons.Filled.Tune,
-                    backgroundColor = buttonBackground,
-                    contentDescription = "Settings"
+                // LEFT SIDE: Navigation D-pad
+                NavigationDpad(
+                    onUp = onNavigateUp,
+                    onDown = onNavigateDown,
+                    onLeft = onNavigateLeft,
+                    onRight = onNavigateRight,
+                    buttonBackground = buttonBackground
                 )
-            }
 
-            // Row 3: 7 8 9 [- +]
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                NumpadKey("7", buttonBackground)
-                NumpadKey("8", buttonBackground)
-                NumpadKey("9", buttonBackground)
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // CENTER: Number pad (3x4 grid)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    NumpadIconKey(
-                        icon = Icons.Filled.Remove,
-                        backgroundColor = buttonBackground,
-                        contentDescription = "Minus",
-                        modifier = Modifier.weight(1f)
-                    )
-                    NumpadIconKey(
-                        icon = Icons.Filled.Add,
-                        backgroundColor = buttonBackground,
-                        contentDescription = "Plus",
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Row 1: 1 2 3
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        NumpadButton("1", buttonBackground, Modifier.weight(1f)) { onNumberClick("1") }
+                        NumpadButton("2", buttonBackground, Modifier.weight(1f)) { onNumberClick("2") }
+                        NumpadButton("3", buttonBackground, Modifier.weight(1f)) { onNumberClick("3") }
+                    }
+                    // Row 2: 4 5 6
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        NumpadButton("4", buttonBackground, Modifier.weight(1f)) { onNumberClick("4") }
+                        NumpadButton("5", buttonBackground, Modifier.weight(1f)) { onNumberClick("5") }
+                        NumpadButton("6", buttonBackground, Modifier.weight(1f)) { onNumberClick("6") }
+                    }
+                    // Row 3: 7 8 9
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        NumpadButton("7", buttonBackground, Modifier.weight(1f)) { onNumberClick("7") }
+                        NumpadButton("8", buttonBackground, Modifier.weight(1f)) { onNumberClick("8") }
+                        NumpadButton("9", buttonBackground, Modifier.weight(1f)) { onNumberClick("9") }
+                    }
+                    // Row 4: , 0 ⌫
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        NumpadButton(",", buttonBackground, Modifier.weight(1f)) { onNumberClick(",") }
+                        NumpadButton("0", buttonBackground, Modifier.weight(1f)) { onNumberClick("0") }
+                        IconButton(
+                            icon = Icons.AutoMirrored.Filled.Backspace,
+                            backgroundColor = buttonBackground,
+                            contentDescription = "Delete",
+                            modifier = Modifier.weight(1f),
+                            onClick = onBackspace
+                        )
+                    }
                 }
-            }
 
-            // Row 4: , 0 [backspace] [Next]
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                NumpadKey(",", buttonBackground)
-                NumpadKey("0", buttonBackground)
-                NumpadIconKey(
-                    icon = Icons.AutoMirrored.Filled.Backspace,
-                    backgroundColor = buttonBackground,
-                    contentDescription = "Backspace"
-                )
-                // Next button
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 4.dp)
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(buttonHighlight)
-                        .clickable { /* TODO */ },
-                    contentAlignment = Alignment.Center
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // RIGHT SIDE: Action buttons
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "Next",
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
+                    // Hide keyboard button
+                    IconButton(
+                        icon = Icons.Filled.KeyboardHide,
+                        backgroundColor = buttonBackground,
+                        contentDescription = "Hide",
+                        onClick = onHide
                     )
+
+                    // Plus/Minus row
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            icon = Icons.Filled.Remove,
+                            backgroundColor = buttonBackground,
+                            contentDescription = "Minus",
+                            onClick = onMinus
+                        )
+                        IconButton(
+                            icon = Icons.Filled.Add,
+                            backgroundColor = buttonBackground,
+                            contentDescription = "Plus",
+                            onClick = onPlus
+                        )
+                    }
+
+                    // Next button (complete set)
+                    Box(
+                        modifier = Modifier
+                            .width(88.dp)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(accentColor)
+                            .clickable { onNext() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Next",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+/**
+ * D-pad navigation control with arrows only
+ */
 @Composable
-private fun RowScope.NumpadKey(
+private fun NavigationDpad(
+    onUp: () -> Unit,
+    onDown: () -> Unit,
+    onLeft: () -> Unit,
+    onRight: () -> Unit,
+    buttonBackground: Color
+) {
+    val arrowButtonSize = 40.dp
+    val arrowIconSize = 20.dp
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Up arrow
+        Box(
+            modifier = Modifier
+                .size(arrowButtonSize)
+                .clip(RoundedCornerShape(8.dp))
+                .background(buttonBackground)
+                .clickable { onUp() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowUp,
+                contentDescription = "Up",
+                tint = Color.White,
+                modifier = Modifier.size(arrowIconSize)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Middle row: Left and Right arrows
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Left arrow
+            Box(
+                modifier = Modifier
+                    .size(arrowButtonSize)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(buttonBackground)
+                    .clickable { onLeft() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Left",
+                    tint = Color.White,
+                    modifier = Modifier.size(arrowIconSize)
+                )
+            }
+
+            // Right arrow
+            Box(
+                modifier = Modifier
+                    .size(arrowButtonSize)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(buttonBackground)
+                    .clickable { onRight() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Right",
+                    tint = Color.White,
+                    modifier = Modifier.size(arrowIconSize)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Down arrow
+        Box(
+            modifier = Modifier
+                .size(arrowButtonSize)
+                .clip(RoundedCornerShape(8.dp))
+                .background(buttonBackground)
+                .clickable { onDown() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.KeyboardArrowDown,
+                contentDescription = "Down",
+                tint = Color.White,
+                modifier = Modifier.size(arrowIconSize)
+            )
+        }
+    }
+}
+
+/**
+ * A single numpad button with text
+ */
+@Composable
+private fun NumpadButton(
     text: String,
     backgroundColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     Box(
         modifier = modifier
-            .weight(1f)
-            .padding(horizontal = 4.dp)
-            .height(48.dp)
+            .height(40.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
-            .clickable { /* TODO */ },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             color = Color.White,
-            fontSize = 22.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center
         )
     }
 }
 
+/**
+ * A single icon button
+ */
 @Composable
-private fun RowScope.NumpadIconKey(
+private fun IconButton(
     icon: ImageVector,
     backgroundColor: Color,
     contentDescription: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Box(
         modifier = modifier
-            .weight(1f)
-            .padding(horizontal = 4.dp)
-            .height(48.dp)
+            .size(40.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
-            .clickable { /* TODO */ },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = Color.White,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
+/**
+ * A small handle/pill that the user can swipe up or tap to reveal the numpad
+ */
+@Composable
+fun NumpadRevealHandle(
+    onReveal: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val handleColor = Color(0xFF3A3A3C)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color(0xFF2C2C2E))
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount < -20) {
+                        onReveal()
+                    }
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onReveal() }
+                )
+            }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(handleColor)
+        )
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF1C1C1E)
+@Composable
+fun WorkoutNumpadBarPreview() {
+    GymLockerTheme {
+        WorkoutNumpadBar(
+            isVisible = true,
+            onHide = {},
+            onNavigateUp = {},
+            onNavigateDown = {},
+            onNavigateLeft = {},
+            onNavigateRight = {},
+            onNumberClick = {},
+            onBackspace = {},
+            onPlus = {},
+            onMinus = {},
+            onNext = {}
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun WorkoutNumpadBarPreview() {
+fun NumpadRevealHandlePreview() {
     GymLockerTheme {
-        WorkoutNumpadBar()
+        NumpadRevealHandle(onReveal = {})
     }
 }
 

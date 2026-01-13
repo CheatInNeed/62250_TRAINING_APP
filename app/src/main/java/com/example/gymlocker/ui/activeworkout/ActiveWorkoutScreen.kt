@@ -95,6 +95,9 @@ fun ActiveWorkoutScreen(
     var showNameDialog by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
 
+    // Numpad navigation state
+    var isNumpadVisible by remember { mutableStateOf(false) }
+
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
 
@@ -300,7 +303,27 @@ fun ActiveWorkoutScreen(
         },
         bottomBar = {
             Column {
-                WorkoutNumpadBar()
+                // Show reveal handle when numpad is hidden
+                if (!isNumpadVisible) {
+                    NumpadRevealHandle(
+                        onReveal = { isNumpadVisible = true }
+                    )
+                }
+
+                // The numpad bar with animation
+                WorkoutNumpadBar(
+                    isVisible = isNumpadVisible,
+                    onHide = { isNumpadVisible = false },
+                    onNavigateUp = { /* TODO: Move cursor up */ },
+                    onNavigateDown = { /* TODO: Move cursor down */ },
+                    onNavigateLeft = { /* TODO: Move cursor left */ },
+                    onNavigateRight = { /* TODO: Move cursor right */ },
+                    onNumberClick = { /* TODO: Input number to current field */ },
+                    onBackspace = { /* TODO: Delete from current field */ },
+                    onPlus = { /* TODO: Increment current field */ },
+                    onMinus = { /* TODO: Decrement current field */ },
+                    onNext = { /* TODO: Complete current set and move to next */ }
+                )
                 RestTimerBar(
                     state = restTimer,
                     onSkip = { viewModel.skipRestTimer() }
