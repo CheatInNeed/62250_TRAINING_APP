@@ -98,12 +98,7 @@ fun HomeScreen(
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
-    val workoutsThisWeek by exerciseLogDao
-        .observeCompletedWorkoutCountInRange(
-            startInclusive = startInclusive,
-            endInclusive = endInclusive
-        )
-        .collectAsState(initial = 0)
+
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
@@ -155,6 +150,14 @@ fun HomeScreen(
 
         // ✅ We have a profile -> use its userId everywhere (NO hardcoded 1L)
         val userId = activeProfileUserId!!
+        val workoutsThisWeek by exerciseLogDao
+            .observeCompletedWorkoutCountInRangeForUser(
+                userId = userId,
+                startInclusive = startInclusive,
+                endInclusive = endInclusive
+            )
+            .collectAsState(initial = 0)
+
 
         val weeklyVolume by statViewModel
             .weeklyVolumeLast3Months(userId)
