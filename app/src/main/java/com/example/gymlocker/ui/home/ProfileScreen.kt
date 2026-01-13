@@ -1,28 +1,11 @@
 package com.example.gymlocker.ui.profile
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,6 +38,53 @@ fun ProfileScreen(
 
     val profiles by profileViewModel.profiles.collectAsState()
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
+    val activeProfile by profileViewModel.activeProfile.collectAsState()
+
+    // Delete dialog state
+    var deleteTargetUserId by remember { mutableStateOf<Long?>(null) }
+    var deleteTargetName by remember { mutableStateOf("") }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    // Confirm delete dialog
+    if (deleteTargetUserId != null) {
+        AlertDialog(
+            onDismissRequest = { deleteTargetUserId = null },
+            title = { Text("Delete profile?") },
+            text = {
+                Text(
+                    "This will delete \"$deleteTargetName\" and all workouts/templates linked to it.\n\nThis cannot be undone."
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val uid = deleteTargetUserId ?: return@Button
+                        profileViewModel.deleteProfile(
+                            userIdToDelete = uid,
+                            onError = { errorMsg = it },
+                            onSuccess = { /* no-op */ }
+                        )
+                        deleteTargetUserId = null
+                    }
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteTargetUserId = null }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Error dialog
+    if (errorMsg != null) {
+        AlertDialog(
+            onDismissRequest = { errorMsg = null },
+            title = { Text("Oops") },
+            text = { Text(errorMsg ?: "") },
+            confirmButton = {
+                TextButton(onClick = { errorMsg = null }) { Text("OK") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -80,6 +110,33 @@ fun ProfileScreen(
                 .padding(innerPadding)
                 .padding(20.dp)
         ) {
+
+            // ✅ Active profile details + edit entry
+            activeProfile?.let { p ->
+                val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text("Active profile", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(6.dp))
+                        Text(p.name, style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Height: $heightText  |  Weight: $weightText")
+
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            onClick = { navController.navigate("editProfile") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Edit profile") }
+                    }
+                }
+            }
+
             Text(
                 text = "Choose a profile",
                 style = MaterialTheme.typography.titleLarge
@@ -100,6 +157,9 @@ fun ProfileScreen(
             } else {
                 profiles.forEach { p ->
                     val isActive = p.userId == activeProfileUserId
+                    val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                    val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -112,9 +172,21 @@ fun ProfileScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "Height: ${if (p.height == 0) "—" else p.height}  |  Weight: ${if (p.weight == 0) "—" else p.weight}",
+                                text = "Height: $heightText  |  Weight: $weightText",
                                 style = MaterialTheme.typography.bodyMedium
                             )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Spacer(Modifier.weight(1f))
+                                TextButton(
+                                    onClick = {
+                                        deleteTargetUserId = p.userId
+                                        deleteTargetName = p.name
+                                    }
+                                ) { Text("Delete") }
+                            }
                         }
                     }
                 }
