@@ -54,6 +54,7 @@ fun WorkoutDetailScreen(
     activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
     val workoutDetails by viewModel.getWorkoutDetails(workoutId).collectAsState(initial = emptyList())
+
     var showCreateTemplateDialog by remember { mutableStateOf(false) }
     var templateName by remember { mutableStateOf("") }
     var isCreatingTemplate by remember { mutableStateOf(false) }
@@ -133,6 +134,7 @@ fun WorkoutDetailScreen(
             }
         }
     ) { innerPadding ->
+
         if (workoutDetails.isEmpty()) {
             Box(
                 modifier = Modifier

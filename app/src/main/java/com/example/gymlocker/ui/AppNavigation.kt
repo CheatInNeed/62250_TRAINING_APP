@@ -77,15 +77,17 @@ fun AppNavigation() {
         }
 
         composable("home") {
-            val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel()
             HomeScreen(
                 navController = navController,
-                activeWorkoutViewModel = activeWorkoutViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
 
         composable("workout") {
-            WorkoutScreen(navController, activeWorkoutViewModel)
+            WorkoutScreen(
+                navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
         }
 
         composable("activeWorkout") {
@@ -129,7 +131,8 @@ fun AppNavigation() {
             route = "workoutDetail/{workoutId}",
             arguments = listOf(navArgument("workoutId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: 0L
+            val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: return@composable
+
             WorkoutDetailScreen(
                 workoutId = workoutId,
                 navController = navController,
