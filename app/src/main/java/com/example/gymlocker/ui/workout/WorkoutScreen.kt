@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,9 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -41,7 +45,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateMapOf
+import com.example.gymlocker.data.database.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,33 +99,44 @@ fun WorkoutScreen(
                 shape = RoundedCornerShape(16.dp),
                 enabled = activeProfileUserId != null
             ) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
+                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
             }
 
             Spacer(Modifier.height(12.dp))
 
-            Button(
-                onClick = { navController.navigate("createTemplate") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Opret ny template")
-            }
+                OutlinedButton(
+                    onClick = { navController.navigate("createTemplate") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = activeProfileUserId != null,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Create Template")
+                }
 
-            Spacer(Modifier.height(12.dp))
-
-            Button(
-                onClick = { navController.navigate("createExercise") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null
-            ) {
-                Text("Create Custom Exercise")
+                OutlinedButton(
+                    onClick = { navController.navigate("createExercise") },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = activeProfileUserId != null,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Create Exercise")
+                }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -122,7 +145,71 @@ fun WorkoutScreen(
 
             val favoriteTemplates = templates.filter { it.isFavorite }.take(3)
 
-            Text("Favorite Templates:")
+            val templateSummaries = remember { mutableStateMapOf<Long, String>() }
+
+            LaunchedEffect(favoriteTemplates) {
+                val db = AppDatabase.getDatabase(context)
+                withContext(Dispatchers.IO) {
+                    for (t in favoriteTemplates) {
+                        if (templateSummaries.containsKey(t.templateId)) continue
+
+                        val tpl = db.workoutTemplateDao().getTemplateWithExercises(t.templateId)
+                        if (tpl == null) {
+                            templateSummaries[t.templateId] = "No exercises"
+                            continue
+                        }
+
+                        val exerciseCount = tpl.exercises.size
+                        val totalSets = tpl.exercises.sumOf { it.sets.size }
+
+                        templateSummaries[t.templateId] =
+                            if (exerciseCount == 0) {
+                                "No exercises"
+                            } else {
+                                "$exerciseCount exercises x $totalSets sets"
+                            }
+
+                        /*
+
+                        // Hent navne + set-count pr. øvelse
+                        val parts = tpl.exercises.mapNotNull { exWithSets ->
+                            val exId = exWithSets.templateExercise.exerciseId
+                            val name = db.exerciseDao().getById(exId)?.name ?: return@mapNotNull null
+                            val setsCount = exWithSets.sets.size
+                            "$name ($setsCount)"
+                        }
+
+                        // Begræns længden (så kortet ikke bliver overloadet)
+                        val maxShown = 3
+                        val summary = if (parts.size <= maxShown) {
+                            parts.joinToString(", ")
+                        } else {
+                            parts.take(maxShown).joinToString(", ") + " +${parts.size - maxShown} more"
+                        }
+
+                        templateSummaries[t.templateId] = if (summary.isBlank()) "No exercises" else summary*/
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Favorite Templates", style = MaterialTheme.typography.titleMedium)
+
+                TextButton(onClick = { showBrowseTemplatesSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Browse templates",
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Browse")
+                }
+            }
+
             Spacer(Modifier.height(12.dp))
 
             LazyVerticalGrid(
@@ -148,12 +235,19 @@ fun WorkoutScreen(
                         Column(Modifier.padding(14.dp)) {
                             Text(t.name, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                             Spacer(Modifier.height(6.dp))
-                            Text("Favorite", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                            val summary = templateSummaries[t.templateId] ?: "Loading..."
+
+                            Text(
+                                text = summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                                maxLines = 2
+                            )
                         }
                     }
                 }
 
-                // Browse
+                /*// Browse
                 item {
                     Card(
                         modifier = Modifier
@@ -182,7 +276,7 @@ fun WorkoutScreen(
                             )
                         }
                     }
-                }
+                }*/
             }
         }
 
