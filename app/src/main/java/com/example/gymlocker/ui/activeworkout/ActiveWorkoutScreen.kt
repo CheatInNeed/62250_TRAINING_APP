@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -493,21 +494,25 @@ fun ActiveWorkoutExerciseItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .combinedClickable(
-                        onClick = { onOpenDetails() },
-                        onLongClick = { onMarkAllSetsDone() }
-                    )
+                modifier = Modifier.weight(1f) // <-- IKKE combinedClickable her
             ) {
                 Text(
                     text = exercise.exerciseName,
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .combinedClickable(
+                            onClick = { onOpenDetails() },
+                            onLongClick = { onMarkAllSetsDone() }
+                        )
+                        .padding(vertical = 2.dp)
                 )
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { showRestDialog = true }
+                    modifier = Modifier
+                        .wrapContentWidth()
+                        .clickable { showRestDialog = true }
+                        .padding(top = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Timer,
@@ -640,8 +645,12 @@ fun ActiveWorkoutExerciseItem(
             initialSeconds = restSeconds,
             onDismiss = { showRestDialog = false },
             onSave = { seconds ->
-                viewModel.setDefaultRestSeconds(exerciseId = exercise.exerciseId, restSeconds = seconds)
-
+                viewModel.setDefaultRestSeconds(
+                    exerciseId = exercise.exerciseId,
+                    restSeconds = seconds
+                )
+                restSeconds = seconds
+                showRestDialog = false
             },
             onClear = {
                 viewModel.setDefaultRestSeconds(exerciseId = exercise.exerciseId, restSeconds = 0)
