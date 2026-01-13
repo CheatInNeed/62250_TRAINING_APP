@@ -15,6 +15,7 @@ import com.example.gymlocker.ui.history.WorkoutHistoryScreen
 import com.example.gymlocker.ui.home.HomeScreen
 import com.example.gymlocker.ui.profile.CreateProfileScreen
 import com.example.gymlocker.ui.profile.ProfileScreen
+import com.example.gymlocker.ui.splash.SplashScreen
 import com.example.gymlocker.ui.template.CreateTemplateScreen
 import com.example.gymlocker.ui.template.EditTemplateScreen
 import com.example.gymlocker.ui.template.TemplateDetailScreen
@@ -23,92 +24,66 @@ import com.example.gymlocker.ui.workout.WorkoutScreen
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
-import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.EditTemplateViewModel
-import com.example.gymlocker.viewmodel.StatViewModel
+import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
-import com.example.gymlocker.ui.splash.SplashScreen
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
 
+    // ViewModels (single instances scoped to this Nav graph / composition)
     val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel(
         factory = ActiveWorkoutViewModel.provideFactory(context)
     )
-
     val createTemplateViewModel: CreateTemplateViewModel = viewModel(
         factory = CreateTemplateViewModel.provideFactory(context)
     )
-
     val historyViewModel: WorkoutHistoryViewModel = viewModel(
         factory = WorkoutHistoryViewModel.provideFactory(context)
     )
-
-
-    NavHost(navController = navController, startDestination = "splash") {
-        composable("splash") { SplashScreen(navController) }
-
-        composable("home") { HomeScreen(navController, activeWorkoutViewModel) }
-        composable("workout") { WorkoutScreen(navController) }
-        composable("activeWorkout") { ActiveWorkoutScreen(navController, activeWorkoutViewModel) }
-        composable("workoutHistory") { WorkoutHistoryScreen(navController, historyViewModel) }
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.provideFactory(context)
     )
-
-    // ✅ CREATE IT (this was missing)
     val profileViewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModel.provideFactory(context)
     )
 
+    // Decide start destination BEFORE NavHost
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState(initial = false)
 
-    var startDestination by remember { mutableStateOf<String?>(null) }
+    // If you truly need to wait for a "real" auth state (instead of initial=false),
+    // you can add an "isAuthLoaded" in AuthViewModel. For now we keep it simple.
+    val startDestination = if (isLoggedIn) "home" else "login"
 
-    LaunchedEffect(isLoggedIn) {
-        if (startDestination == null) {
-            startDestination = if (isLoggedIn) "home" else "login"
+    NavHost(
+        navController = navController,
+        startDestination = "splash"
+    ) {
+        // Splash decides where to go next (recommended)
+        composable("splash") {
+            SplashScreen(navController = navController)
         }
-    }
 
-    if (startDestination == null) return
-
-    NavHost(navController = navController, startDestination = startDestination!!) {
-
+        // Auth
         composable("login") {
             LoginScreen(navController = navController, authViewModel = authViewModel)
         }
-
         composable("register") {
             RegisterScreen(navController = navController, authViewModel = authViewModel)
         }
 
+        // Main
         composable("home") {
-            val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel()
-            HomeScreen(
-                navController = navController,
-                activeWorkoutViewModel = activeWorkoutViewModel,
-            )
+            HomeScreen(navController = navController, activeWorkoutViewModel = activeWorkoutViewModel)
         }
-
         composable("workout") {
-            WorkoutScreen(navController, activeWorkoutViewModel)
+            WorkoutScreen(navController = navController, activeWorkoutViewModel = activeWorkoutViewModel)
         }
-
         composable("activeWorkout") {
-            ActiveWorkoutScreen(navController, activeWorkoutViewModel)
+            ActiveWorkoutScreen(navController = navController, viewModel())
         }
-
-        composable("createTemplate") {
-            CreateTemplateScreen(
-                navController = navController,
-                viewModel = createTemplateViewModel,
-                activeWorkoutViewModel = activeWorkoutViewModel
-            )
-        }
-
         composable("workoutHistory") {
             WorkoutHistoryScreen(
                 navController = navController,
@@ -117,32 +92,11 @@ fun AppNavigation() {
             )
         }
 
-        composable("profile") {
-            ProfileScreen(
+        // Templates
+        composable("createTemplate") {
+            CreateTemplateScreen(
                 navController = navController,
-                authViewModel = authViewModel,
-                activeWorkoutViewModel = activeWorkoutViewModel,
-                profileViewModel = profileViewModel
-            )
-        }
-
-        composable("createProfile") {
-            CreateProfileScreen(
-                navController = navController,
-                profileViewModel = profileViewModel
-            )
-        }
-
-
-        composable(
-            route = "workoutDetail/{workoutId}",
-            arguments = listOf(navArgument("workoutId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: 0L
-            WorkoutDetailScreen(
-                workoutId = workoutId,
-                navController = navController,
-                viewModel = historyViewModel,
+                viewModel = createTemplateViewModel,
                 activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
@@ -174,5 +128,45 @@ fun AppNavigation() {
                 activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
+
+        // Profile
+        composable("profile") {
+            ProfileScreen(
+                navController = navController,
+                authViewModel = authViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel,
+                profileViewModel = profileViewModel
+            )
+        }
+        composable("createProfile") {
+            CreateProfileScreen(
+                navController = navController,
+                profileViewModel = profileViewModel
+            )
+        }
+
+        // Workout detail
+        composable(
+            route = "workoutDetail/{workoutId}",
+            arguments = listOf(navArgument("workoutId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: 0L
+            WorkoutDetailScreen(
+                workoutId = workoutId,
+                navController = navController,
+                viewModel = historyViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
+        }
+    }
+
+    // Optional: If you *don't* want SplashScreen to decide, you can auto-redirect once here.
+    // But then SplashScreen should just be a static UI.
+    LaunchedEffect(isLoggedIn) {
+        // Only redirect if we're at splash (or if you want to force-correct current route)
+        // If you have a real splash flow, do navigation inside SplashScreen instead.
+        // navController.navigate(startDestination) {
+        //     popUpTo("splash") { inclusive = true }
+        // }
     }
 }

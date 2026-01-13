@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.splash
 
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -43,15 +44,43 @@ fun SplashScreen(
         }
 
         // --- "Real" loading work (warm up DB etc.) ---
-        val minShowMs = 1000L
+        // TODO: Change this value to determine loading min time
+        val minShowMs = 5000L
         val start = System.currentTimeMillis()
 
         // Keep this fast: just ensure DB instance is created.
         // If you want to be stricter, you can do a lightweight query.
-        withContext(Dispatchers.IO) {
-            val db = AppDatabase.getDatabase(context)
-            // Optional stricter readiness check (uncomment if you want):
-            // db.userDao().countUsers()
+        // --- Real loading work ---
+        val ok = withContext(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(context)
+
+                // 1) Sanity check: DB can execute SQL
+                db.openHelper.writableDatabase.query("SELECT 1").use { /* no-op */ }
+
+                // 2) SQLite quick integrity check (fast)
+                db.openHelper.writableDatabase.query("PRAGMA quick_check(1)").use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val result = cursor.getString(0) // "ok" if healthy
+                        if (result != "ok") {
+                            Log.e("SplashScreen", "SQLite quick_check failed: $result")
+                            return@withContext false
+                        }
+                    }
+                }
+
+                // 3) Ensure required reference data exists (example)
+                // NOTE: Replace these with your actual DAO/entity methods.
+                // If you already seed elsewhere, you can skip this.
+                // Example pattern:
+                // val mgDao = db.muscleGroupDao()
+                // if (mgDao.count() == 0) mgDao.insertAll(defaultMuscleGroups)
+
+                true
+            } catch (t: Throwable) {
+                Log.e("SplashScreen", "DB warmup failed", t)
+                false
+            }
         }
 
 
@@ -63,7 +92,7 @@ fun SplashScreen(
         alphaJob.join()
 
         // Navigate away
-        navController.navigate("home") {
+        navController.navigate("login") {
             popUpTo("splash") { inclusive = true }
             launchSingleTop = true
         }
