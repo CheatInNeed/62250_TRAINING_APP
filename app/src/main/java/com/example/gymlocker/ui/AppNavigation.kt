@@ -94,7 +94,10 @@ fun AppNavigation() {
             )
         }
         composable("activeWorkout") {
-            ActiveWorkoutScreen(navController = navController, viewModel())
+            ActiveWorkoutScreen(
+                navController = navController,
+                viewModel = activeWorkoutViewModel
+            )
         }
         composable("workoutHistory") {
             WorkoutHistoryScreen(
