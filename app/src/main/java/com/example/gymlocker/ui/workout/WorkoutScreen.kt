@@ -28,6 +28,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -42,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateMapOf
@@ -180,7 +182,23 @@ fun WorkoutScreen(
                 }
             }
 
-            Text("Favorite Templates:")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Favorite Templates", style = MaterialTheme.typography.titleMedium)
+
+                TextButton(onClick = { showBrowseTemplatesSheet = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Browse templates"
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Browse")
+                }
+            }
+
             Spacer(Modifier.height(12.dp))
 
             LazyVerticalGrid(
@@ -218,7 +236,7 @@ fun WorkoutScreen(
                     }
                 }
 
-                // Browse
+                /*// Browse
                 item {
                     Card(
                         modifier = Modifier
@@ -247,7 +265,7 @@ fun WorkoutScreen(
                             )
                         }
                     }
-                }
+                }*/
             }
         }
 
