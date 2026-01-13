@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +59,7 @@ fun WorkoutScreen(
         activeWorkoutViewModel.observeTemplates(activeProfileUserId)
     }
     val templates by templatesFlow.collectAsState(initial = emptyList())
-    var showBrowseTemplatesSheet by remember { mutableStateOf(false) }
+    var showBrowseTemplatesSheet by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Workout") }) },
