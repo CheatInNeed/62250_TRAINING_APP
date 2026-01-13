@@ -300,6 +300,7 @@ fun ActiveWorkoutScreen(
         },
         bottomBar = {
             Column {
+                WorkoutNumpadBar()
                 RestTimerBar(
                     state = restTimer,
                     onSkip = { viewModel.skipRestTimer() }
