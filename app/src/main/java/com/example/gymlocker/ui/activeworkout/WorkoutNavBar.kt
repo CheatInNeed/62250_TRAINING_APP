@@ -47,6 +47,27 @@ import androidx.compose.ui.unit.sp
 import com.example.gymlocker.ui.theme.GymLockerTheme
 
 /**
+ * Represents which type of field is selected
+ */
+enum class FieldType {
+    WEIGHT,
+    REPS,
+    DONE
+}
+
+/**
+ * Represents the currently selected cell in the workout grid
+ * @param exerciseIndex Index of the exercise in the list (0-based)
+ * @param setIndex Index of the set within that exercise (0-based)
+ * @param field Which field in the set row is selected
+ */
+data class CursorPosition(
+    val exerciseIndex: Int,
+    val setIndex: Int,
+    val field: FieldType
+)
+
+/**
  * A workout navigation bar with:
  * - Left side: D-pad navigation arrows (up/down/left/right)
  * - Center: Number pad (1-9, 0, comma, backspace)

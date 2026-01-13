@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -97,6 +99,7 @@ fun ActiveWorkoutScreen(
 
     // Numpad navigation state
     var isNumpadVisible by remember { mutableStateOf(false) }
+    var cursorPosition by remember { mutableStateOf<CursorPosition?>(null) }
 
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
@@ -314,15 +317,153 @@ fun ActiveWorkoutScreen(
                 WorkoutNumpadBar(
                     isVisible = isNumpadVisible,
                     onHide = { isNumpadVisible = false },
-                    onNavigateUp = { /* TODO: Move cursor up */ },
-                    onNavigateDown = { /* TODO: Move cursor down */ },
-                    onNavigateLeft = { /* TODO: Move cursor left */ },
-                    onNavigateRight = { /* TODO: Move cursor right */ },
-                    onNumberClick = { /* TODO: Input number to current field */ },
-                    onBackspace = { /* TODO: Delete from current field */ },
-                    onPlus = { /* TODO: Increment current field */ },
-                    onMinus = { /* TODO: Decrement current field */ },
-                    onNext = { /* TODO: Complete current set and move to next */ }
+                    onNavigateUp = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            // Start at first cell
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            // Move up within same exercise's sets, or to previous exercise
+                            if (current.setIndex > 0) {
+                                cursorPosition = current.copy(setIndex = current.setIndex - 1)
+                            } else if (current.exerciseIndex > 0) {
+                                val prevExercise = activeExercises[current.exerciseIndex - 1]
+                                cursorPosition = current.copy(
+                                    exerciseIndex = current.exerciseIndex - 1,
+                                    setIndex = (prevExercise.sets.size - 1).coerceAtLeast(0)
+                                )
+                            }
+                        }
+                    },
+                    onNavigateDown = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            val currentExercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                            if (current.setIndex < currentExercise.sets.size - 1) {
+                                cursorPosition = current.copy(setIndex = current.setIndex + 1)
+                            } else if (current.exerciseIndex < activeExercises.size - 1) {
+                                cursorPosition = current.copy(
+                                    exerciseIndex = current.exerciseIndex + 1,
+                                    setIndex = 0
+                                )
+                            }
+                        }
+                    },
+                    onNavigateLeft = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            cursorPosition = when (current.field) {
+                                FieldType.WEIGHT -> current // Already at leftmost
+                                FieldType.REPS -> current.copy(field = FieldType.WEIGHT)
+                                FieldType.DONE -> current.copy(field = FieldType.REPS)
+                            }
+                        }
+                    },
+                    onNavigateRight = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            cursorPosition = when (current.field) {
+                                FieldType.WEIGHT -> current.copy(field = FieldType.REPS)
+                                FieldType.REPS -> current.copy(field = FieldType.DONE)
+                                FieldType.DONE -> current // Already at rightmost
+                            }
+                        }
+                    },
+                    onNumberClick = { digit ->
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                val newValue = set.weight.toString().let {
+                                    if (it == "0") digit else it + digit
+                                }
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.REPS -> {
+                                val newValue = set.reps.toString().let {
+                                    if (it == "0") digit else it + digit
+                                }
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.DONE -> { /* Numbers don't apply to checkbox */ }
+                        }
+                    },
+                    onBackspace = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                val newValue = set.weight.toString().dropLast(1).ifEmpty { "0" }
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.REPS -> {
+                                val newValue = set.reps.toString().dropLast(1).ifEmpty { "0" }
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.DONE -> { /* Backspace doesn't apply to checkbox */ }
+                        }
+                    },
+                    onPlus = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, (set.weight + 1).toString())
+                            }
+                            FieldType.REPS -> {
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, (set.reps + 1).toString())
+                            }
+                            FieldType.DONE -> { /* Plus doesn't apply to checkbox */ }
+                        }
+                    },
+                    onMinus = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                val newValue = (set.weight - 1).coerceAtLeast(0)
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue.toString())
+                            }
+                            FieldType.REPS -> {
+                                val newValue = (set.reps - 1).coerceAtLeast(0)
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue.toString())
+                            }
+                            FieldType.DONE -> { /* Minus doesn't apply to checkbox */ }
+                        }
+                    },
+                    onNext = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+
+                        // Mark current set as done
+                        viewModel.toggleSetDone(exercise.exerciseId, set.setNumber, true)
+
+                        // Move to next set or next exercise
+                        if (current.setIndex < exercise.sets.size - 1) {
+                            cursorPosition = current.copy(setIndex = current.setIndex + 1, field = FieldType.WEIGHT)
+                        } else if (current.exerciseIndex < activeExercises.size - 1) {
+                            cursorPosition = current.copy(
+                                exerciseIndex = current.exerciseIndex + 1,
+                                setIndex = 0,
+                                field = FieldType.WEIGHT
+                            )
+                        }
+                    }
                 )
                 RestTimerBar(
                     state = restTimer,
@@ -409,9 +550,12 @@ fun ActiveWorkoutScreen(
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
                 ) {
-                    items(activeExercises) { exercise ->
+                    itemsIndexed(activeExercises) { exerciseIndex, exercise ->
                         ActiveWorkoutExerciseItem(
                             exercise = exercise,
+                            exerciseIndex = exerciseIndex,
+                            cursorPosition = cursorPosition,
+                            onCursorChange = { newPos -> cursorPosition = newPos },
                             viewModel = viewModel,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onMarkAllSetsDone = { viewModel.markAllSetsDone(exercise.exerciseId) },
@@ -467,6 +611,9 @@ fun ActiveWorkoutScreen(
 @Composable
 fun ActiveWorkoutExerciseItem(
     exercise: ActiveExerciseState,
+    exerciseIndex: Int,
+    cursorPosition: CursorPosition?,
+    onCursorChange: (CursorPosition?) -> Unit,
     viewModel: ActiveWorkoutViewModel,
     onAddSet: () -> Unit,
     onMarkAllSetsDone: () -> Unit,
@@ -622,8 +769,15 @@ fun ActiveWorkoutExerciseItem(
                 textAlign = TextAlign.Center
             )
         } else {
-            exercise.sets.forEach { set ->
+            exercise.sets.forEachIndexed { setIndex, set ->
                 key(set.setNumber) {
+                    // Determine if this set row has a selected field
+                    val selectedField = if (
+                        cursorPosition != null &&
+                        cursorPosition.exerciseIndex == exerciseIndex &&
+                        cursorPosition.setIndex == setIndex
+                    ) cursorPosition.field else null
+
                     if (deleteSetsMode) {
                         ExerciseSetRow(
                             set = set,
@@ -634,7 +788,11 @@ fun ActiveWorkoutExerciseItem(
                             },
                             onWeightChange = { onWeightChange(set.setNumber, it) },
                             onRepsChange = { onRepsChange(set.setNumber, it) },
-                            onToggleDone = { onToggleDone(set.setNumber, it) }
+                            onToggleDone = { onToggleDone(set.setNumber, it) },
+                            selectedField = selectedField,
+                            onFieldSelected = { field ->
+                                onCursorChange(CursorPosition(exerciseIndex, setIndex, field))
+                            }
                         )
                     } else {
                         SwipeableSetRow(
@@ -649,7 +807,11 @@ fun ActiveWorkoutExerciseItem(
                                 onDelete = { /* hidden */ },
                                 onWeightChange = { onWeightChange(set.setNumber, it) },
                                 onRepsChange = { onRepsChange(set.setNumber, it) },
-                                onToggleDone = { onToggleDone(set.setNumber, it) }
+                                onToggleDone = { onToggleDone(set.setNumber, it) },
+                                selectedField = selectedField,
+                                onFieldSelected = { field ->
+                                    onCursorChange(CursorPosition(exerciseIndex, setIndex, field))
+                                }
                             )
                         }
                     }
@@ -692,9 +854,13 @@ fun ExerciseSetRow(
     onDelete: () -> Unit,
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
-    onToggleDone: (Boolean) -> Unit
+    onToggleDone: (Boolean) -> Unit,
+    selectedField: FieldType? = null,
+    onFieldSelected: (FieldType) -> Unit = {}
 ) {
     val alphaContainer = 0.15f
+    val selectedAlpha = 0.4f
+    val selectedBorderColor = Color(0xFF3A82F7)
 
     val isWeightPrefilled = set.isWeightPrefilled
     val isRepsPrefilled = set.isRepsPrefilled
@@ -728,10 +894,20 @@ fun ExerciseSetRow(
             textAlign = TextAlign.Center
         )
 
+        // Weight field
         Box(
             modifier = Modifier
                 .weight(0.9f)
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 4.dp)
+                .then(
+                    if (selectedField == FieldType.WEIGHT) {
+                        Modifier.background(
+                            selectedBorderColor.copy(alpha = 0.2f),
+                            RoundedCornerShape(8.dp)
+                        )
+                    } else Modifier
+                )
+                .clickable { onFieldSelected(FieldType.WEIGHT) },
             contentAlignment = Alignment.Center
         ) {
             TextField(
@@ -741,8 +917,12 @@ fun ExerciseSetRow(
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–") },
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
+                    unfocusedContainerColor = if (selectedField == FieldType.WEIGHT)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
+                    focusedContainerColor = if (selectedField == FieldType.WEIGHT)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
@@ -757,10 +937,20 @@ fun ExerciseSetRow(
             )
         }
 
+        // Reps field
         Box(
             modifier = Modifier
                 .weight(0.9f)
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 4.dp)
+                .then(
+                    if (selectedField == FieldType.REPS) {
+                        Modifier.background(
+                            selectedBorderColor.copy(alpha = 0.2f),
+                            RoundedCornerShape(8.dp)
+                        )
+                    } else Modifier
+                )
+                .clickable { onFieldSelected(FieldType.REPS) },
             contentAlignment = Alignment.Center
         ) {
             TextField(
@@ -770,8 +960,12 @@ fun ExerciseSetRow(
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–") },
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
+                    unfocusedContainerColor = if (selectedField == FieldType.REPS)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
+                    focusedContainerColor = if (selectedField == FieldType.REPS)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
@@ -786,11 +980,26 @@ fun ExerciseSetRow(
             )
         }
 
-        Checkbox(
-            checked = set.isDone,
-            onCheckedChange = onToggleDone,
-            modifier = Modifier.weight(0.4f)
-        )
+        // Checkbox with selection highlight
+        Box(
+            modifier = Modifier
+                .weight(0.4f)
+                .then(
+                    if (selectedField == FieldType.DONE) {
+                        Modifier.background(
+                            selectedBorderColor.copy(alpha = 0.2f),
+                            RoundedCornerShape(8.dp)
+                        )
+                    } else Modifier
+                )
+                .clickable { onFieldSelected(FieldType.DONE) },
+            contentAlignment = Alignment.Center
+        ) {
+            Checkbox(
+                checked = set.isDone,
+                onCheckedChange = onToggleDone
+            )
+        }
 
         if (deleteMode) {
             TextButton(
