@@ -23,6 +23,9 @@ interface ExerciseDao {
     @Query("SELECT exerciseId FROM exercises WHERE name = :name LIMIT 1")
     suspend fun getExerciseIdByName(name: String): Long?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM exercises WHERE LOWER(name) = LOWER(:name))")
+    suspend fun existsByNameIgnoreCase(name: String): Boolean
+
     @Query("SELECT * FROM exercises ORDER BY exerciseId ASC")
     suspend fun getAllOnce(): List<Exercises>
 

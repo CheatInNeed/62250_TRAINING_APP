@@ -79,8 +79,15 @@ class CreateExerciseViewModel(private val appContext: Context) : ViewModel() {
         viewModelScope.launch {
             _isSaving.value = true
             try {
+                val trimmedName = _exerciseName.value.trim()
+
+                if (exerciseDao.existsByNameIgnoreCase(trimmedName)) {
+                    _exerciseNameError.value = "Exercise with this name already exists"
+                    return@launch
+                }
+
                 val exercise = Exercises(
-                    name = _exerciseName.value.trim(),
+                    name = trimmedName,
                     startWeight = _startWeight.value,
                     startReps = _startReps.value,
                     isRecent = true,
