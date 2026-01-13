@@ -2,6 +2,8 @@ package com.example.gymlocker.ui.profile
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -74,7 +76,7 @@ fun ProfileScreen(
         )
     }
 
-    // Error dialog
+    // Suggestion: show error dialog
     if (errorMsg != null) {
         AlertDialog(
             onDismissRequest = { errorMsg = null },
@@ -111,7 +113,7 @@ fun ProfileScreen(
                 .padding(20.dp)
         ) {
 
-            // ✅ Active profile details + edit entry
+            // ✅ Fixed header: Active profile details + edit entry
             activeProfile?.let { p ->
                 val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
                 val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
@@ -143,73 +145,105 @@ fun ProfileScreen(
             )
             Spacer(Modifier.height(8.dp))
 
+            // ✅ Scrollable area: list + empty state + create + logout
+            // Use weight(1f) so only this part scrolls.
             if (profiles.isEmpty()) {
-                Text(
-                    text = "No profiles yet.\nCreate one to get started.",
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = { navController.navigate("createProfile") },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Create Profile") }
-            } else {
-                profiles.forEach { p ->
-                    val isActive = p.userId == activeProfileUserId
-                    val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
-                    val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
+                // If empty, we don't need a LazyColumn; keep it simple and centered-ish.
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = true)
+                ) {
+                    Text(
+                        text = "No profiles yet.\nCreate one to get started.",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = { navController.navigate("createProfile") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Create Profile") }
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp)
-                            .clickable { profileViewModel.setActiveProfile(p.userId) }
+                    Spacer(Modifier.height(20.dp))
+
+                    TextButton(
+                        onClick = {
+                            authViewModel.logout()
+                            navController.navigate("login") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = if (isActive) "✅ ${p.name}" else p.name,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = "Height: $heightText  |  Weight: $weightText",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                        Text("Log out")
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = true),
+                    contentPadding = PaddingValues(bottom = 8.dp)
+                ) {
+                    items(profiles, key = { it.userId }) { p ->
+                        val isActive = p.userId == activeProfileUserId
+                        val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                        val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
 
-                            Spacer(Modifier.height(8.dp))
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .clickable { profileViewModel.setActiveProfile(p.userId) }
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = if (isActive) "✅ ${p.name}" else p.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Height: $heightText  |  Weight: $weightText",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
 
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Spacer(Modifier.weight(1f))
-                                TextButton(
-                                    onClick = {
-                                        deleteTargetUserId = p.userId
-                                        deleteTargetName = p.name
-                                    }
-                                ) { Text("Delete") }
+                                Spacer(Modifier.height(8.dp))
+
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.weight(1f))
+                                    TextButton(
+                                        onClick = {
+                                            deleteTargetUserId = p.userId
+                                            deleteTargetName = p.name
+                                        }
+                                    ) { Text("Delete") }
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(12.dp))
-                Button(
-                    onClick = { navController.navigate("createProfile") },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Create another profile") }
-            }
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { navController.navigate("createProfile") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Create another profile") }
 
-            Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(20.dp))
 
-            TextButton(
-                onClick = {
-                    authViewModel.logout()
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
+                        TextButton(
+                            onClick = {
+                                authViewModel.logout()
+                                navController.navigate("login") {
+                                    popUpTo("home") { inclusive = true }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Log out")
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Log out")
+                }
             }
         }
     }
