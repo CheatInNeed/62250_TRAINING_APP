@@ -211,11 +211,13 @@ fun HomeScreen(
 
 @Composable
 fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
+    val workoutText = if (workoutsThisWeek == 1) "workout" else "workouts"
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("This week", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("$workoutsThisWeek workouts this week")
+            Text("$workoutsThisWeek $workoutText this week")
         }
     }
 }
