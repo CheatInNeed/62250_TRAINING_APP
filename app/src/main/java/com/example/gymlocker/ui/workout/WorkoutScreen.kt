@@ -42,7 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateMapOf
+import com.example.gymlocker.data.database.AppDatabase
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +133,53 @@ fun WorkoutScreen(
 
             val favoriteTemplates = templates.filter { it.isFavorite }.take(3)
 
+            val templateSummaries = remember { mutableStateMapOf<Long, String>() }
+
+            LaunchedEffect(favoriteTemplates) {
+                val db = AppDatabase.getDatabase(context)
+                withContext(Dispatchers.IO) {
+                    for (t in favoriteTemplates) {
+                        if (templateSummaries.containsKey(t.templateId)) continue
+
+                        val tpl = db.workoutTemplateDao().getTemplateWithExercises(t.templateId)
+                        if (tpl == null) {
+                            templateSummaries[t.templateId] = "No exercises"
+                            continue
+                        }
+
+                        val exerciseCount = tpl.exercises.size
+                        val totalSets = tpl.exercises.sumOf { it.sets.size }
+
+                        templateSummaries[t.templateId] =
+                            if (exerciseCount == 0) {
+                                "No exercises"
+                            } else {
+                                "$exerciseCount exercises x $totalSets sets"
+                            }
+
+                        /*
+
+                        // Hent navne + set-count pr. øvelse
+                        val parts = tpl.exercises.mapNotNull { exWithSets ->
+                            val exId = exWithSets.templateExercise.exerciseId
+                            val name = db.exerciseDao().getById(exId)?.name ?: return@mapNotNull null
+                            val setsCount = exWithSets.sets.size
+                            "$name ($setsCount)"
+                        }
+
+                        // Begræns længden (så kortet ikke bliver overloadet)
+                        val maxShown = 3
+                        val summary = if (parts.size <= maxShown) {
+                            parts.joinToString(", ")
+                        } else {
+                            parts.take(maxShown).joinToString(", ") + " +${parts.size - maxShown} more"
+                        }
+
+                        templateSummaries[t.templateId] = if (summary.isBlank()) "No exercises" else summary*/
+                    }
+                }
+            }
+
             Text("Favorite Templates:")
             Spacer(Modifier.height(12.dp))
 
@@ -154,7 +206,14 @@ fun WorkoutScreen(
                         Column(Modifier.padding(14.dp)) {
                             Text(t.name, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                             Spacer(Modifier.height(6.dp))
-                            Text("Favorite", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                            val summary = templateSummaries[t.templateId] ?: "Loading..."
+
+                            Text(
+                                text = summary,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.outline,
+                                maxLines = 2
+                            )
                         }
                     }
                 }
