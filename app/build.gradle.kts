@@ -28,16 +28,24 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     kotlinOptions {
         jvmTarget = "11"
     }
+
     buildFeatures {
         compose = true
     }
+}
+
+// Helps kapt/Room resolve types and gives better errors if something still fails
+kapt {
+    correctErrorTypes = true
 }
 
 dependencies {
@@ -52,6 +60,8 @@ dependencies {
     implementation(libs.androidx.compose.material)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.foundation.layout)
+    implementation(libs.androidx.compose.foundation.layout)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -73,9 +83,15 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
+    // DataStore (session persistence)
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
     // Optional – for easy dataflow conversion to Compose
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // Timer
+    implementation("androidx.compose.material:material-icons-extended")
 }

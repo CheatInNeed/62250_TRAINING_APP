@@ -8,11 +8,27 @@ import androidx.room.Update
 import com.example.gymlocker.data.entity.PerformedSet
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Row projection for "training distribution" chart (by muscle group).
+ * Kept in DAO package so Room can use it without UI-module coupling.
+ */
+data class MuscleGroupDistributionRow(
+    val muscleGroupName: String,
+    val completedSets: Int
+)
+data class WorkoutVolumeRow(
+    val date: String,     // workouts.date ("yyyy-MM-dd HH:mm:ss.SSS")
+    val volume: Double    // SUM(weight * reps)
+)
+
 @Dao
 interface PerformedSetDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(set: PerformedSet): Long
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(sets: List<PerformedSet>): List<Long>
 
     @Update
     suspend fun update(set: PerformedSet)
@@ -29,6 +45,15 @@ interface PerformedSetDao {
     @Query(
         """
         SELECT * FROM performed_set
+        WHERE exerciseLogId = :exerciseLogId
+        ORDER BY setNumber ASC
+        """
+    )
+    suspend fun getSetsByLogOnce(exerciseLogId: Long): List<PerformedSet>
+
+    @Query(
+        """
+        SELECT * FROM performed_set
         WHERE exerciseLogId = :exerciseLogId AND setNumber = :setNumber
         LIMIT 1
         """
@@ -38,7 +63,13 @@ interface PerformedSetDao {
     /**
      * Upsert by (exerciseLogId, setNumber) uniqueness.
      */
-    suspend fun upsertByNumber(exerciseLogId: Long, setNumber: Int, weight: Float, reps: Int, isCompleted: Boolean) {
+    suspend fun upsertByNumber(
+        exerciseLogId: Long,
+        setNumber: Int,
+        weight: Float,
+        reps: Int,
+        isCompleted: Boolean
+    ) {
         val existing = getSetByNumber(exerciseLogId, setNumber)
         if (existing == null) {
             insert(
@@ -74,30 +105,34 @@ interface PerformedSetDao {
 
     @Query(
         """
-    DELETE FROM performed_set
-    WHERE exerciseLogId = :exerciseLogId
-      AND setNumber = :setNumber
-    """
+        DELETE FROM performed_set
+        WHERE exerciseLogId = :exerciseLogId
+          AND setNumber = :setNumber
+        """
     )
     suspend fun deleteSetByNumber(exerciseLogId: Long, setNumber: Int)
 
     @Query(
         """
-    SELECT ps.* FROM performed_set ps
-    JOIN exercise_log el ON el.id = ps.exerciseLogId
-    JOIN workouts w ON w.workoutId = el.workoutId
-    WHERE el.exerciseId = :exerciseId
-      AND ps.setNumber = :setNumber
-      AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
-    ORDER BY w.date DESC
-    LIMIT 1
-    """
+        SELECT ps.* FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        WHERE el.exerciseId = :exerciseId
+          AND ps.setNumber = :setNumber
+          AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+        ORDER BY w.date DESC
+        LIMIT 1
+        """
     )
     suspend fun getLatestSetForExerciseAndNumberExcludingWorkout(
         exerciseId: Long,
         setNumber: Int,
         excludeWorkoutId: Long?
     ): PerformedSet?
+
+    @Query("SELECT * FROM performed_set WHERE exerciseLogId = :exerciseLogId ORDER BY setNumber ASC")
+    suspend fun getSetsForLogOnce(exerciseLogId: Long): List<PerformedSet>
+
     /**
      * Finds the latest workoutId (by workout date) where this exercise was performed,
      * excluding the current workout if provided.
@@ -135,9 +170,10 @@ interface PerformedSetDao {
         workoutId: Long,
         exerciseId: Long
     ): List<PerformedSet>
+
     /**
      * Personal Record (PR) for an exercise:
-     * Score = max(weight * reps, weight), so it supports both "highest weight × reps" or "highest weight".
+     * Score = max(weight * reps, weight)
      * Excludes the current workout if provided.
      */
     @Query(
@@ -147,10 +183,6 @@ interface PerformedSetDao {
         JOIN workouts w ON w.workoutId = el.workoutId
         WHERE el.exerciseId = :exerciseId
           AND ps.weight > 0
-          AND (
-                ps.reps > 0
-                OR ps.reps = 0
-              )
           AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
         ORDER BY 
             CASE 
@@ -188,5 +220,52 @@ interface PerformedSetDao {
         excludeWorkoutId: Long?
     ): String?
 
+    // =========================
+    // ✅ NEW: Distribution query
+    // =========================
 
+    @Query(
+        """
+        SELECT 
+            mg.name AS muscleGroupName,
+            COUNT(ps.sid) AS completedSets
+        FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        JOIN exercises e ON e.exerciseId = el.exerciseId
+        JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+        WHERE w.userId = :userId
+          AND w.date >= :startInclusive
+          AND w.date < :endExclusive
+          AND ps.isCompleted = 1
+        GROUP BY mg.muscleGroupId, mg.name
+        ORDER BY completedSets DESC
+        """
+    )
+    fun observeMuscleGroupDistribution(
+        userId: Long,
+        startInclusive: String,
+        endExclusive: String
+    ): Flow<List<MuscleGroupDistributionRow>>
+
+
+    @Query(
+        """
+    SELECT 
+        w.date AS date,
+        COALESCE(SUM(ps.weight * ps.reps), 0) AS volume
+    FROM workouts w
+    JOIN exercise_log el ON el.workoutId = w.workoutId
+    JOIN performed_set ps ON ps.exerciseLogId = el.id
+    WHERE w.userId = :userId
+      AND w.date >= :startInclusive
+      AND ps.isCompleted = 1
+    GROUP BY w.workoutId
+    ORDER BY w.date ASC
+    """
+    )
+    fun observeWorkoutVolumesFrom(
+        userId: Long,
+        startInclusive: String
+    ): kotlinx.coroutines.flow.Flow<List<WorkoutVolumeRow>>
 }

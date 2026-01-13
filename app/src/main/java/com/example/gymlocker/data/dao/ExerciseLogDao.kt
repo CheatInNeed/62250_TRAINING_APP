@@ -38,24 +38,44 @@ interface ExerciseLogDao {
     @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
     fun observeLogsForWorkout(workoutId: Long): Flow<List<ExerciseLog>>
 
+    @Query("SELECT * FROM exercise_log WHERE workoutId = :workoutId ORDER BY id ASC")
+    suspend fun getLogsForWorkoutOnce(workoutId: Long): List<ExerciseLog>
+
     @Query("DELETE FROM exercise_log WHERE workoutId = :workoutId")
     suspend fun deleteLogsForWorkout(workoutId: Long)
 
     @Query("DELETE FROM exercise_log WHERE id = :logId")
     suspend fun deleteById(logId: Long)
 
+    // ✅ Existing: global count (kept)
     @Query(
         """
-    SELECT COUNT(DISTINCT w.workoutId)
-    FROM workouts w
-    JOIN exercise_log el ON el.workoutId = w.workoutId
-    WHERE w.date >= :startInclusive
-      AND w.date <= :endInclusive
-    """
+        SELECT COUNT(DISTINCT w.workoutId)
+        FROM workouts w
+        JOIN exercise_log el ON el.workoutId = w.workoutId
+        WHERE w.date >= :startInclusive
+          AND w.date <= :endInclusive
+        """
     )
     fun observeCompletedWorkoutCountInRange(
         startInclusive: String,
         endInclusive: String
     ): Flow<Int>
 
+    // ✅ NEW: user-filtered weekly count
+    @Query(
+        """
+        SELECT COUNT(DISTINCT w.workoutId)
+        FROM workouts w
+        JOIN exercise_log el ON el.workoutId = w.workoutId
+        WHERE w.userId = :userId
+          AND w.date >= :startInclusive
+          AND w.date <= :endInclusive
+        """
+    )
+    fun observeCompletedWorkoutCountInRangeForUser(
+        userId: Long,
+        startInclusive: String,
+        endInclusive: String
+    ): Flow<Int>
 }
