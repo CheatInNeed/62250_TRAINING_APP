@@ -23,8 +23,25 @@ import androidx.navigation.NavController
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
-import com.example.gymlocker.ui.home.TemplatesCard
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +59,7 @@ fun WorkoutScreen(
         activeWorkoutViewModel.observeTemplates(activeProfileUserId)
     }
     val templates by templatesFlow.collectAsState(initial = emptyList())
+    var showBrowseTemplatesSheet by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Workout") }) },
@@ -85,11 +103,94 @@ fun WorkoutScreen(
                 Text("Opret ny template")
             }
 
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = { navController.navigate("createExercise") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = activeProfileUserId != null
+            ) {
+                Text("Create Custom Exercise")
+            }
+
             Spacer(Modifier.height(16.dp))
 
-            TemplatesCard(
+            // Favorite template boxes
+
+            val favoriteTemplates = templates.filter { it.isFavorite }.take(3)
+
+            Text("Favorite Templates:")
+            Spacer(Modifier.height(12.dp))
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                userScrollEnabled = false
+            ) {
+                items(favoriteTemplates) { t ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(96.dp)
+                            .clickable { navController.navigate("templateDetail/${t.templateId}") },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(t.name, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Favorite", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        }
+                    }
+                }
+
+                // Browse
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(96.dp)
+                            .clickable { showBrowseTemplatesSheet = true },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Browse templates",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = "Browse",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (showBrowseTemplatesSheet) {
+            TemplateBrowseSheet(
                 templates = templates,
-                onStartFromTemplate = { templateId ->
+                onDismiss = { showBrowseTemplatesSheet = false },
+                onTemplateSelected = { templateId ->
                     navController.navigate("templateDetail/$templateId")
                 }
             )

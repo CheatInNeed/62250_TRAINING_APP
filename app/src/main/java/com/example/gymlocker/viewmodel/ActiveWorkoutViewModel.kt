@@ -208,9 +208,11 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun discardWorkout() {
+        val workoutIdToDelete = currentWorkoutId
+        resetLocalState()
+
         viewModelScope.launch {
-            currentWorkoutId?.let { workoutDao.deleteById(it) }
-            resetLocalState()
+            workoutIdToDelete?.let { workoutDao.deleteById(it) }
         }
     }
 

@@ -20,8 +20,10 @@ import com.example.gymlocker.ui.splash.SplashScreen
 import com.example.gymlocker.ui.template.CreateTemplateScreen
 import com.example.gymlocker.ui.template.EditTemplateScreen
 import com.example.gymlocker.ui.template.TemplateDetailScreen
+import com.example.gymlocker.ui.workout.CreateExerciseScreen
 import com.example.gymlocker.ui.workout.WorkoutDetailScreen
 import com.example.gymlocker.ui.workout.WorkoutScreen
+import com.example.gymlocker.viewmodel.CreateExerciseViewModel
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
@@ -49,6 +51,9 @@ fun AppNavigation() {
     )
     val profileViewModel: ProfileViewModel = viewModel(
         factory = ProfileViewModel.provideFactory(context)
+    )
+    val createExerciseViewModel: CreateExerciseViewModel = viewModel(
+        factory = CreateExerciseViewModel.provideFactory(context)
     )
 
     // Decide start destination BEFORE NavHost
@@ -82,8 +87,17 @@ fun AppNavigation() {
         composable("workout") {
             WorkoutScreen(navController = navController, activeWorkoutViewModel = activeWorkoutViewModel)
         }
+        composable("createExercise") {
+            CreateExerciseScreen(
+                navController = navController,
+                viewModel = createExerciseViewModel
+            )
+        }
         composable("activeWorkout") {
-            ActiveWorkoutScreen(navController = navController, viewModel())
+            ActiveWorkoutScreen(
+                navController = navController,
+                viewModel = activeWorkoutViewModel
+            )
         }
         composable("workoutHistory") {
             WorkoutHistoryScreen(
