@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -43,6 +45,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -104,28 +108,34 @@ fun WorkoutScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Button(
+                OutlinedButton(
                     onClick = { navController.navigate("createTemplate") },
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = activeProfileUserId != null
+                    enabled = activeProfileUserId != null,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Text("Create template")
+                    Text("Create Template")
                 }
 
-                Button(
+                OutlinedButton(
                     onClick = { navController.navigate("createExercise") },
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = activeProfileUserId != null
-                ) {
-                    Text(
-                        "Create Exercise",
+                    enabled = activeProfileUserId != null,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
                     )
+                ) {
+                    Text("Create Exercise")
                 }
             }
 
@@ -192,7 +202,8 @@ fun WorkoutScreen(
                 TextButton(onClick = { showBrowseTemplatesSheet = true }) {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = "Browse templates"
+                        contentDescription = "Browse templates",
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text("Browse")
