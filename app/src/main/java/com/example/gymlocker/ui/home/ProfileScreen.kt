@@ -42,7 +42,6 @@ fun ProfileScreen(
     activeWorkoutViewModel: ActiveWorkoutViewModel,
     profileViewModel: ProfileViewModel
 ) {
-    // If logged out, send to login
     LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
             if (!loggedIn) {
@@ -55,6 +54,7 @@ fun ProfileScreen(
 
     val profiles by profileViewModel.profiles.collectAsState()
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
+    val activeProfile by profileViewModel.activeProfile.collectAsState()
 
     Scaffold(
         topBar = {
@@ -80,6 +80,33 @@ fun ProfileScreen(
                 .padding(innerPadding)
                 .padding(20.dp)
         ) {
+
+            // Active profile details + edit entry
+            activeProfile?.let { p ->
+                val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
+
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text("Active profile", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(6.dp))
+                        Text(p.name, style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(6.dp))
+                        Text("Height: $heightText  |  Weight: $weightText")
+
+                        Spacer(Modifier.height(10.dp))
+                        Button(
+                            onClick = { navController.navigate("editProfile") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Edit profile") }
+                    }
+                }
+            }
+
             Text(
                 text = "Choose a profile",
                 style = MaterialTheme.typography.titleLarge
@@ -100,6 +127,9 @@ fun ProfileScreen(
             } else {
                 profiles.forEach { p ->
                     val isActive = p.userId == activeProfileUserId
+                    val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                    val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -112,7 +142,7 @@ fun ProfileScreen(
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "Height: ${if (p.height == 0) "—" else p.height}  |  Weight: ${if (p.weight == 0) "—" else p.weight}",
+                                text = "Height: $heightText  |  Weight: $weightText",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }

@@ -3,6 +3,7 @@ package com.example.gymlocker.data.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import com.example.gymlocker.data.entity.User
 import kotlinx.coroutines.flow.Flow
 
@@ -19,7 +20,7 @@ interface UserDao {
     fun getUser(userId: Long): Flow<User?>
 
     /**
-     * ✅ One-shot lookup (needed by debug seed).
+     * One-shot lookup (optional, handy for debug/testing).
      */
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
     suspend fun getUserOnce(userId: Long): User?
@@ -44,4 +45,17 @@ interface UserDao {
      */
     @Query("SELECT COUNT(*) FROM users WHERE userId = :userId AND authOwnerId = :authId")
     suspend fun belongsToAuth(userId: Long, authId: Long): Int
+
+    // -----------------------------------------
+    // ✅ NEW: update + reset support
+    // -----------------------------------------
+
+    @Update
+    suspend fun update(user: User): Int
+
+    @Query("UPDATE users SET name = :name, height = :height, weight = :weight WHERE userId = :userId")
+    suspend fun updateBasics(userId: Long, name: String, height: Int, weight: Int): Int
+
+    @Query("UPDATE users SET name = :defaultName, height = 0, weight = 0 WHERE userId = :userId")
+    suspend fun resetBasics(userId: Long, defaultName: String = "User"): Int
 }

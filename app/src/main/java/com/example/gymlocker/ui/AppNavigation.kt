@@ -14,6 +14,7 @@ import com.example.gymlocker.ui.auth.RegisterScreen
 import com.example.gymlocker.ui.history.WorkoutHistoryScreen
 import com.example.gymlocker.ui.home.HomeScreen
 import com.example.gymlocker.ui.profile.CreateProfileScreen
+import com.example.gymlocker.ui.profile.EditProfileScreen
 import com.example.gymlocker.ui.profile.ProfileScreen
 import com.example.gymlocker.ui.splash.SplashScreen
 import com.example.gymlocker.ui.template.CreateTemplateScreen
@@ -144,6 +145,13 @@ fun AppNavigation() {
                 profileViewModel = profileViewModel
             )
         }
+        composable("editProfile") {
+            EditProfileScreen(
+                navController = navController,
+                profileViewModel = profileViewModel
+            )
+        }
+
 
         // Workout detail
         composable(
