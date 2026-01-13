@@ -66,7 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
          *
          * ❌ when false: none of the above happens.
          */
-        private const val DEBUG_WIPE_DB = false
+        private const val DEBUG_WIPE_DB = true
 
         @Volatile private var debugSeedJob: Job? = null
 
@@ -250,7 +250,8 @@ abstract class AppDatabase : RoomDatabase() {
                 WorkoutTemplate(
                     date = "2026-01-07",
                     name = "Push (Dummy)",
-                    userId = userId
+                    userId = userId,
+                    isFavorite = true,
                 )
             )
 
@@ -258,7 +259,8 @@ abstract class AppDatabase : RoomDatabase() {
                 WorkoutTemplate(
                     date = "2026-01-07",
                     name = "Pull (Dummy)",
-                    userId = userId
+                    userId = userId,
+                    isFavorite = true,
                 )
             )
 
