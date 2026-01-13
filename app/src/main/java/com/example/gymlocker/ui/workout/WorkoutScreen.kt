@@ -85,6 +85,19 @@ fun WorkoutScreen(
                 Text("Opret ny template")
             }
 
+            Spacer(Modifier.height(12.dp))
+
+            Button(
+                onClick = { navController.navigate("createExercise") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = activeProfileUserId != null
+            ) {
+                Text("Create Custom Exercise")
+            }
+
             Spacer(Modifier.height(16.dp))
 
             TemplatesCard(
