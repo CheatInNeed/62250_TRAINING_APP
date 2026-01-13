@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,25 +84,32 @@ fun ActiveWorkoutBanner(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // LEFT: Resume (only this is clickable)
-            IconButton(
-                onClick = {
-                    navController.navigate("activeWorkout") {
-                        launchSingleTop = true
+            // LEFT: big clickable area
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 6.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable {
+                        navController.navigate("activeWorkout") { launchSingleTop = true }
                     }
-                }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.PlayArrow,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     contentDescription = "Resume workout"
                 )
             }
 
-            // CENTER: status + time
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // CENTER: text
+            Column(
+                modifier = Modifier.weight(2f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = "Active workout in progress",
                     style = MaterialTheme.typography.labelLarge,
@@ -114,12 +122,19 @@ fun ActiveWorkoutBanner(
                 )
             }
 
-            // RIGHT: Discard (only this is clickable)
-            IconButton(
-                onClick = { showDiscardDialog = true }
+            // RIGHT: big clickable area
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 6.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { showDiscardDialog = true }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     contentDescription = "Discard workout"
                 )
             }
