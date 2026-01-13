@@ -34,8 +34,8 @@ interface UserDao {
     @Update
     suspend fun update(user: User): Int
 
-    @Query("UPDATE users SET name = :name, height = :height, weight = :weight WHERE userId = :userId")
-    suspend fun updateBasics(userId: Long, name: String, height: Int, weight: Int): Int
+    @Query("UPDATE users SET name = :name, height = :height, weight = :weight, language = :language WHERE userId = :userId")
+    suspend fun updateBasics(userId: Long, name: String, height: Int, weight: Int, language: String): Int
 
     @Query("UPDATE users SET name = :defaultName, height = 0, weight = 0 WHERE userId = :userId")
     suspend fun resetBasics(userId: Long, defaultName: String = "User"): Int

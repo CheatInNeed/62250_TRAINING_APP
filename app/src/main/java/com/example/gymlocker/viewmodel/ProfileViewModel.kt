@@ -101,6 +101,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
         name: String,
         height: Int?,
         weight: Int?,
+        language: String = "English",
         onError: (String) -> Unit = {},
         onSuccess: () -> Unit = {}
     ) {
@@ -116,16 +117,16 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
             val h = height ?: 0
             val w = weight ?: 0
 
-            if (h != 0 && (h < 50 || h > 250)) {
+            if (h != 0 && (h !in 50..250)) {
                 onError("Height must be 50–250 cm (or leave empty)")
                 return@launch
             }
-            if (w != 0 && (w < 20 || w > 300)) {
+            if (w != 0 && (w !in 20..300)) {
                 onError("Weight must be 20–300 kg (or leave empty)")
                 return@launch
             }
 
-            userDao.updateBasics(userId = userId, name = cleanName, height = h, weight = w)
+            userDao.updateBasics(userId = userId, name = cleanName, height = h, weight = w, language = language)
             onSuccess()
         }
     }

@@ -56,20 +56,24 @@ fun EditProfileScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
 
+    // Localized strings based on selected language
+    val strings = if (selectedLanguage == "Danish") DanishStrings else EnglishStrings
+
     // Load current values into editable fields
     LaunchedEffect(activeProfile?.userId) {
         val p = activeProfile ?: return@LaunchedEffect
         name = p.name
         heightText = if (p.height == 0) "" else p.height.toString()
         weightText = if (p.weight == 0) "" else p.weight.toString()
+        selectedLanguage = p.language
         error = null
     }
 
     if (showResetConfirm) {
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = { Text("Reset profile?") },
-            text = { Text("This resets name/height/weight. Workouts will NOT be deleted.") },
+            title = { Text(strings.resetProfileTitle) },
+            text = { Text(strings.resetProfileMessage) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -78,10 +82,10 @@ fun EditProfileScreen(
                             navController.popBackStack()
                         }
                     }
-                ) { Text("Reset") }
+                ) { Text(strings.reset) }
             },
             dismissButton = {
-                TextButton(onClick = { showResetConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showResetConfirm = false }) { Text(strings.cancel) }
             }
         )
     }
@@ -89,10 +93,10 @@ fun EditProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Edit profile") },
+                title = { Text(strings.editProfile) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = strings.back)
                     }
                 }
             )
@@ -105,9 +109,9 @@ fun EditProfileScreen(
                 .padding(20.dp)
         ) {
             if (activeProfile == null) {
-                Text("No active profile selected.")
+                Text(strings.noActiveProfile)
                 Spacer(Modifier.height(12.dp))
-                Button(onClick = { navController.popBackStack() }) { Text("Back") }
+                Button(onClick = { navController.popBackStack() }) { Text(strings.back) }
                 return@Column
             }
 
@@ -115,7 +119,7 @@ fun EditProfileScreen(
                 value = name,
                 onValueChange = { name = it; error = null },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Display name") },
+                label = { Text(strings.displayName) },
                 singleLine = true
             )
 
@@ -125,7 +129,7 @@ fun EditProfileScreen(
                 value = heightText,
                 onValueChange = { heightText = it; error = null },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Height (cm) — leave empty for Not set") },
+                label = { Text(strings.heightLabel) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -136,7 +140,7 @@ fun EditProfileScreen(
                 value = weightText,
                 onValueChange = { weightText = it; error = null },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Weight (kg) — leave empty for Not set") },
+                label = { Text(strings.weightLabel) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -145,35 +149,55 @@ fun EditProfileScreen(
 
             // Language selection
             Text(
-                text = "Language",
+                text = strings.language,
                 style = MaterialTheme.typography.labelLarge
             )
             Spacer(Modifier.height(8.dp))
 
-            val languageOptions = listOf("English", "Danish")
             Column(Modifier.selectableGroup()) {
-                languageOptions.forEach { language ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .selectable(
-                                selected = (selectedLanguage == language),
-                                onClick = { selectedLanguage = language },
-                                role = Role.RadioButton
-                            ),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (selectedLanguage == language),
-                            onClick = null // null because Row handles the click
-                        )
-                        Text(
-                            text = language,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 8.dp)
-                        )
-                    }
+                // English option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .selectable(
+                            selected = (selectedLanguage == "English"),
+                            onClick = { selectedLanguage = "English" },
+                            role = Role.RadioButton
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedLanguage == "English"),
+                        onClick = null
+                    )
+                    Text(
+                        text = strings.englishLanguage,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+                // Danish option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .selectable(
+                            selected = (selectedLanguage == "Danish"),
+                            onClick = { selectedLanguage = "Danish" },
+                            role = Role.RadioButton
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (selectedLanguage == "Danish"),
+                        onClick = null
+                    )
+                    Text(
+                        text = strings.danishLanguage,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
                 }
             }
 
@@ -194,11 +218,11 @@ fun EditProfileScreen(
                     val weightInt: Int? = if (wRaw.isEmpty()) null else wRaw.toIntOrNull()
 
                     if (hRaw.isNotEmpty() && heightInt == null) {
-                        error = "Height must be a number."
+                        error = strings.heightMustBeNumber
                         return@Button
                     }
                     if (wRaw.isNotEmpty() && weightInt == null) {
-                        error = "Weight must be a number."
+                        error = strings.weightMustBeNumber
                         return@Button
                     }
 
@@ -206,19 +230,81 @@ fun EditProfileScreen(
                         name = name,
                         height = heightInt,
                         weight = weightInt,
+                        language = selectedLanguage,
                         onError = { error = it },
                         onSuccess = { navController.popBackStack() }
                     )
                 },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Save") }
+            ) { Text(strings.save) }
 
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(
                 onClick = { showResetConfirm = true },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Reset profile") }
+            ) { Text(strings.resetProfile) }
         }
     }
+}
+
+// Localization strings
+private interface LocalizedStrings {
+    val editProfile: String
+    val back: String
+    val noActiveProfile: String
+    val displayName: String
+    val heightLabel: String
+    val weightLabel: String
+    val language: String
+    val englishLanguage: String
+    val danishLanguage: String
+    val save: String
+    val resetProfile: String
+    val resetProfileTitle: String
+    val resetProfileMessage: String
+    val reset: String
+    val cancel: String
+    val heightMustBeNumber: String
+    val weightMustBeNumber: String
+}
+
+private object EnglishStrings : LocalizedStrings {
+    override val editProfile = "Edit profile"
+    override val back = "Back"
+    override val noActiveProfile = "No active profile selected."
+    override val displayName = "Display name"
+    override val heightLabel = "Height (cm) — leave empty for Not set"
+    override val weightLabel = "Weight (kg) — leave empty for Not set"
+    override val language = "Language"
+    override val englishLanguage = "English"
+    override val danishLanguage = "Danish"
+    override val save = "Save"
+    override val resetProfile = "Reset profile"
+    override val resetProfileTitle = "Reset profile?"
+    override val resetProfileMessage = "This resets name/height/weight. Workouts will NOT be deleted."
+    override val reset = "Reset"
+    override val cancel = "Cancel"
+    override val heightMustBeNumber = "Height must be a number."
+    override val weightMustBeNumber = "Weight must be a number."
+}
+
+private object DanishStrings : LocalizedStrings {
+    override val editProfile = "Rediger profil"
+    override val back = "Tilbage"
+    override val noActiveProfile = "Ingen aktiv profil valgt."
+    override val displayName = "Visningsnavn"
+    override val heightLabel = "Højde (cm) — lad stå tom for Ikke angivet"
+    override val weightLabel = "Vægt (kg) — lad stå tom for Ikke angivet"
+    override val language = "Sprog"
+    override val englishLanguage = "Engelsk"
+    override val danishLanguage = "Dansk"
+    override val save = "Gem"
+    override val resetProfile = "Nulstil profil"
+    override val resetProfileTitle = "Nulstil profil?"
+    override val resetProfileMessage = "Dette nulstiller navn/højde/vægt. Træninger slettes IKKE."
+    override val reset = "Nulstil"
+    override val cancel = "Annuller"
+    override val heightMustBeNumber = "Højde skal være et tal."
+    override val weightMustBeNumber = "Vægt skal være et tal."
 }

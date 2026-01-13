@@ -13,5 +13,6 @@ data class User(
 
     val name: String,
     val height: Int,
-    val weight: Int
+    val weight: Int,
+    val language: String = "English"
 )
