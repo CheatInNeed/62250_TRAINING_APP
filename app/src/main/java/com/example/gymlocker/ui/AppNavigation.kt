@@ -23,7 +23,6 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
-import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 
 @Composable
@@ -75,15 +74,17 @@ fun AppNavigation() {
         }
 
         composable("home") {
-            val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel()
             HomeScreen(
                 navController = navController,
-                activeWorkoutViewModel = activeWorkoutViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
 
         composable("workout") {
-            WorkoutScreen(navController)
+            WorkoutScreen(
+                navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel
+            )
         }
 
         composable("activeWorkout") {
@@ -127,7 +128,8 @@ fun AppNavigation() {
             route = "workoutDetail/{workoutId}",
             arguments = listOf(navArgument("workoutId") { type = NavType.LongType })
         ) { backStackEntry ->
-            val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: 0L
+            val workoutId = backStackEntry.arguments?.getLong("workoutId") ?: return@composable
+
             WorkoutDetailScreen(
                 workoutId = workoutId,
                 navController = navController,

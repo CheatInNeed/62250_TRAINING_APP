@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.BottomAppBar
@@ -23,9 +24,8 @@ fun AppBottomBar(navController: NavController) {
     val selectedColor = MaterialTheme.colorScheme.primary
     val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
 
-    // "Home area" routes = highlight Home icon, even when not literally on "home"
-    val homeRoutes = setOf(
-        "home",
+    val homeRoutes = setOf("home")
+    val workoutRoutes = setOf(
         "workout",
         "activeWorkout",
         "createTemplate",
@@ -35,21 +35,21 @@ fun AppBottomBar(navController: NavController) {
     )
 
     val isProfileSelected = currentRoute == "profile"
-    val isHomeSelected = !isProfileSelected && (currentRoute in homeRoutes)
+    val isWorkoutSelected = !isProfileSelected && (currentRoute in workoutRoutes)
+    val isHomeSelected = !isProfileSelected && !isWorkoutSelected && (currentRoute in homeRoutes)
 
     BottomAppBar {
         Row(
             modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            // ✅ Always go to the actual Home screen when tapped (unless already there)
+            // HOME (venstre)
             IconButton(
                 onClick = {
                     if (currentRoute != "home") {
                         navController.navigate("home") {
                             launchSingleTop = true
                             restoreState = true
-                            // Pop back stack to home if it exists, otherwise just navigate
                             popUpTo("home") { inclusive = false }
                         }
                     }
@@ -62,6 +62,25 @@ fun AppBottomBar(navController: NavController) {
                 )
             }
 
+            // WORKOUT (midten)
+            IconButton(
+                onClick = {
+                    if (currentRoute != "workout") {
+                        navController.navigate("workout") {
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.FitnessCenter,
+                    contentDescription = "Workout",
+                    tint = if (isWorkoutSelected) selectedColor else unselectedColor
+                )
+            }
+
+            // PROFILE (højre)
             IconButton(
                 onClick = {
                     if (currentRoute != "profile") {

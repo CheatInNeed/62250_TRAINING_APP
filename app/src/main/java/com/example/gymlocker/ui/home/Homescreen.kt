@@ -109,21 +109,6 @@ fun HomeScreen(
         topBar = { TopAppBar(title = { Text("Home") }) },
         bottomBar = {
             Column {
-                Button(
-                    onClick = {
-                        if (isWorkoutInProgress) navController.navigate("activeWorkout")
-                        else navController.navigate("workout")
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    enabled = activeProfileUserId != null
-                ) {
-                    Text(if (isWorkoutInProgress) "Resume Workout" else "Start Workout")
-                }
-
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
                 AppBottomBar(navController)
             }
@@ -184,17 +169,12 @@ fun HomeScreen(
             .muscleGroupDistribution(userId)
             .collectAsState(initial = emptyList())
 
-        // Templates: only observe when we have an active profile
-        val templatesFlow = remember(userId) {
-            activeWorkoutViewModel.observeTemplates(userId)
-        }
-        val templates by templatesFlow.collectAsState(initial = emptyList())
-
         LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 Text(
@@ -207,29 +187,7 @@ fun HomeScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
-
-            // ✅ Removed the duplicate Start/Resume button that was in the list
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-
-            item {
-                Button(onClick = { navController.navigate("createTemplate") }) {
-                    Text("Opret nyt template")
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-
-            item {
-                TemplatesCard(templates) { templateId ->
-                    navController.navigate("templateDetail/$templateId")
-                }
-            }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
                 StatsCard(
@@ -240,8 +198,6 @@ fun HomeScreen(
                     onRangeChange = { statViewModel.setStatsRange(it) }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(16.dp)) }
 
             item {
                 CompletedWorkoutsCard(
@@ -470,7 +426,7 @@ fun TemplatesCard(
     }
 }
 
-@Preview(showBackground = true)
+/*@Preview(showBackground = true)
 @Composable
 fun HomeScreenPreview() {
     GymLockerTheme {
@@ -482,4 +438,4 @@ fun HomeScreenPreview() {
             activeWorkoutViewModel = activeWorkoutViewModel
         )
     }
-}
+}*/
