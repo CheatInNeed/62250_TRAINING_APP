@@ -18,6 +18,8 @@ fun AppRoot() {
     CompositionLocalProvider(
         LocalUserSettings provides settings
     ) {
-        AppNavigation()
+        com.example.gymlocker.ui.theme.GymLockerTheme {
+            AppNavigation()
+        }
     }
 }

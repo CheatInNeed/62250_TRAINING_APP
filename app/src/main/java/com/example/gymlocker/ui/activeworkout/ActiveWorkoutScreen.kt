@@ -262,10 +262,15 @@ fun ActiveWorkoutScreen(
         },
         bottomBar = {
             Column {
-                RestTimerBar(
-                    state = restTimer,
-                    onSkip = { viewModel.skipRestTimer() }
-                )
+                val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
+
+                if (restTimerEnabled) {
+                    RestTimerBar(
+                        state = restTimer,
+                        onSkip = { viewModel.skipRestTimer() }
+                    )
+                }
+
                 ActiveWorkoutBanner(navController, viewModel)
                 AppBottomBar(navController)
             }
@@ -464,11 +469,13 @@ fun ActiveWorkoutExerciseItem(
 
 
     val unit = LocalUserSettings.current.weightUnit
+    val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
 
-// Hent saved default rest for denne exercise (per user)
-    LaunchedEffect(exercise.exerciseId) {
-        restSeconds = viewModel.readDefaultRestSeconds(exerciseId = exercise.exerciseId)
-
+    // Hent saved default rest for denne exercise (per user)
+    LaunchedEffect(exercise.exerciseId, restTimerEnabled) {
+        restSeconds =
+            if (restTimerEnabled) viewModel.readDefaultRestSeconds(exerciseId = exercise.exerciseId)
+            else null
     }
 
     if (showDeleteConfirm) {
@@ -512,25 +519,30 @@ fun ActiveWorkoutExerciseItem(
                         )
                         .padding(vertical = 2.dp)
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .wrapContentWidth()
-                        .clickable { showRestDialog = true }
-                        .padding(top = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Timer,
-                        contentDescription = "Rest timer",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                if (restTimerEnabled) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .clickable { showRestDialog = true }
+                            .padding(top = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Timer,
+                            contentDescription = "Rest timer",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
 
-                    Text(
-                        text = "  Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        Text(
+                            text = "  Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {
+                    // Safety: if user disables while dialog is open
+                    if (showRestDialog) showRestDialog = false
                 }
             }
 

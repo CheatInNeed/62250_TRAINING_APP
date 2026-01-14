@@ -35,9 +35,7 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            GymLockerTheme {
-                AppRoot()
-            }
+            AppRoot()
         }
     }
 }
