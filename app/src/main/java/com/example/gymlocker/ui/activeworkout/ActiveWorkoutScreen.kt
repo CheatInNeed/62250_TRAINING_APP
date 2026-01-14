@@ -82,6 +82,8 @@ import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.onFocusChanged
@@ -235,36 +237,149 @@ fun ActiveWorkoutScreen(
         },
     )
 
+    // Lige før Scaffold: UI state til at åbne/lukke rest-timer baren
+    var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
+
+// Done/total sets til midten
+    val doneSets by remember(activeExercises) {
+        derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
+    }
+    val totalSets by remember(activeExercises) {
+        derivedStateOf { activeExercises.sumOf { it.sets.size }.coerceAtLeast(0) }
+    }
+
+    fun formatElapsedMmSs(seconds: Long): String {
+        val total = seconds.coerceAtLeast(0).toInt()
+        val m = total / 60
+        val s = total % 60
+        return "%d:%02d".format(m, s)
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Active Workout") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                if (workoutNameInput.isBlank()) {
-                                    workoutNameInput = viewModel.suggestDefaultWorkoutName()
+            // Custom AppBar container
+            var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
+
+            val doneSets by remember(activeExercises) {
+                derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
+            }
+            val totalSets by remember(activeExercises) {
+                derivedStateOf { activeExercises.sumOf { it.sets.size } }
+            }
+
+            val timeText = formatElapsedMmSs(elapsedTime)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                TopAppBar(
+                    title = { Text("Active Workout") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    if (workoutNameInput.isBlank()) {
+                                        workoutNameInput = viewModel.suggestDefaultWorkoutName()
+                                    }
+                                    showFinishSummarySheet = true
                                 }
-                                showFinishSummarySheet = true
-                            }
-                        },
-                        modifier = Modifier.padding(end = 8.dp),
-                        enabled = hasActiveProfile
-                    ) { Text("Finish") }
+                            },
+                            modifier = Modifier.padding(end = 8.dp),
+                            enabled = hasActiveProfile
+                        ) { Text("Finish") }
+                    }
+                )
+
+                // ✅ Locked 3-column metrics row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // LEFT (timer)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { restTimerExpanded = !restTimerExpanded },
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.AccessTime,
+                                contentDescription = "Timer",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = timeText, // fx 0:29
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    // CENTER (sets)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Sets progress",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "$doneSets / $totalSets",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    // RIGHT (volume)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.FitnessCenter,
+                                contentDescription = "Volume",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "$totalVolumeText ${weightUnitLabel(unit)}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
                 }
-            )
+
+                // ✅ Edge-to-edge progress bar (no padding)
+                LinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color(0xFFE0E0E0)
+                )
+            }
         },
         bottomBar = {
             Column {
                 val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
 
-                if (restTimerEnabled) {
+                if (restTimerEnabled && restTimerExpanded) {
                     RestTimerBar(
                         state = restTimer,
                         onSkip = { viewModel.skipRestTimer() }
@@ -320,21 +435,11 @@ fun ActiveWorkoutScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                    .fillMaxWidth(),
+                    //.padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Timer: ${viewModel.formatTime(elapsedTime)}")
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    progress = progress
-                )
-                Text(
-                    text = "Total volume: $totalVolumeText ${weightUnitLabel(unit)}",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                //Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (activeExercises.isEmpty()) {
@@ -861,6 +966,15 @@ fun DiscardWorkoutButton(
         Text("Discard workout")
     }
 }
+
+private fun formatVolumeCompact(value: Int): String {
+    return when {
+        value >= 1_000_000 -> String.format("%.1ft", value / 1_000_000f) // 1t = 1000kg -> her er det "kg-reps", så det er bare compact visning
+        value >= 10_000 -> String.format("%.1fk", value / 1_000f)
+        else -> value.toString()
+    }
+}
+
 
 private fun defaultWorkoutName(): String {
     // Super simpelt “smart default” uden at ændre ViewModel
