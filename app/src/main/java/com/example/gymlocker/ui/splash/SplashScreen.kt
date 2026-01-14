@@ -112,7 +112,7 @@ fun SplashScreen(
                 .padding(24.dp)
         ) {
             Image(
-                painter = painterResource(id = R.drawable.gymlocker_logo),
+                painter = painterResource(id = R.drawable.gymlocker_logo_new_transparent),
                 contentDescription = "GymLocker logo",
                 modifier = Modifier.size(360.dp)
             )
