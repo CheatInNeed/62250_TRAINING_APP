@@ -109,6 +109,30 @@ fun SettingsScreen(
                     )
                 }
             }
+            Spacer(Modifier.height(16.dp))
+
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Enable rest timer")
+                    Text(
+                        text = if (restTimerEnabled) "Rest countdown shows after completing sets"
+                        else "No rest countdown will appear or start",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+
+                Switch(
+                    checked = restTimerEnabled,
+                    onCheckedChange = { restTimerEnabled = it }
+                )
+            }
+        }
 
             Button(
                 onClick = {
@@ -127,37 +151,8 @@ fun SettingsScreen(
                 Text("Save")
             }
         }
-        Spacer(Modifier.height(16.dp))
-
-        Text(
-            text = "Rest timer",
-            style = MaterialTheme.typography.titleMedium
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Enable rest timer")
-                Text(
-                    text = if (restTimerEnabled) "Rest countdown shows after completing sets"
-                    else "No rest countdown will appear or start",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-
-            Switch(
-                checked = restTimerEnabled,
-                onCheckedChange = { restTimerEnabled = it }
-            )
-        }
     }
-}
+
 
 @Composable
 private fun UnitChoiceRow(
