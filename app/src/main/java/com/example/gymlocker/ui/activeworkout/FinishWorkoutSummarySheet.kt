@@ -48,7 +48,6 @@ fun FinishWorkoutSummarySheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
-        // ✅ Box så vi kan “pinne” slideren nederst
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,11 +134,9 @@ fun FinishWorkoutSummarySheet(
                     style = MaterialTheme.typography.bodyLarge
                 )
 
-                // ✅ plads til slideren, så den ikke overlapper tekst
                 Spacer(Modifier.height(90.dp))
             }
 
-            // ✅ Slider pinned bottom-center ~2cm from bottom
             SlideToFinish(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -154,15 +151,14 @@ fun FinishWorkoutSummarySheet(
 
                     onSave(workoutName.trim(), markUnfinishedAsDone)
 
-                    showSuccess = true
-                    kotlinx.coroutines.delay(1000)
-                    showSuccess = false
+                    //showSuccess = true
+                    //kotlinx.coroutines.delay(1000)
+                    //showSuccess = false
 
                     onDismiss()
                 }
             )
 
-            // ✅ Single success overlay (du havde den dobbelt før)
             if (showSuccess) {
                 Box(
                     modifier = Modifier

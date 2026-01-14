@@ -174,26 +174,28 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onDismiss = { showFinishSummarySheet = false },
+        onDismiss = {
+            showFinishSummarySheet = false
+            navController.navigate("home") {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+                launchSingleTop = true
+            }
+        },
 
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
         workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,
-
         onMarkUnfinishedAsDone = { viewModel.markAllUnfinishedMeaningfulSetsDone() },
         onSave = { name, markUnfinishedAsDone ->
             if (markUnfinishedAsDone) {
                 viewModel.markAllUnfinishedMeaningfulSetsDone()
             }
-
             viewModel.finishWorkoutWithName(name)
-
-            showFinishSummarySheet = false
-            navController.popBackUnlessAtRoot()
-            navController.popBackUnlessAtRoot()
-        }
+        },
     )
 
     Scaffold(
