@@ -159,7 +159,7 @@ fun TemplateDetailScreen(
                             val profileId = activeProfileUserId ?: return@IconButton
 
                             val dateString =
-                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
                                     .format(Date())
 
                             activeWorkoutViewModel.startWorkoutFromTemplate(
