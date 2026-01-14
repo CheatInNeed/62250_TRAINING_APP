@@ -173,7 +173,10 @@ fun WorkoutDetailScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text("Set ${set.setNumber}", style = MaterialTheme.typography.bodyMedium)
-                                    Text("${set.weight} kg x ${set.reps}", style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        text = if (set.isCompleted) "${set.weight} kg x ${set.reps}" else "${set.weight} kg x ${set.reps} (skipped)",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
                                 }
                             }
                         }
