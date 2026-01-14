@@ -177,7 +177,7 @@ fun ActiveWorkoutScreen(
         onDismiss = { showFinishSummarySheet = false },
 
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
-        workoutDurationText = "Varighed: ${viewModel.formatTime(elapsedTime)}",
+        workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,

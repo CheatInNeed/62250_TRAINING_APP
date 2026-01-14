@@ -57,7 +57,7 @@ fun FinishWorkoutSummarySheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text("Fortryd")
+                    Text("Resume")
                 }
 
                 Button(
@@ -69,14 +69,14 @@ fun FinishWorkoutSummarySheet(
                     },
                     enabled = !blank && !tooLong
                 ) {
-                    Text("Gem træning", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Finish Workout", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
 
-            Text(
-                text = "Opsummering",
+            /*Text(
+                text = "Summary",
                 style = MaterialTheme.typography.headlineSmall
-            )
+            )*/
 
             Spacer(Modifier.height(16.dp))
 
@@ -90,7 +90,7 @@ fun FinishWorkoutSummarySheet(
                 isError = blank || tooLong,
                 supportingText = {
                     when {
-                        blank -> Text("Navn kan ikke være tomt.")
+                        blank -> Text("Name cannot be empty")
                         tooLong -> Text("Max $maxNameLength tegn.")
                         else -> Text("${trimmed.length} / $maxNameLength")
                     }
@@ -107,7 +107,7 @@ fun FinishWorkoutSummarySheet(
             Spacer(Modifier.height(6.dp))
 
             if (unfinishedMeaningfulSetCount > 0) {
-                Text("Du har $unfinishedMeaningfulSetCount uafsluttede sæt.")
+                Text("You have $unfinishedMeaningfulSetCount unfinished sets.")
                 Spacer(Modifier.height(8.dp))
 
                 Row(
@@ -119,17 +119,17 @@ fun FinishWorkoutSummarySheet(
                         onCheckedChange = { markUnfinishedAsDone = it }
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Marker uafsluttede sæt som færdige")
+                    Text("Mark all sets as done")
                 }
             } else {
-                Text("Ingen uafsluttede sæt.")
+                Text("No unfinished sets.")
             }
 
             Spacer(Modifier.height(16.dp))
 
             // Duration (nudging if under 1 min)
             Text(
-                text = "Varighed",
+                text = "Duration",
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(Modifier.height(6.dp))
