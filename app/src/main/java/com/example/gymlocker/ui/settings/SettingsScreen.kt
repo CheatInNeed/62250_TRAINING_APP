@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.data.auth.SessionManager
+import com.example.gymlocker.data.entity.AppTheme
 import com.example.gymlocker.data.entity.WeightUnit
 import com.example.gymlocker.data.repo.SettingsRepository
 import kotlinx.coroutines.launch
@@ -62,6 +63,27 @@ fun SettingsScreen(
         mutableStateOf(currentSettings.weightUnit)
     }
 
+    var forceDarkMode by remember(currentSettings.userId, currentSettings.forceDarkMode) {
+        mutableStateOf(currentSettings.forceDarkMode)
+    }
+
+    var restTimerEnabled by remember(currentSettings.userId, currentSettings.restTimerEnabled) {
+        mutableStateOf(currentSettings.restTimerEnabled)
+    }
+    val themeOptions = listOf(
+        AppTheme.DEFAULT to "Default (matches system)",
+        AppTheme.RED to "Red",
+        AppTheme.BLUE to "Blue",
+        AppTheme.GREEN to "Green",
+        AppTheme.MATRIX to "Welcome to the Matrix™"
+    )
+
+    var selectedTheme by remember(currentSettings.userId, currentSettings.appTheme) {
+        mutableStateOf(currentSettings.appTheme)
+    }
+
+    var expanded by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -83,6 +105,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
+            // --- Units ---
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Units", style = MaterialTheme.typography.titleMedium)
@@ -106,10 +129,106 @@ fun SettingsScreen(
                 }
             }
 
+            // --- Rest timer ---
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Enable rest timer", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = if (restTimerEnabled) "Rest countdown shows after completing sets"
+                            else "No rest countdown will appear or start",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    Switch(
+                        checked = restTimerEnabled,
+                        onCheckedChange = { restTimerEnabled = it }
+                    )
+                }
+            }
+
+            // --- Dark mode ---
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Force dark mode", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Always use dark theme (ignores system).",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    Switch(
+                        checked = forceDarkMode,
+                        onCheckedChange = { forceDarkMode = it }
+                    )
+                }
+            }
+            Column(Modifier.padding(16.dp)) {
+                Text("Choose theme", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        value = themeOptions.first { it.first == selectedTheme }.second,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) }
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        themeOptions.forEach { (theme, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    selectedTheme = theme
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
             Button(
                 onClick = {
                     scope.launch {
-                        repo.updateForActive { it.copy(weightUnit = selectedUnit) }
+                        repo.updateForActive {
+                            it.copy(
+                                weightUnit = selectedUnit,
+                                restTimerEnabled = restTimerEnabled,
+                                forceDarkMode = forceDarkMode,
+                                appTheme = selectedTheme
+                            )
+                        }
                         navController.popBackStack()
                     }
                 },
@@ -120,6 +239,8 @@ fun SettingsScreen(
         }
     }
 }
+
+
 
 @Composable
 private fun UnitChoiceRow(
