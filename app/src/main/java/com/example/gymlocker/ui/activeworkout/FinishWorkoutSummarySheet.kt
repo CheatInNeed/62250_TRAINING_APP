@@ -14,7 +14,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun FinishWorkoutSummarySheet(
     visible: Boolean,
-    onDismiss: () -> Unit,
+    onCancel: () -> Unit,
+    onFinished: () -> Unit,
 
     // Data
     initialWorkoutName: String,
@@ -45,7 +46,7 @@ fun FinishWorkoutSummarySheet(
     val canSave = !blank && !tooLong
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onCancel,
         sheetState = sheetState,
     ) {
         Box(
@@ -66,7 +67,7 @@ fun FinishWorkoutSummarySheet(
                         .padding(top = 4.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = onCancel) {
                         Text("Resume")
                     }
                 }
@@ -145,17 +146,8 @@ fun FinishWorkoutSummarySheet(
                 enabled = canSave,
                 text = "Slide to finish",
                 onFinished = {
-                    if (markUnfinishedAsDone) {
-                        onMarkUnfinishedAsDone()
-                    }
-
                     onSave(workoutName.trim(), markUnfinishedAsDone)
-
-                    //showSuccess = true
-                    //kotlinx.coroutines.delay(1000)
-                    //showSuccess = false
-
-                    onDismiss()
+                    onFinished()
                 }
             )
 

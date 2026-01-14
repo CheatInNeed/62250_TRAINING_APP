@@ -9,28 +9,29 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.data.auth.HeightUnit
-import com.example.gymlocker.data.auth.WeightUnit
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
-import java.util.Locale
-import kotlin.math.floor
-import kotlin.math.roundToInt
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Text
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,10 +55,6 @@ fun ProfileScreen(
     val profiles by profileViewModel.profiles.collectAsState()
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
     val activeProfile by profileViewModel.activeProfile.collectAsState()
-
-    // ✅ IMPORTANT: give initial values so types are stable
-    val weightUnit by profileViewModel.weightUnit.collectAsState(initial = WeightUnit.KG)
-    val heightUnit by profileViewModel.heightUnit.collectAsState(initial = HeightUnit.CM)
 
     // Delete dialog state
     var deleteTargetUserId by remember { mutableStateOf<Long?>(null) }
@@ -93,6 +90,7 @@ fun ProfileScreen(
         )
     }
 
+    // Suggestion: show error dialog
     if (errorMsg != null) {
         AlertDialog(
             onDismissRequest = { errorMsg = null },
@@ -112,6 +110,14 @@ fun ProfileScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    IconButton(onClick = { navController.navigate("settings") }) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings"
+                        )
+                    }
                 }
             )
         },
@@ -129,10 +135,18 @@ fun ProfileScreen(
                 .padding(20.dp)
         ) {
 
-            // ✅ Active profile card
+            // ✅ Fixed header: Active profile details + edit entry
             activeProfile?.let { p ->
-                val heightText = formatHeight(p.height, heightUnit)
-                val weightText = formatWeight(p.weight, weightUnit)
+                val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                val settings = LocalUserSettings.current
+                val unit = settings.weightUnit
+
+                val weightText =
+                    if (p.weight == 0) "Not set"
+                    else {
+                        val shown = displayWeightFromKg(p.weight.toDouble(), unit)
+                        "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
+                    }
 
                 Card(
                     modifier = Modifier
@@ -153,89 +167,6 @@ fun ProfileScreen(
                         ) { Text("Edit profile") }
                     }
                 }
-
-                // ✅ Units selector card
-                // ✅ Units selector card (collapsible + compact)
-                var unitsExpanded by remember { mutableStateOf(false) }
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-
-                        // Header row (always visible)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { unitsExpanded = !unitsExpanded },
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Units", style = MaterialTheme.typography.titleMedium)
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    text = "Weight: ${weightUnit.label()}  •  Height: ${heightUnit.label()}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline
-                                )
-                            }
-
-                            Icon(
-                                imageVector = if (unitsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                contentDescription = if (unitsExpanded) "Collapse" else "Expand"
-                            )
-                        }
-
-                        AnimatedVisibility(
-                            visible = unitsExpanded,
-                            enter = fadeIn(tween(120)) + expandVertically(tween(180)),
-                            exit = fadeOut(tween(120)) + shrinkVertically(tween(180))
-                        ) {
-                            Column(modifier = Modifier.padding(top = 12.dp)) {
-
-                                Text("Weight", style = MaterialTheme.typography.bodyMedium)
-                                Spacer(Modifier.height(8.dp))
-
-                                // Modern compact toggle
-                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                    SegmentedButton(
-                                        selected = weightUnit == WeightUnit.KG,
-                                        onClick = { profileViewModel.setWeightUnit(WeightUnit.KG) },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                                    ) { Text("kg") }
-
-                                    SegmentedButton(
-                                        selected = weightUnit == WeightUnit.LB,
-                                        onClick = { profileViewModel.setWeightUnit(WeightUnit.LB) },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                                    ) { Text("lb") }
-                                }
-
-                                Spacer(Modifier.height(14.dp))
-
-                                Text("Height", style = MaterialTheme.typography.bodyMedium)
-                                Spacer(Modifier.height(8.dp))
-
-                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                    SegmentedButton(
-                                        selected = heightUnit == HeightUnit.CM,
-                                        onClick = { profileViewModel.setHeightUnit(HeightUnit.CM) },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                                    ) { Text("cm") }
-
-                                    SegmentedButton(
-                                        selected = heightUnit == HeightUnit.FT_IN,
-                                        onClick = { profileViewModel.setHeightUnit(HeightUnit.FT_IN) },
-                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                                    ) { Text("ft-in") }
-                                }
-                            }
-                        }
-                    }
-                }
-
             }
 
             Text(
@@ -244,7 +175,10 @@ fun ProfileScreen(
             )
             Spacer(Modifier.height(8.dp))
 
+            // ✅ Scrollable area: list + empty state + create + logout
+            // Use weight(1f) so only this part scrolls.
             if (profiles.isEmpty()) {
+                // If empty, we don't need a LazyColumn; keep it simple and centered-ish.
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -284,8 +218,8 @@ fun ProfileScreen(
                 ) {
                     items(profiles, key = { it.userId }) { p ->
                         val isActive = p.userId == activeProfileUserId
-                        val heightText = formatHeight(p.height, heightUnit)
-                        val weightText = formatWeight(p.weight, weightUnit)
+                        val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
+                        val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
 
                         Card(
                             modifier = Modifier
@@ -344,41 +278,3 @@ fun ProfileScreen(
         }
     }
 }
-
-private fun formatWeight(kg: Int, unit: WeightUnit): String {
-    if (kg == 0) return "Not set"
-    return when (unit) {
-        WeightUnit.KG -> "$kg kg"
-        WeightUnit.LB -> {
-            val lb = kg * 2.2046226218
-            val text = String.format(Locale.US, "%.1f", lb)
-                .removeSuffix(".0") // removes trailing .0 for whole numbers
-            "$text lb"
-        }
-    }
-}
-
-private fun formatHeight(cm: Int, unit: HeightUnit): String {
-    if (cm == 0) return "Not set"
-    return when (unit) {
-        HeightUnit.CM -> "$cm cm"
-        HeightUnit.FT_IN -> {
-            val totalInches = cm / 2.54
-            var feet = floor(totalInches / 12.0).toInt()
-            var inches = (totalInches - feet * 12.0).roundToInt()
-            if (inches == 12) { feet += 1; inches = 0 }
-            "$feet' $inches\""
-        }
-    }
-}
-
-private fun WeightUnit.label(): String = when (this) {
-    WeightUnit.KG -> "kg"
-    WeightUnit.LB -> "lb"
-}
-
-private fun HeightUnit.label(): String = when (this) {
-    HeightUnit.CM -> "cm"
-    HeightUnit.FT_IN -> "ft-in"
-}
-

@@ -75,6 +75,23 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
+import kotlin.math.roundToInt
+
+
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
@@ -102,8 +119,12 @@ fun ActiveWorkoutScreen(
     var cursorPosition by remember { mutableStateOf<CursorPosition?>(null) }
     val listState = rememberLazyListState()
 
+    val scope = rememberCoroutineScope()
+
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
+
+    val unit = LocalUserSettings.current.weightUnit
 
     // ✅ Live validation state for name length
     val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
@@ -117,21 +138,32 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    val totalVolume by remember(activeExercises) {
+    // Always compute volume in storage units (kg * reps)
+    val totalVolumeKg by remember(activeExercises) {
         derivedStateOf {
             activeExercises.sumOf { ex ->
                 ex.sets
                     .asSequence()
                     .filter { it.isDone }
-                    .sumOf { it.weight.toDouble() * it.reps.toDouble() }
+                    .sumOf { set ->
+                        set.weight.toDouble() * set.reps.toDouble()
+                    }
             }
         }
     }
 
-    val totalVolumeText = remember(totalVolume) {
-        if (totalVolume % 1.0 == 0.0) totalVolume.toLong().toString()
-        else String.format("%.2f", totalVolume)
+// Convert the total to the selected unit (same scalar factor as weight conversion)
+    val totalVolumeShown by remember(totalVolumeKg, unit) {
+        derivedStateOf {
+            displayWeightFromKg(totalVolumeKg, unit)
+        }
     }
+
+// Round for display (matches how you show weights elsewhere)
+    val totalVolumeText = remember(totalVolumeShown, unit) {
+        totalVolumeShown.roundToInt().toString()
+    }
+
 
     // ✅ Only start the timer if a profile exists.
     LaunchedEffect(hasActiveProfile) {
@@ -190,16 +222,17 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onDismiss = {
+        onCancel = {
+            showFinishSummarySheet = false
+        },
+
+        onFinished = {
             showFinishSummarySheet = false
             navController.navigate("home") {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 launchSingleTop = true
             }
         },
-
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
         workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
@@ -231,11 +264,12 @@ fun ActiveWorkoutScreen(
 
                     Button(
                         onClick = {
-                            // Smart default name (kun når man åbner sheetet)
-                            if (workoutNameInput.isBlank()) {
-                                workoutNameInput = defaultWorkoutName()
+                            scope.launch {
+                                if (workoutNameInput.isBlank()) {
+                                    workoutNameInput = viewModel.suggestDefaultWorkoutName()
+                                }
+                                showFinishSummarySheet = true
                             }
-                            showFinishSummarySheet = true
                         },
                         modifier = Modifier.padding(end = 8.dp),
                         enabled = hasActiveProfile
@@ -461,7 +495,7 @@ fun ActiveWorkoutScreen(
                     progress = progress
                 )
                 Text(
-                    text = "Total volume: $totalVolumeText kg",
+                    text = "Total volume: $totalVolumeText ${weightUnitLabel(unit)}",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -563,6 +597,9 @@ fun ActiveWorkoutExerciseItem(
 
     var showRestDialog by remember { mutableStateOf(false) }
     var restSeconds by remember(exercise.exerciseId) { mutableStateOf<Int?>(null) }
+
+
+    val unit = LocalUserSettings.current.weightUnit
 
 // Hent saved default rest for denne exercise (per user)
     LaunchedEffect(exercise.exerciseId) {
@@ -686,7 +723,7 @@ fun ActiveWorkoutExerciseItem(
         ) {
             Text("SET", modifier = Modifier.weight(0.5f))
             Text("PREVIOUS", modifier = Modifier.weight(1f))
-            Text("KG", modifier = Modifier.weight(0.7f))
+            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f))
             Text("REPS", modifier = Modifier.weight(0.7f))
             Text("✓", modifier = Modifier.weight(0.4f))
         }
@@ -811,6 +848,20 @@ fun ExerciseSetRow(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
     }
+    val unit = LocalUserSettings.current.weightUnit
+
+// IMPORTANT: keep an editable string while focused; don't overwrite on every recomposition
+    var isWeightFocused by remember { mutableStateOf(false) }
+    var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
+
+// When NOT editing, sync display from canonical stored kg value
+    LaunchedEffect(set.weight, unit) {
+        if (!isWeightFocused) {
+            weightText =
+                if (set.weight == 0) ""
+                else formatWeight(displayWeightFromKg(set.weight.toDouble(), unit), decimals = 0)
+        }
+    }
 
     Row(
         modifier = rowModifier,
@@ -827,7 +878,6 @@ fun ExerciseSetRow(
             textAlign = TextAlign.Center
         )
 
-        // Weight field
         Box(
             modifier = Modifier
                 .weight(0.9f)
@@ -844,11 +894,21 @@ fun ExerciseSetRow(
             contentAlignment = Alignment.Center
         ) {
             TextField(
-                value = if (set.weight == 0) "" else set.weight.toString(),
-                onValueChange = onWeightChange,
+                value = weightText,
+                onValueChange = { newText ->
+                    // allow empty OR digits only (matches your Int storage)
+                    if (newText.isEmpty() || newText.all { it.isDigit() }) {
+                        weightText = newText
+                        onWeightChange(newText)
+                    }
+                },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier
+                    .fillMaxWidth(.9f)
+                    .onFocusChanged { isWeightFocused = it.isFocused },
                 placeholder = { Text("–") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = if (selectedField == FieldType.WEIGHT)
                         selectedBorderColor.copy(alpha = selectedAlpha)
@@ -870,7 +930,6 @@ fun ExerciseSetRow(
             )
         }
 
-        // Reps field
         Box(
             modifier = Modifier
                 .weight(0.9f)

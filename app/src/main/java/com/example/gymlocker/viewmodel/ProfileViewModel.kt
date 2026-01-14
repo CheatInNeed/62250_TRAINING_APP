@@ -178,6 +178,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
             db.withTransaction {
                 // 1) manual cleanup (no FK)
                 restPrefDao.deleteAllForUser(userIdToDelete)
+                db.userSettingsDao().deleteForUser(userIdToDelete)
 
                 // 2) delete the user (cascades handle workouts/templates + children)
                 userDao.deleteById(userIdToDelete)

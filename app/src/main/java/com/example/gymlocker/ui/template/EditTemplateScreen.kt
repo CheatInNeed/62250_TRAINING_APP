@@ -36,6 +36,8 @@ import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.EditTemplateViewModel
+import com.example.gymlocker.ui.settings.LocalUserSettings
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +56,9 @@ fun EditTemplateScreen(
     val isSaving by viewModel.isSaving.collectAsState()
 
     val maxLen = EditTemplateViewModel.MAX_TEMPLATE_NAME_LENGTH
+
+
+    val unit = LocalUserSettings.current.weightUnit
 
     Scaffold(
         topBar = {
@@ -143,7 +148,7 @@ fun EditTemplateScreen(
                                 exercise = exercise,
                                 onAddSet = { viewModel.addSet(exercise.exerciseId) },
                                 onWeightChange = { setNumber, text ->
-                                    viewModel.updateSetWeight(exercise.exerciseId, setNumber, text)
+                                    viewModel.updateSetWeight(exercise.exerciseId, setNumber, text, unit)
                                 },
                                 onRepsChange = { setNumber, text ->
                                     viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
