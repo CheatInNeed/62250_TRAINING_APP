@@ -182,6 +182,7 @@ fun ActiveWorkoutScreen(
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,
 
+        onMarkUnfinishedAsDone = { viewModel.markAllUnfinishedMeaningfulSetsDone() },
         onSave = { name, markUnfinishedAsDone ->
             if (markUnfinishedAsDone) {
                 viewModel.markAllUnfinishedMeaningfulSetsDone()
