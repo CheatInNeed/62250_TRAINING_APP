@@ -36,6 +36,7 @@ import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
+import java.time.LocalTime
 
 
 // Ét sæt (1 række i tabellen)
@@ -105,6 +106,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     private var timerJob: Job? = null
     private var currentWorkoutId: Long? = null
     private val workoutCreateMutex = Mutex()
+    private val workoutWriteMutex = Mutex()
 
     private val _elapsedTime = MutableStateFlow(0L)
     val elapsedTime: StateFlow<Long> = _elapsedTime.asStateFlow()
@@ -471,23 +473,24 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
 
         viewModelScope.launch {
-            val workoutId = ensureWorkoutExists() ?: return@launch
+            workoutWriteMutex.withLock {
+                val workoutId = ensureWorkoutExists() ?: return@withLock
 
-            snapshot.forEach { ex ->
-                val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
+                snapshot.forEach { ex ->
+                    val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
 
-                // Kun upsert de sæt der var unfinished
-                ex.sets
-                    .filter { it.weight > 0 && it.reps > 0 && !it.isDone }
-                    .forEach { s ->
-                        performedSetDao.upsertByNumber(
-                            exerciseLogId = logId,
-                            setNumber = s.setNumber,
-                            weight = s.weight.toFloat(),
-                            reps = s.reps,
-                            isCompleted = true
-                        )
-                    }
+                    ex.sets
+                        .filter { it.weight > 0 && it.reps > 0 && !it.isDone }
+                        .forEach { s ->
+                            performedSetDao.upsertByNumber(
+                                exerciseLogId = logId,
+                                setNumber = s.setNumber,
+                                weight = s.weight.toFloat(),
+                                reps = s.reps,
+                                isCompleted = true
+                            )
+                        }
+                }
             }
         }
     }
@@ -531,66 +534,72 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
     fun finishWorkout() {
         viewModelScope.launch {
-            val workoutId = currentWorkoutId
-
-            if (workoutId == null) {
-                resetLocalState()
-                return@launch
+            workoutWriteMutex.withLock {
+                finishWorkoutInternal()
             }
-
-            val snapshot = _activeExercises.value
-
-            snapshot.forEach { ex ->
-                val sets = meaningfulSets(ex)
-
-                if (sets.isEmpty()) {
-                    exerciseLogDao.getLogId(workoutId, ex.exerciseId)?.let { logId ->
-                        performedSetDao.deleteSetsForLog(logId)
-                        exerciseLogDao.deleteById(logId)
-                    }
-                    return@forEach
-                }
-
-                val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
-
-                performedSetDao.deleteSetsForLog(logId)
-                sets.forEach { s ->
-                    performedSetDao.insert(
-                        PerformedSet(
-                            exerciseLogId = logId,
-                            setNumber = s.setNumber,
-                            weight = s.weight.toFloat(),
-                            reps = s.reps,
-                            isCompleted = s.isDone
-                        )
-                    )
-                }
-            }
-
-            // ✅ store workout duration (seconds)
-            workoutDao.updateWorkoutTime(workoutId, _elapsedTime.value)
-
-            resetLocalState()
         }
+    }
+
+    private suspend fun finishWorkoutInternal() {
+        val workoutId = currentWorkoutId
+
+        if (workoutId == null) {
+            resetLocalState()
+            return
+        }
+
+        val snapshot = _activeExercises.value
+
+        snapshot.forEach { ex ->
+            val sets = meaningfulSets(ex)
+
+            if (sets.isEmpty()) {
+                exerciseLogDao.getLogId(workoutId, ex.exerciseId)?.let { logId ->
+                    performedSetDao.deleteSetsForLog(logId)
+                    exerciseLogDao.deleteById(logId)
+                }
+                return@forEach
+            }
+
+            val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
+
+            performedSetDao.deleteSetsForLog(logId)
+            sets.forEach { s ->
+                performedSetDao.insert(
+                    PerformedSet(
+                        exerciseLogId = logId,
+                        setNumber = s.setNumber,
+                        weight = s.weight.toFloat(),
+                        reps = s.reps,
+                        isCompleted = s.isDone
+                    )
+                )
+            }
+        }
+
+        workoutDao.updateWorkoutTime(workoutId, _elapsedTime.value)
+        resetLocalState()
     }
 
     fun finishWorkoutWithName(baseName: String) {
         viewModelScope.launch {
-            val workoutId = currentWorkoutId ?: run {
-                finishWorkout()
-                return@launch
-            }
-
-            val userId = requireActiveProfileUserIdOrNull()
-                ?: run {
-                    finishWorkout()
-                    return@launch
+            workoutWriteMutex.withLock {
+                val workoutId = currentWorkoutId ?: run {
+                    finishWorkoutInternal()
+                    return@withLock
                 }
 
-            val finalName = makeUniqueWorkoutName(userId = userId, baseName = baseName.trim())
-            workoutDao.updateWorkoutName(workoutId, finalName)
+                val userId = requireActiveProfileUserIdOrNull()
+                    ?: run {
+                        finishWorkoutInternal()
+                        return@withLock
+                    }
 
-            finishWorkout()
+                val finalName = makeUniqueWorkoutName(userId = userId, baseName = baseName.trim())
+                workoutDao.updateWorkoutName(workoutId, finalName)
+
+                finishWorkoutInternal()
+            }
         }
     }
 
@@ -931,6 +940,34 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
      */
     private suspend fun requireActiveProfileUserIdOrNull(): Long? {
         return session.activeProfileUserId.firstOrNull()
+    }
+
+    // Workout name suggestion
+
+    suspend fun suggestDefaultWorkoutName(): String {
+        // sørger for at workout findes, så vi kan læse navnet
+        val workoutId = ensureWorkoutExists() ?: return timeOfDayWorkoutName()
+
+        val currentName = workoutDao.getWorkoutNameById(workoutId).orEmpty().trim()
+
+        val looksAutoGenerated = currentName.matches(
+            Regex("""^Workout \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$""")
+        )
+
+        return if (!looksAutoGenerated && currentName.isNotBlank()) {
+            currentName
+        } else {
+            timeOfDayWorkoutName()
+        }
+    }
+    private fun timeOfDayWorkoutName(now: LocalTime = LocalTime.now()): String {
+        val h = now.hour
+        return when (h) {
+            in 5..11 -> "Morning workout"
+            in 12..16 -> "Afternoon workout"
+            in 17..20 -> "Evening workout"
+            else -> "Night workout"
+        }
     }
 
     // ----------------------------

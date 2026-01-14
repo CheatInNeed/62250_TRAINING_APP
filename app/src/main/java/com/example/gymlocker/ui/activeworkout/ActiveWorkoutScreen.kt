@@ -72,6 +72,8 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
@@ -93,6 +95,8 @@ fun ActiveWorkoutScreen(
     //finish sheet
     var showFinishSummarySheet by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope()
 
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
@@ -174,16 +178,17 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onDismiss = {
+        onCancel = {
+            showFinishSummarySheet = false
+        },
+
+        onFinished = {
             showFinishSummarySheet = false
             navController.navigate("home") {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 launchSingleTop = true
             }
         },
-
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
         workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
@@ -215,11 +220,12 @@ fun ActiveWorkoutScreen(
 
                     Button(
                         onClick = {
-                            // Smart default name (kun når man åbner sheetet)
-                            if (workoutNameInput.isBlank()) {
-                                workoutNameInput = defaultWorkoutName()
+                            scope.launch {
+                                if (workoutNameInput.isBlank()) {
+                                    workoutNameInput = viewModel.suggestDefaultWorkoutName()
+                                }
+                                showFinishSummarySheet = true
                             }
-                            showFinishSummarySheet = true
                         },
                         modifier = Modifier.padding(end = 8.dp),
                         enabled = hasActiveProfile
