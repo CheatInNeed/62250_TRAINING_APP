@@ -461,6 +461,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     fun markAllUnfinishedMeaningfulSetsDone() {
         val snapshot = _activeExercises.value
 
+        // Kun markér dem der faktisk er unfinished
         _activeExercises.value = snapshot.map { ex ->
             ex.copy(
                 sets = ex.sets.map { s ->
@@ -471,9 +472,11 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
         viewModelScope.launch {
             val workoutId = ensureWorkoutExists() ?: return@launch
+
             snapshot.forEach { ex ->
                 val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
 
+                // Kun upsert de sæt der var unfinished
                 ex.sets
                     .filter { it.weight > 0 && it.reps > 0 && !it.isDone }
                     .forEach { s ->
