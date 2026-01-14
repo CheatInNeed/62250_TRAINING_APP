@@ -9,6 +9,14 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -147,46 +155,87 @@ fun ProfileScreen(
                 }
 
                 // ✅ Units selector card
+                // ✅ Units selector card (collapsible + compact)
+                var unitsExpanded by remember { mutableStateOf(false) }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 14.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text("Units", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(10.dp))
 
-                        Text("Weight", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { profileViewModel.setWeightUnit(WeightUnit.KG) },
-                                enabled = weightUnit != WeightUnit.KG
-                            ) { Text("kg") }
+                        // Header row (always visible)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { unitsExpanded = !unitsExpanded },
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Units", style = MaterialTheme.typography.titleMedium)
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = "Weight: ${weightUnit.label()}  •  Height: ${heightUnit.label()}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
 
-                            OutlinedButton(
-                                onClick = { profileViewModel.setWeightUnit(WeightUnit.LB) },
-                                enabled = weightUnit != WeightUnit.LB
-                            ) { Text("lb") }
+                            Icon(
+                                imageVector = if (unitsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                contentDescription = if (unitsExpanded) "Collapse" else "Expand"
+                            )
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        AnimatedVisibility(
+                            visible = unitsExpanded,
+                            enter = fadeIn(tween(120)) + expandVertically(tween(180)),
+                            exit = fadeOut(tween(120)) + shrinkVertically(tween(180))
+                        ) {
+                            Column(modifier = Modifier.padding(top = 12.dp)) {
 
-                        Text("Height", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(Modifier.height(6.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { profileViewModel.setHeightUnit(HeightUnit.CM) },
-                                enabled = heightUnit != HeightUnit.CM
-                            ) { Text("cm") }
+                                Text("Weight", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.height(8.dp))
 
-                            OutlinedButton(
-                                onClick = { profileViewModel.setHeightUnit(HeightUnit.FT_IN) },
-                                enabled = heightUnit != HeightUnit.FT_IN
-                            ) { Text("ft-in") }
+                                // Modern compact toggle
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    SegmentedButton(
+                                        selected = weightUnit == WeightUnit.KG,
+                                        onClick = { profileViewModel.setWeightUnit(WeightUnit.KG) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                    ) { Text("kg") }
+
+                                    SegmentedButton(
+                                        selected = weightUnit == WeightUnit.LB,
+                                        onClick = { profileViewModel.setWeightUnit(WeightUnit.LB) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                    ) { Text("lb") }
+                                }
+
+                                Spacer(Modifier.height(14.dp))
+
+                                Text("Height", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.height(8.dp))
+
+                                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                                    SegmentedButton(
+                                        selected = heightUnit == HeightUnit.CM,
+                                        onClick = { profileViewModel.setHeightUnit(HeightUnit.CM) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                    ) { Text("cm") }
+
+                                    SegmentedButton(
+                                        selected = heightUnit == HeightUnit.FT_IN,
+                                        onClick = { profileViewModel.setHeightUnit(HeightUnit.FT_IN) },
+                                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                    ) { Text("ft-in") }
+                                }
+                            }
                         }
                     }
                 }
+
             }
 
             Text(
@@ -322,3 +371,14 @@ private fun formatHeight(cm: Int, unit: HeightUnit): String {
         }
     }
 }
+
+private fun WeightUnit.label(): String = when (this) {
+    WeightUnit.KG -> "kg"
+    WeightUnit.LB -> "lb"
+}
+
+private fun HeightUnit.label(): String = when (this) {
+    HeightUnit.CM -> "cm"
+    HeightUnit.FT_IN -> "ft-in"
+}
+
