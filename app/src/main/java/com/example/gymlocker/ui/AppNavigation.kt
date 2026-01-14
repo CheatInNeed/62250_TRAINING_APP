@@ -30,6 +30,7 @@ import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.EditTemplateViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
+import com.example.gymlocker.ui.settings.SettingsScreen
 
 @Composable
 fun AppNavigation() {
@@ -164,6 +165,9 @@ fun AppNavigation() {
                 navController = navController,
                 profileViewModel = profileViewModel
             )
+        }
+        composable("settings") {
+            SettingsScreen(navController)
         }
 
 
