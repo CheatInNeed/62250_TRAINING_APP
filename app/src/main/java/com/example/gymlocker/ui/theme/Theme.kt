@@ -94,6 +94,40 @@ private val MatrixDark = darkColorScheme(
 
     outline = Color(0xFF00FF41)
 )
+private val RetroArcadeLight = lightColorScheme(
+    primary = Color(0xFFFF00E5),   // neon magenta
+    secondary = Color(0xFF00E5FF), // neon cyan
+    tertiary = Color(0xFF7C4DFF)   // arcade purple
+)
+
+private val RetroArcadeDark = darkColorScheme(
+    primary = Color(0xFFFF4DEB),   // softened neon magenta
+    secondary = Color(0xFF4DFAFF), // softened neon cyan
+    tertiary = Color(0xFFB69CFF)   // light neon purple
+)
+private val SpongeBobLight = lightColorScheme(
+    primary = Color(0xFFFFD400),   // sponge yellow
+    secondary = Color(0xFF0077C8), // ocean/sky blue
+    tertiary = Color(0xFF8D5A2B)   // brown accent (pants/patty vibe)
+)
+
+private val SpongeBobDark = darkColorScheme(
+    primary = Color(0xFFFFE066),   // light yellow (readable on dark)
+    secondary = Color(0xFF6EC6FF), // light ocean blue
+    tertiary = Color(0xFFD7A36B)   // warm tan accent
+)
+private val SpiderManLight = lightColorScheme(
+    primary = Color(0xFFE53935),   // spider red
+    secondary = Color(0xFF1E3A8A), // deep spider blue
+    tertiary = Color(0xFFB0BEC5)   // web silver/grey
+)
+
+private val SpiderManDark = darkColorScheme(
+    primary = Color(0xFFFF6B6B),   // brighter red for dark theme
+    secondary = Color(0xFF90CAF9), // light blue for contrast
+    tertiary = Color(0xFFECEFF1)   // web white
+)
+
 
 @Composable
 fun GymLockerTheme(
@@ -141,6 +175,9 @@ fun GymLockerTheme(
         AppTheme.RED -> if (effectiveDarkTheme) RedDark else RedLight
         AppTheme.BLUE -> if (effectiveDarkTheme) BlueDark else BlueLight
         AppTheme.GREEN -> if (effectiveDarkTheme) GreenDark else GreenLight
+        AppTheme.RETRO -> if (effectiveDarkTheme) RetroArcadeDark else RetroArcadeLight
+        AppTheme.SpongeBob -> if (effectiveDarkTheme) SpongeBobDark else SpongeBobLight
+        AppTheme.SpiderMan -> if (effectiveDarkTheme) SpiderManDark else SpiderManLight
         AppTheme.MATRIX -> MatrixDark
     }
 

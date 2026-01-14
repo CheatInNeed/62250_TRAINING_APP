@@ -75,7 +75,11 @@ fun SettingsScreen(
         AppTheme.RED to "Red",
         AppTheme.BLUE to "Blue",
         AppTheme.GREEN to "Green",
-        AppTheme.MATRIX to "Welcome to the Matrix™"
+        AppTheme.RETRO to "Retro arcade",
+        AppTheme.SpongeBob to "SpongeBob™",
+        AppTheme.SpiderMan to "Spider-Man™",
+        AppTheme.MATRIX to "Welcome to the Matrix™",
+
     )
 
     var selectedTheme by remember(currentSettings.userId, currentSettings.appTheme) {
