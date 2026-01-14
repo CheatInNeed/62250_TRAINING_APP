@@ -352,16 +352,43 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     onNext = {
-                        // Just move to the next field (right)
                         if (activeExercises.isEmpty()) return@WorkoutNumpadBar
                         val current = cursorPosition
                         if (current == null) {
                             cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
                         } else {
-                            cursorPosition = when (current.field) {
-                                FieldType.WEIGHT -> current.copy(field = FieldType.REPS)
-                                FieldType.REPS -> current.copy(field = FieldType.DONE)
-                                FieldType.DONE -> current // Already at rightmost, stay there
+                            when (current.field) {
+                                FieldType.WEIGHT -> {
+                                    // Move to reps field
+                                    cursorPosition = current.copy(field = FieldType.REPS)
+                                }
+                                FieldType.REPS -> {
+                                    // Move to done field
+                                    cursorPosition = current.copy(field = FieldType.DONE)
+                                }
+                                FieldType.DONE -> {
+                                    // Mark current set as done
+                                    val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                                    val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                                    viewModel.toggleSetDone(exercise.exerciseId, set.setNumber, true)
+
+                                    // Move to next set in same exercise, or next exercise
+                                    if (current.setIndex < exercise.sets.size - 1) {
+                                        // Move to next set in same exercise
+                                        cursorPosition = current.copy(
+                                            setIndex = current.setIndex + 1,
+                                            field = FieldType.WEIGHT
+                                        )
+                                    } else if (current.exerciseIndex < activeExercises.size - 1) {
+                                        // Move to first set of next exercise
+                                        cursorPosition = current.copy(
+                                            exerciseIndex = current.exerciseIndex + 1,
+                                            setIndex = 0,
+                                            field = FieldType.WEIGHT
+                                        )
+                                    }
+                                    // If last set of last exercise, stay where we are
+                                }
                             }
                         }
                     }
@@ -371,7 +398,11 @@ fun ActiveWorkoutScreen(
                     onSkip = { viewModel.skipRestTimer() }
                 )
                 ActiveWorkoutBanner(navController, viewModel)
-                AppBottomBar(navController)
+
+                // Only show AppBottomBar when numpad is hidden
+                if (!isNumpadVisible) {
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
