@@ -464,7 +464,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         _activeExercises.value = snapshot.map { ex ->
             ex.copy(
                 sets = ex.sets.map { s ->
-                    if (s.weight > 0 && s.reps > 0) s.copy(isDone = true) else s
+                    if (s.weight > 0 && s.reps > 0 && !s.isDone) s.copy(isDone = true) else s
                 }
             )
         }
@@ -475,7 +475,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 val logId = exerciseLogDao.getOrCreateLogId(workoutId, ex.exerciseId)
 
                 ex.sets
-                    .filter { it.weight > 0 && it.reps > 0 }
+                    .filter { it.weight > 0 && it.reps > 0 && !it.isDone }
                     .forEach { s ->
                         performedSetDao.upsertByNumber(
                             exerciseLogId = logId,

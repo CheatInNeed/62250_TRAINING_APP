@@ -180,7 +180,6 @@ fun ActiveWorkoutScreen(
         workoutDurationText = "Varighed: ${viewModel.formatTime(elapsedTime)}",
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
-
         maxNameLength = maxNameLen,
 
         onSave = { name, markUnfinishedAsDone ->
@@ -191,8 +190,6 @@ fun ActiveWorkoutScreen(
             viewModel.finishWorkoutWithName(name)
 
             showFinishSummarySheet = false
-
-            // Samme navigation som du allerede gør i name-dialogen
             navController.popBackUnlessAtRoot()
             navController.popBackUnlessAtRoot()
         }

@@ -61,7 +61,12 @@ fun FinishWorkoutSummarySheet(
                 }
 
                 Button(
-                    onClick = { onSave(trimmed, markUnfinishedAsDone) },
+                    onClick = {
+                        onSave(
+                            workoutName.trim(),
+                            markUnfinishedAsDone
+                        )
+                    },
                     enabled = !blank && !tooLong
                 ) {
                     Text("Gem træning", maxLines = 1, overflow = TextOverflow.Ellipsis)
