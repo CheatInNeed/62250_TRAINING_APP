@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -80,6 +81,7 @@ import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.onFocusChanged
@@ -243,11 +245,6 @@ fun ActiveWorkoutScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = { showDiscardDialog = true },
-                        enabled = hasActiveProfile
-                    ) { Text("Discard") }
-
                     Button(
                         onClick = {
                             scope.launch {
@@ -337,11 +334,33 @@ fun ActiveWorkoutScreen(
 
             if (activeExercises.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text("No exercises added yet.")
                         Text("Start by adding your first exercise.")
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { showAddExerciseSheet = true }) { Text("Add Exercise") }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showAddExerciseSheet = true },
+                            modifier = Modifier.fillMaxWidth(0.4f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add exercise"
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text("Add Exercise")
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        DiscardWorkoutButton(
+                            enabled = hasActiveProfile,
+                            onClick = { showDiscardDialog = true },
+                            modifier = Modifier.fillMaxWidth(0.4f)
+                        )
                     }
                 }
             } else {
@@ -375,12 +394,30 @@ fun ActiveWorkoutScreen(
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(16.dp))
+
                         Button(
                             onClick = { showAddExerciseSheet = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add exercise"
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text("Add Exercise")
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        DiscardWorkoutButton(
+                            enabled = hasActiveProfile,
+                            onClick = { showDiscardDialog = true },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Add Exercise") }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        )
+
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
             }
@@ -610,7 +647,14 @@ fun ActiveWorkoutExerciseItem(
             contentColor = MaterialTheme.colorScheme.primary
         )
 
-        ) { Text("+ Add Set") }
+        ) {
+            Icon(
+            imageVector = Icons.Filled.Add,
+            contentDescription = "Add set"
+        )
+            Spacer(Modifier.width(2.dp))
+            Text("Add Set")
+        }
     }
 
     if (showRestDialog) {
@@ -786,6 +830,23 @@ fun ActiveWorkoutScreenPreview() {
                 context = androidx.compose.ui.platform.LocalContext.current
             ).create(ActiveWorkoutViewModel::class.java)
         )
+    }
+}
+@Composable
+fun DiscardWorkoutButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.error
+        )
+    ) {
+        Text("Discard workout")
     }
 }
 
