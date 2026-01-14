@@ -72,6 +72,8 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
@@ -108,6 +110,8 @@ fun ActiveWorkoutScreen(
     //finish sheet
     var showFinishSummarySheet by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope()
 
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
@@ -202,25 +206,29 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onDismiss = { showFinishSummarySheet = false },
+        onCancel = {
+            showFinishSummarySheet = false
+        },
 
+        onFinished = {
+            showFinishSummarySheet = false
+            navController.navigate("home") {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
+        },
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
-        workoutDurationText = "Varighed: ${viewModel.formatTime(elapsedTime)}",
+        workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,
-
+        onMarkUnfinishedAsDone = { viewModel.markAllUnfinishedMeaningfulSetsDone() },
         onSave = { name, markUnfinishedAsDone ->
             if (markUnfinishedAsDone) {
                 viewModel.markAllUnfinishedMeaningfulSetsDone()
             }
-
             viewModel.finishWorkoutWithName(name)
-
-            showFinishSummarySheet = false
-            navController.popBackUnlessAtRoot()
-            navController.popBackUnlessAtRoot()
-        }
+        },
     )
 
     Scaffold(
@@ -240,11 +248,12 @@ fun ActiveWorkoutScreen(
 
                     Button(
                         onClick = {
-                            // Smart default name (kun når man åbner sheetet)
-                            if (workoutNameInput.isBlank()) {
-                                workoutNameInput = defaultWorkoutName()
+                            scope.launch {
+                                if (workoutNameInput.isBlank()) {
+                                    workoutNameInput = viewModel.suggestDefaultWorkoutName()
+                                }
+                                showFinishSummarySheet = true
                             }
-                            showFinishSummarySheet = true
                         },
                         modifier = Modifier.padding(end = 8.dp),
                         enabled = hasActiveProfile
