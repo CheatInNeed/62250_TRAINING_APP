@@ -47,7 +47,14 @@ fun AppBottomBar(navController: NavController) {
     val isWorkoutSelected = !isProfileSelected && (currentRoute in workoutRoutes)
     val isHomeSelected = !isProfileSelected && !isWorkoutSelected && (currentRoute in homeRoutes)
 
-    BottomAppBar {
+    BottomAppBar(
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    ) {
+        // ✅ System colors for nav icons
+        val selectedColor = MaterialTheme.colorScheme.primary
+        val unselectedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+
         Row(
             modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
@@ -89,7 +96,7 @@ fun AppBottomBar(navController: NavController) {
                 }
             ) {
                 if (isOnWorkoutPage) {
-                    // Blå cirkel + hvidt plus
+                    // Primary circle + onPrimary plus (matches system)
                     Box(
                         modifier = Modifier
                             .size(52.dp)

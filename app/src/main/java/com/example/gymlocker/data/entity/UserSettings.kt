@@ -31,6 +31,6 @@ enum class AppTheme {
     MATRIX,
     RETRO,
     SpongeBob,
-    SpiderMan
+    SpiderMan,
 }
 

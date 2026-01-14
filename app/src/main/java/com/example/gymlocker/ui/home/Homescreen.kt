@@ -1,7 +1,6 @@
 package com.example.gymlocker.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -25,7 +25,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +52,20 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.input.TextFieldValue
+import com.example.gymlocker.data.entity.AppTheme
+import com.example.gymlocker.data.repo.SettingsRepository
+import kotlinx.coroutines.launch
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +84,13 @@ fun HomeScreen(
         .collectAsState(initial = "Finder seneste workout…")
 
     val context = LocalContext.current
+    val repo = remember { SettingsRepository(context.applicationContext) }
+    val settingsOrNull by repo.activeSettings.collectAsState(initial = null)
+    val scope = rememberCoroutineScope()
+
+// We'll use these only when there's an active profile + settings loaded
+    val currentSettings = settingsOrNull
+
 
     // ✅ Active profile
     val session = remember { SessionManager(context.applicationContext) }
@@ -90,7 +110,12 @@ fun HomeScreen(
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Home") }) },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text("Home", color = MaterialTheme.colorScheme.onBackground) }
+            )
+        },
         bottomBar = {
             Column {
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
@@ -104,6 +129,7 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(innerPadding)
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
@@ -115,7 +141,8 @@ fun HomeScreen(
                     Text(
                         text = "Create a profile to get started",
                         style = MaterialTheme.typography.titleLarge,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
                     Spacer(Modifier.height(10.dp))
@@ -123,14 +150,19 @@ fun HomeScreen(
                     Text(
                         text = "Your profile stores your name, height, weight, and workout summary.\nYou can create one from the Profile page.",
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.78f)
                     )
 
                     Spacer(Modifier.height(20.dp))
 
                     Button(
                         onClick = { navController.navigate("profile") },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     ) { Text("Create Profile") }
                 }
             }
@@ -160,8 +192,22 @@ fun HomeScreen(
             .muscleGroupDistribution(userId)
             .collectAsState(initial = emptyList())
 
+        val settings = com.example.gymlocker.ui.settings.LocalUserSettings.current
+
+// ✅ Replace these two calls with your actual setters
+        val setTheme: (AppTheme) -> Unit = { theme ->
+            // TODO: wire to your settings persistence
+            // Example if you have a settings VM:
+            // settingsViewModel.setAppTheme(theme)
+        }
+        val setForceDark: (Boolean) -> Unit = { enabled ->
+            // TODO: wire to your settings persistence
+            // settingsViewModel.setForceDarkMode(enabled)
+        }
+
         LazyColumn(
             modifier = Modifier
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -172,16 +218,35 @@ fun HomeScreen(
                     text = lastWorkoutLabel,
                     style = MaterialTheme.typography.titleMedium,
                     textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 12.dp)
                 )
             }
+            item {
+                if (currentSettings != null) {
+                    ThemeSwitcherCard(
+                        currentTheme = currentSettings.appTheme,
+                        forceDarkMode = currentSettings.forceDarkMode,
+                        onThemeSelected = { theme ->
+                            scope.launch {
+                                repo.updateForActive { it.copy(appTheme = theme) }
+                            }
+                        },
+                        onForceDarkChanged = { enabled ->
+                            scope.launch {
+                                repo.updateForActive { it.copy(forceDarkMode = enabled) }
+                            }
+                        }
+                    )
+                }
+            }
 
-            // PRIMARY theme usage
+
+
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
 
-            // SECONDARY theme usage
             item {
                 StatsCard(
                     weeklyHours = weeklyHours,
@@ -192,7 +257,6 @@ fun HomeScreen(
                 )
             }
 
-            // TERTIARY theme usage
             item {
                 CompletedWorkoutsCard(
                     workouts = completedWorkouts,
@@ -210,21 +274,20 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            // use tertiary directly so it actually changes with the 3-color themes
-            containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
-            contentColor = MaterialTheme.colorScheme.onTertiary
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "This week",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onTertiary
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "$workoutsThisWeek $workoutText this week",
-                color = MaterialTheme.colorScheme.onTertiary
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
             )
         }
     }
@@ -245,15 +308,16 @@ private fun SegmentedToggle(
         containerColor = selectedContainerColor,
         contentColor = selectedContentColor
     )
+
     val unselectedColors = ButtonDefaults.buttonColors(
-        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)
     )
 
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -289,16 +353,15 @@ fun StatsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            // use tertiary directly so it actually changes with the 3-color themes
-            containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
-            contentColor = MaterialTheme.colorScheme.onTertiary
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "Stats",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onTertiary
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -307,17 +370,15 @@ fun StatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 SegmentedToggle(
                     leftText = "Week",
                     rightText = "Month",
                     isLeftSelected = statsRange == StatsRange.WEEK,
                     onLeftClick = { onRangeChange(StatsRange.WEEK) },
                     onRightClick = { onRangeChange(StatsRange.MONTH) },
-                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                    selectedContentColor = MaterialTheme.colorScheme.onSecondary
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
                 )
-
 
                 SegmentedToggle(
                     leftText = "Hours",
@@ -325,8 +386,8 @@ fun StatsCard(
                     isLeftSelected = mode == WeeklyGraphMode.HOURS,
                     onLeftClick = { mode = WeeklyGraphMode.HOURS },
                     onRightClick = { mode = WeeklyGraphMode.VOLUME },
-                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
-                    selectedContentColor = MaterialTheme.colorScheme.onSecondary
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
@@ -338,7 +399,7 @@ fun StatsCard(
                 else
                     "Volume per week (last 3 months)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -369,7 +430,7 @@ fun StatsCard(
                 else
                     "Training balance (this month)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -405,15 +466,14 @@ fun CompletedWorkoutsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            // use tertiary directly so it actually changes with the 3-color themes
-            containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "Completed Workouts",
-                color = MaterialTheme.colorScheme.onTertiary
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -422,14 +482,14 @@ fun CompletedWorkoutsCard(
                     "No completed workouts yet.",
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.onTertiary
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
                 )
             } else {
                 workouts.take(5).forEach { w ->
                     val prettyDate = prettyWorkoutDate(w.date)
                     Text(
                         "• ${w.name} - $prettyDate - ${w.exerciseCount} exercises",
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -440,10 +500,122 @@ fun CompletedWorkoutsCard(
                 ) {
                     Text(
                         "Workout History",
-                        color = MaterialTheme.colorScheme.onSecondary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ThemeSwitcherCard(
+    currentTheme: AppTheme,
+    forceDarkMode: Boolean,
+    onThemeSelected: (AppTheme) -> Unit,
+    onForceDarkChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                text = "Theme tester",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Theme dropdown
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = currentTheme.name,
+                    onValueChange = {},
+                    readOnly = true,
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(Icons.Filled.Palette, contentDescription = null)
+                    },
+                    label = { Text("App theme") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = MaterialTheme.colorScheme.outline,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    // Put the order you prefer here
+                    val themes = listOf(
+                        AppTheme.DEFAULT,
+                        AppTheme.BLUE,
+                        AppTheme.GREEN,
+                        AppTheme.RED,
+                        AppTheme.RETRO,
+                        AppTheme.SpongeBob,
+                        AppTheme.SpiderMan,
+                        AppTheme.MATRIX
+                    )
+
+                    themes.forEach { theme ->
+                        DropdownMenuItem(
+                            text = { Text(theme.name) },
+                            onClick = {
+                                expanded = false
+                                onThemeSelected(theme)
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Force dark mode toggle
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Force dark mode",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Overrides system theme",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.70f)
+                    )
+                }
+
+                Switch(
+                    checked = forceDarkMode,
+                    onCheckedChange = onForceDarkChanged
+                )
+            }
+        }
+    }
+}
+
