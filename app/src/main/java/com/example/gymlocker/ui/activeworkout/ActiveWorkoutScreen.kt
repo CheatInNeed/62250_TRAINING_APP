@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -100,6 +101,7 @@ fun ActiveWorkoutScreen(
     // Numpad navigation state
     var isNumpadVisible by remember { mutableStateOf(false) }
     var cursorPosition by remember { mutableStateOf<CursorPosition?>(null) }
+    val listState = rememberLazyListState()
 
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
@@ -141,6 +143,14 @@ fun ActiveWorkoutScreen(
             // Be safe: if user somehow navigates here without a profile,
             // make sure the VM isn't "running" a workout.
             viewModel.stopTimer()
+        }
+    }
+
+    // Scroll to the selected exercise when cursor position changes
+    LaunchedEffect(cursorPosition) {
+        cursorPosition?.let { pos ->
+            // Scroll to the exercise at the cursor position
+            listState.animateScrollToItem(pos.exerciseIndex)
         }
     }
 
@@ -316,7 +326,10 @@ fun ActiveWorkoutScreen(
                 // The numpad bar with animation
                 WorkoutNumpadBar(
                     isVisible = isNumpadVisible,
-                    onHide = { isNumpadVisible = false },
+                    onHide = {
+                        isNumpadVisible = false
+                        cursorPosition = null  // Clear the blue marker when hiding
+                    },
                     onNavigateUp = {
                         if (activeExercises.isEmpty()) return@WorkoutNumpadBar
                         val current = cursorPosition
@@ -546,6 +559,7 @@ fun ActiveWorkoutScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
