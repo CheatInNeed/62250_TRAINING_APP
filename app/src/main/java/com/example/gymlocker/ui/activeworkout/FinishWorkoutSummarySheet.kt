@@ -146,16 +146,6 @@ fun FinishWorkoutSummarySheet(
                 enabled = canSave,
                 text = "Slide to finish",
                 onFinished = {
-                    if (markUnfinishedAsDone) {
-                        onMarkUnfinishedAsDone()
-                    }
-
-                    onSave(workoutName.trim(), markUnfinishedAsDone)
-
-                    //showSuccess = true
-                    //kotlinx.coroutines.delay(1000)
-                    //showSuccess = false
-
                     onSave(workoutName.trim(), markUnfinishedAsDone)
                     onFinished()
                 }
