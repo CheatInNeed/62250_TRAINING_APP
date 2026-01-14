@@ -138,11 +138,20 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile
     private var currentWeightUnit: WeightUnit = WeightUnit.KG
 
+    @Volatile
+    private var currentRestTimerEnabled: Boolean = true
+
     init {
-        // Keep the latest unit cached for non-Compose VM methods.
+        // Keep the latest settings cached for non-Compose VM methods.
         viewModelScope.launch {
             settingsRepository.activeSettings.collect { settings ->
                 currentWeightUnit = settings?.weightUnit ?: WeightUnit.KG
+                currentRestTimerEnabled = settings?.restTimerEnabled ?: true
+
+                // If user disables rest timer while one is active -> stop it immediately
+                if (!currentRestTimerEnabled) {
+                    skipRestTimer(cancelAlarm = true)
+                }
             }
         }
     }
@@ -551,6 +560,12 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                     isCompleted = isDone
                 )
                 if (isDone) {
+                    // Global/profile switch: do not start (or show) any rest timer when disabled
+                    if (!currentRestTimerEnabled) {
+                        skipRestTimer(cancelAlarm = true)
+                        return@launch
+                    }
+
                     val uid = activeUserIdOrNull() ?: return@launch
                     val seconds = getDefaultRestSeconds(userId = uid, exerciseId = exerciseId)
 

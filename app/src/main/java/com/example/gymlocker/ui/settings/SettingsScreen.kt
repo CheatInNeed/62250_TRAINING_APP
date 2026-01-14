@@ -62,6 +62,10 @@ fun SettingsScreen(
         mutableStateOf(currentSettings.weightUnit)
     }
 
+    var restTimerEnabled by remember(currentSettings.userId, currentSettings.restTimerEnabled) {
+        mutableStateOf(currentSettings.restTimerEnabled)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -109,7 +113,12 @@ fun SettingsScreen(
             Button(
                 onClick = {
                     scope.launch {
-                        repo.updateForActive { it.copy(weightUnit = selectedUnit) }
+                        repo.updateForActive {
+                            it.copy(
+                                weightUnit = selectedUnit,
+                                restTimerEnabled = restTimerEnabled
+                            )
+                        }
                         navController.popBackStack()
                     }
                 },
@@ -117,6 +126,35 @@ fun SettingsScreen(
             ) {
                 Text("Save")
             }
+        }
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = "Rest timer",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Enable rest timer")
+                Text(
+                    text = if (restTimerEnabled) "Rest countdown shows after completing sets"
+                    else "No rest countdown will appear or start",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+
+            Switch(
+                checked = restTimerEnabled,
+                onCheckedChange = { restTimerEnabled = it }
+            )
         }
     }
 }

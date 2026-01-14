@@ -12,8 +12,10 @@ data class UserSettings(
     // Personalization examples (adjust as you like)
     val themeMode: ThemeMode = ThemeMode.SYSTEM, // SYSTEM/LIGHT/DARK
     val weightUnit: WeightUnit = WeightUnit.KG,  // KG/LB
-    val defaultRestSeconds: Int = 120,
-    val hapticsEnabled: Boolean = true
+
+
+    val restTimerEnabled: Boolean = true,
+
 )
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
