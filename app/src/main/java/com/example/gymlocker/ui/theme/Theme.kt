@@ -86,7 +86,7 @@ private val MatrixDark = darkColorScheme(
 
     onPrimary = Color(0xFF000000),
     onSecondary = Color(0xFF000000),
-    onTertiary = Color(0xFF000000),
+    onTertiary = Color(0xFF00FF41),
 
     onBackground = Color(0xFF00FF41), // Neon text
     onSurface = Color(0xFF00FF41),
@@ -96,7 +96,7 @@ private val MatrixDark = darkColorScheme(
 )
 private val RetroArcadeLight = lightColorScheme(
     primary = Color(0xFFFF00E5),   // neon magenta
-    secondary = Color(0xFF00E5FF), // neon cyan
+    secondary = Color(0xFF002AFF), // neon cyan
     tertiary = Color(0xFF7C4DFF)   // arcade purple
 )
 
@@ -113,8 +113,8 @@ private val SpongeBobLight = lightColorScheme(
 
 private val SpongeBobDark = darkColorScheme(
     primary = Color(0xFFFFE066),   // light yellow (readable on dark)
-    secondary = Color(0xFFD7A36B), // light ocean blue
-    tertiary = Color(0xFF6EC6FF)   // warm tan accent
+    secondary = Color(0xFF6EC6FF), // light ocean blue
+    tertiary = Color(0xFFD7A36B)   // warm tan accent
 )
 private val SpiderManLight = lightColorScheme(
     primary = Color(0xFFE53935),   // spider red

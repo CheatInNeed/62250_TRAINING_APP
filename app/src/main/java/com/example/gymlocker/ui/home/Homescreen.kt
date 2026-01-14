@@ -212,19 +212,19 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
         colors = CardDefaults.cardColors(
             // use tertiary directly so it actually changes with the 3-color themes
             containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
-            contentColor = MaterialTheme.colorScheme.onSurface
+            contentColor = MaterialTheme.colorScheme.onTertiary
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "This week",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onTertiary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "$workoutsThisWeek $workoutText this week",
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onTertiary
             )
         }
     }
@@ -291,14 +291,14 @@ fun StatsCard(
         colors = CardDefaults.cardColors(
             // use tertiary directly so it actually changes with the 3-color themes
             containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
-            contentColor = MaterialTheme.colorScheme.onSurface
+            contentColor = MaterialTheme.colorScheme.onTertiary
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "Stats",
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                color = MaterialTheme.colorScheme.onTertiary
             )
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -338,7 +338,7 @@ fun StatsCard(
                 else
                     "Volume per week (last 3 months)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -369,7 +369,7 @@ fun StatsCard(
                 else
                     "Training balance (this month)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
+                color = MaterialTheme.colorScheme.onTertiary.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -413,7 +413,7 @@ fun CompletedWorkoutsCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 "Completed Workouts",
-                color = MaterialTheme.colorScheme.onTertiaryContainer
+                color = MaterialTheme.colorScheme.onTertiary
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -422,7 +422,7 @@ fun CompletedWorkoutsCard(
                     "No completed workouts yet.",
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                    color = MaterialTheme.colorScheme.onTertiary
                 )
             } else {
                 workouts.take(5).forEach { w ->
@@ -440,7 +440,7 @@ fun CompletedWorkoutsCard(
                 ) {
                     Text(
                         "Workout History",
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = MaterialTheme.colorScheme.onSecondary
                     )
                 }
             }
