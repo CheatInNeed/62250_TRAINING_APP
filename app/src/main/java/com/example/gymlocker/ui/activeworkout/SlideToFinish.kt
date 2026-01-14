@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -41,12 +42,15 @@ fun SlideToFinish(
     var trackWidthPx by remember { mutableStateOf(0f) }
     val thumbSize = 44.dp
     val thumbSizePx = with(androidx.compose.ui.platform.LocalDensity.current) { thumbSize.toPx() }
+    val horizontalPadding = 6.dp
+    val horizontalPaddingPx = with(androidx.compose.ui.platform.LocalDensity.current) { horizontalPadding.toPx() }
+
 
     val x = remember { Animatable(0f) }
     var completed by remember { mutableStateOf(false) }
 
     val progress = remember(trackWidthPx, x.value) {
-        val max = (trackWidthPx - thumbSizePx).coerceAtLeast(1f)
+        val max = (trackWidthPx - 2f * horizontalPaddingPx - thumbSizePx).coerceAtLeast(1f)
         (x.value / max).coerceIn(0f, 1f)
     }
 
@@ -64,8 +68,9 @@ fun SlideToFinish(
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.55f)
             .onSizeChanged { trackWidthPx = it.width.toFloat() }
+            .clip(RoundedCornerShape(999.dp))
             .background(trackColor, RoundedCornerShape(999.dp))
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = horizontalPadding),
         contentAlignment = Alignment.CenterStart
     ) {
         // Center text (fade out on drag)
@@ -91,14 +96,14 @@ fun SlideToFinish(
                     enabled = enabled && !completed,
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
-                        val max = (trackWidthPx - thumbSizePx).coerceAtLeast(0f)
+                        val max = (trackWidthPx - 2f * horizontalPaddingPx - thumbSizePx).coerceAtLeast(1f)
                         val newX = (x.value + delta).coerceIn(0f, max)
                         scope.launch { x.snapTo(newX) }
                     },
                     onDragStopped = {
                         if (completed) return@draggable
 
-                        val max = (trackWidthPx - thumbSizePx).coerceAtLeast(1f)
+                        val max = (trackWidthPx - 2f * horizontalPaddingPx - thumbSizePx).coerceAtLeast(1f)
                         val done = x.value >= max * 0.98f
 
                         if (done) {
