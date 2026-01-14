@@ -12,6 +12,7 @@ data class UserSettings(
     // Personalization examples (adjust as you like)
     val themeMode: ThemeMode = ThemeMode.SYSTEM, // SYSTEM/LIGHT/DARK
     val weightUnit: WeightUnit = WeightUnit.KG,  // KG/LB
+    val forceDarkMode: Boolean = false,  // ✅ NEW: if true => always dark
 
 
     val restTimerEnabled: Boolean = true,

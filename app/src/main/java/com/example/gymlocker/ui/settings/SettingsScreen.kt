@@ -62,6 +62,10 @@ fun SettingsScreen(
         mutableStateOf(currentSettings.weightUnit)
     }
 
+    var forceDarkMode by remember(currentSettings.userId, currentSettings.forceDarkMode) {
+        mutableStateOf(currentSettings.forceDarkMode)
+    }
+
     var restTimerEnabled by remember(currentSettings.userId, currentSettings.restTimerEnabled) {
         mutableStateOf(currentSettings.restTimerEnabled)
     }
@@ -87,6 +91,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
+            // --- Units ---
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Units", style = MaterialTheme.typography.titleMedium)
@@ -109,30 +114,60 @@ fun SettingsScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
 
+            // --- Rest timer ---
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Enable rest timer", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = if (restTimerEnabled) "Rest countdown shows after completing sets"
+                            else "No rest countdown will appear or start",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Enable rest timer")
-                    Text(
-                        text = if (restTimerEnabled) "Rest countdown shows after completing sets"
-                        else "No rest countdown will appear or start",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
+                    Switch(
+                        checked = restTimerEnabled,
+                        onCheckedChange = { restTimerEnabled = it }
                     )
                 }
-
-                Switch(
-                    checked = restTimerEnabled,
-                    onCheckedChange = { restTimerEnabled = it }
-                )
             }
-        }
+
+            // --- Dark mode ---
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Force dark mode", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Always use dark theme (ignores system).",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+
+                    Switch(
+                        checked = forceDarkMode,
+                        onCheckedChange = { forceDarkMode = it }
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = {
@@ -140,7 +175,8 @@ fun SettingsScreen(
                         repo.updateForActive {
                             it.copy(
                                 weightUnit = selectedUnit,
-                                restTimerEnabled = restTimerEnabled
+                                restTimerEnabled = restTimerEnabled,
+                                forceDarkMode = forceDarkMode
                             )
                         }
                         navController.popBackStack()
@@ -152,6 +188,8 @@ fun SettingsScreen(
             }
         }
     }
+}
+
 
 
 @Composable
