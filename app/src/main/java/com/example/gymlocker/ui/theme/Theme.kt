@@ -107,14 +107,14 @@ private val RetroArcadeDark = darkColorScheme(
 )
 private val SpongeBobLight = lightColorScheme(
     primary = Color(0xFFFFD400),   // sponge yellow
-    secondary = Color(0xFF0077C8), // ocean/sky blue
-    tertiary = Color(0xFF8D5A2B)   // brown accent (pants/patty vibe)
+    secondary = Color(0xFF8D5A2B), // ocean/sky blue
+    tertiary = Color(0xFF0077C8)   // brown accent (pants/patty vibe)
 )
 
 private val SpongeBobDark = darkColorScheme(
     primary = Color(0xFFFFE066),   // light yellow (readable on dark)
-    secondary = Color(0xFF6EC6FF), // light ocean blue
-    tertiary = Color(0xFFD7A36B)   // warm tan accent
+    secondary = Color(0xFFD7A36B), // light ocean blue
+    tertiary = Color(0xFF6EC6FF)   // warm tan accent
 )
 private val SpiderManLight = lightColorScheme(
     primary = Color(0xFFE53935),   // spider red
