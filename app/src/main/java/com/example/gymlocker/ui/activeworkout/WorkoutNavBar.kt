@@ -186,14 +186,23 @@ fun WorkoutNumpadBar(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Hide keyboard button
-                    IconButton(
-                        icon = Icons.Filled.KeyboardHide,
-                        backgroundColor = buttonBackground,
-                        contentColor = contentColor,
-                        contentDescription = "Hide",
-                        onClick = onHide
-                    )
+                    // Hide keyboard button - same size as Next button
+                    Box(
+                        modifier = Modifier
+                            .width(88.dp)
+                            .height(40.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(buttonBackground)
+                            .clickable { onHide() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardHide,
+                            contentDescription = "Hide",
+                            tint = contentColor,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
 
                     // Plus/Minus row
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
