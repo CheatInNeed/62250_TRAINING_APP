@@ -42,6 +42,10 @@ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
 import kotlinx.coroutines.launch
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
 
@@ -59,6 +63,9 @@ fun WorkoutDetailScreen(
     var templateName by remember { mutableStateOf("") }
     var isCreatingTemplate by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    val settings = LocalUserSettings.current
+    val unit = settings.weightUnit
 
     val nameTooLong = templateName.length > MAX_TEMPLATE_NAME_LENGTH
     val nameErrorText = if (nameTooLong) {
@@ -166,6 +173,11 @@ fun WorkoutDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             log.sets.forEach { set ->
+                                val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
+                                val wText = "${formatWeight(shownW, decimals = 0)} ${weightUnitLabel(unit)}"
+                                val line = if (set.isCompleted) "$wText x ${set.reps}" else "$wText x ${set.reps} (skipped)"
+
+
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -174,7 +186,7 @@ fun WorkoutDetailScreen(
                                 ) {
                                     Text("Set ${set.setNumber}", style = MaterialTheme.typography.bodyMedium)
                                     Text(
-                                        text = if (set.isCompleted) "${set.weight} kg x ${set.reps}" else "${set.weight} kg x ${set.reps} (skipped)",
+                                        text = line,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }

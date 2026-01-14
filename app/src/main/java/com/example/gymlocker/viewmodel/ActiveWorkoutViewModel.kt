@@ -36,7 +36,13 @@ import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
-
+import com.example.gymlocker.data.entity.WeightUnit
+import com.example.gymlocker.data.repo.SettingsRepository
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+import com.example.gymlocker.util.storageKgFromInput
+import kotlin.math.roundToInt
 
 // Ét sæt (1 række i tabellen)
 data class ExerciseSetState(
@@ -120,7 +126,24 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
     private var restTimerJob: Job? = null
     private val _restTimerState = MutableStateFlow(RestTimerState())
+
     val restTimerState: StateFlow<RestTimerState> = _restTimerState.asStateFlow()
+
+    // --- Settings (profile-scoped) ---
+    private val settingsRepository by lazy { SettingsRepository(appContext) }
+
+    @Volatile
+    private var currentWeightUnit: WeightUnit = WeightUnit.KG
+
+    init {
+        // Keep the latest unit cached for non-Compose VM methods.
+        viewModelScope.launch {
+            settingsRepository.activeSettings.collect { settings ->
+                currentWeightUnit = settings?.weightUnit ?: WeightUnit.KG
+            }
+        }
+    }
+
 
     suspend fun readDefaultRestSeconds(exerciseId: Long): Int? {
         val uid = activeUserIdOrNull() ?: return null
@@ -274,6 +297,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     // --- Exercise handling ---
 
     fun addExercise(exercise: Exercises) {
+
         val existing = _activeExercises.value
         if (existing.any { it.exerciseId == exercise.exerciseId }) return
 
@@ -297,13 +321,15 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
 
             if (previousSets.isEmpty()) return@launch
 
+            val unit = currentWeightUnit
+
             val clonedSets = previousSets.map { ps ->
                 ExerciseSetState(
                     setNumber = ps.setNumber,
                     weight = ps.weight.toInt(),
                     reps = ps.reps,
                     isDone = false,
-                    previous = formatPrevious(ps.weight, ps.reps),
+                    previous = formatPrevious(ps.weight, ps.reps, unit),
                     isWeightPrefilled = true,
                     isRepsPrefilled = true
                 )
@@ -360,7 +386,7 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
-            val prevText = formatPrevious(latest.weight, latest.reps)
+            val prevText = formatPrevious(latest.weight, latest.reps, currentWeightUnit)
 
             _activeExercises.value = _activeExercises.value.map { ex ->
                 if (ex.exerciseId != exerciseId) ex
@@ -400,12 +426,15 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateSetWeight(exerciseId: Long, setNumber: Int, weight: String) {
-        val w = weight.toIntOrNull() ?: 0
+        // Treat user input as their preferred unit, convert to KG for storage/state.
+        val input = weight.toDoubleOrNull() ?: 0.0
+        val kg = storageKgFromInput(input, currentWeightUnit).roundToInt()
+
         _activeExercises.value = _activeExercises.value.map { ex ->
             if (ex.exerciseId != exerciseId) ex
             else ex.copy(
                 sets = ex.sets.map { s ->
-                    if (s.setNumber == setNumber) s.copy(weight = w, isWeightPrefilled = false)
+                    if (s.setNumber == setNumber) s.copy(weight = kg, isWeightPrefilled = false)
                     else s
                 }
             )
@@ -773,8 +802,10 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun formatPrevious(weight: Float, reps: Int): String =
-        "${weight.toInt()} kg x $reps"
+    private fun formatPrevious(weightKg: Float, reps: Int, unit: WeightUnit): String {
+        val shown = displayWeightFromKg(weightKg.toDouble(), unit)
+        return "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)} x $reps"
+    }
 
     private fun setPreviousForOneSet(exerciseId: Long, setNumber: Int, previousText: String?) {
         _activeExercises.value = _activeExercises.value.map { ex ->
@@ -791,18 +822,18 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         return db.muscleGroupDao().getNameById(id) ?: "Unknown"
     }
 
-    suspend fun getPersonalRecordText(exerciseId: Long): String {
+    suspend fun getPersonalRecordText(exerciseId: Long, unit: WeightUnit): String {
         val pr = performedSetDao.getPersonalRecordSetForExerciseExcludingWorkout(
             exerciseId = exerciseId,
             excludeWorkoutId = currentWorkoutId
         ) ?: return "No PR yet"
 
-        return if (pr.reps > 0) {
-            "${pr.weight.toInt()} kg x ${pr.reps}"
-        } else {
-            "${pr.weight.toInt()} kg"
-        }
+        val shown = displayWeightFromKg(pr.weight.toDouble(), unit)
+        val wText = "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
+
+        return if (pr.reps > 0) "$wText x ${pr.reps}" else wText
     }
+
 
     suspend fun getLastTrainedText(exerciseId: Long): String {
         val dateString = performedSetDao.getLastTrainedDateForExerciseExcludingWorkout(
@@ -813,17 +844,14 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         return formatWorkoutDateForDisplay(dateString)
     }
 
-    suspend fun getExerciseStatsUi(exerciseId: Long): ExerciseStatsUi {
+    suspend fun getExerciseStatsUi(exerciseId: Long, unit: WeightUnit): ExerciseStatsUi {
         return try {
             ExerciseStatsUi(
-                prText = getPersonalRecordText(exerciseId),
+                prText = getPersonalRecordText(exerciseId, unit),
                 lastTrainedText = getLastTrainedText(exerciseId)
             )
         } catch (e: Exception) {
-            ExerciseStatsUi(
-                prText = "No PR yet",
-                lastTrainedText = "Never trained"
-            )
+            ExerciseStatsUi(prText = "No PR yet", lastTrainedText = "Never trained")
         }
     }
 

@@ -72,6 +72,15 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+
+
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
@@ -97,6 +106,8 @@ fun ActiveWorkoutScreen(
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
 
+    val unit = LocalUserSettings.current.weightUnit
+
     // ✅ Live validation state for name length
     val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
 
@@ -109,13 +120,16 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    val totalVolume by remember(activeExercises) {
+    val totalVolume by remember(activeExercises, unit) {
         derivedStateOf {
             activeExercises.sumOf { ex ->
                 ex.sets
                     .asSequence()
                     .filter { it.isDone }
-                    .sumOf { it.weight.toDouble() * it.reps.toDouble() }
+                    .sumOf { set ->
+                        val shownWeight = displayWeightFromKg(set.weight.toDouble(), unit)
+                        shownWeight * set.reps.toDouble()
+                    }
             }
         }
     }
@@ -290,7 +304,7 @@ fun ActiveWorkoutScreen(
                     progress = progress
                 )
                 Text(
-                    text = "Total volume: $totalVolumeText kg",
+                    text = "Total volume: $totalVolumeText ${weightUnitLabel(unit)}",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -385,6 +399,7 @@ fun ActiveWorkoutExerciseItem(
 
     var showRestDialog by remember { mutableStateOf(false) }
     var restSeconds by remember(exercise.exerciseId) { mutableStateOf<Int?>(null) }
+    val unit = LocalUserSettings.current.weightUnit
 
 // Hent saved default rest for denne exercise (per user)
     LaunchedEffect(exercise.exerciseId) {
@@ -508,7 +523,7 @@ fun ActiveWorkoutExerciseItem(
         ) {
             Text("SET", modifier = Modifier.weight(0.5f))
             Text("PREVIOUS", modifier = Modifier.weight(1f))
-            Text("KG", modifier = Modifier.weight(0.7f))
+            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f))
             Text("REPS", modifier = Modifier.weight(0.7f))
             Text("✓", modifier = Modifier.weight(0.4f))
         }
@@ -614,6 +629,16 @@ fun ExerciseSetRow(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
     }
+    val unit = LocalUserSettings.current.weightUnit
+
+    val weightDisplayText = remember(set.weight, unit) {
+        if (set.weight == 0) ""
+        else {
+            val shown = displayWeightFromKg(set.weight.toDouble(), unit)
+            // Choose decimals; 0 keeps it simple. You can do 1 for LB if you prefer.
+            formatWeight(shown, decimals = 0)
+        }
+    }
 
     Row(
         modifier = rowModifier,
@@ -637,12 +662,13 @@ fun ExerciseSetRow(
             contentAlignment = Alignment.Center
         ) {
             TextField(
-                value = if (set.weight == 0) "" else set.weight.toString(),
+                value = weightDisplayText,
                 onValueChange = onWeightChange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–") },
                 colors = TextFieldDefaults.colors(
+                    // unchanged
                     unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),

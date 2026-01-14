@@ -28,6 +28,10 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -206,6 +210,7 @@ fun TemplateDetailScreen(
                 LazyColumn {
                     items(template.exercises) { exerciseWithSets ->
                         ExerciseCard(
+
                             exerciseWithSets = exerciseWithSets,
                             onRequestDelete = {
                                 pendingDeleteTemplateExerciseId.value = exerciseWithSets.templateExercise.id
@@ -235,6 +240,8 @@ fun ExerciseCard(
     onRequestDelete: () -> Unit,
     exerciseName: String = "Unknown Exercise"
 ) {
+    val settings = LocalUserSettings.current
+    val unit = settings.weightUnit
     val context = LocalContext.current
     val fetchedExerciseName = remember { mutableStateOf(exerciseName) }
 
@@ -265,8 +272,9 @@ fun ExerciseCard(
             Text(text = "Sets", style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(4.dp))
             exerciseWithSets.sets.forEach { set ->
+                val shown = displayWeightFromKg(set.weight.toDouble(), unit)
                 Text(
-                    text = "Set ${set.setNumber}: ${set.weight}kg × ${set.reps} reps",
+                    text = "Set ${set.setNumber}: ${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)} × ${set.reps} reps",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

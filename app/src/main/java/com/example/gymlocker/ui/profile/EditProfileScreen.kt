@@ -33,6 +33,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.viewmodel.ProfileViewModel
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.storageKgFromInput
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,12 +48,22 @@ fun EditProfileScreen(
 ) {
     val activeProfile by profileViewModel.activeProfile.collectAsState()
 
+    val settings = LocalUserSettings.current
+    val unit = settings.weightUnit
+
     var name by remember { mutableStateOf("") }
     var heightText by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
 
     var error by remember { mutableStateOf<String?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
+
+
+    val initialWeightText =
+        if (activeProfile?.weight == 0) ""
+        else formatWeight(displayWeightFromKg(activeProfile!!.weight.toDouble(), unit), decimals = 0)
+
+    var weight by remember { mutableStateOf(initialWeightText) }
 
     // Load current values into editable fields
     LaunchedEffect(activeProfile?.userId) {
@@ -129,7 +145,7 @@ fun EditProfileScreen(
                 value = weightText,
                 onValueChange = { weightText = it; error = null },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Weight (kg) — leave empty for Not set") },
+                label = { Text("Weight (${weightUnitLabel(unit)})") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
@@ -158,11 +174,14 @@ fun EditProfileScreen(
                         error = "Weight must be a number."
                         return@Button
                     }
+                    val wKg = weight.toDoubleOrNull()
+                        ?.let { storageKgFromInput(it, unit).roundToInt() }
+                        ?: 0
 
                     profileViewModel.saveProfileEdits(
                         name = name,
                         height = heightInt,
-                        weight = weightInt,
+                        weight = wKg,
                         onError = { error = it },
                         onSuccess = { navController.popBackStack() }
                     )

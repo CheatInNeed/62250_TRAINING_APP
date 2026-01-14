@@ -18,6 +18,11 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,7 +121,15 @@ fun ProfileScreen(
             // ✅ Fixed header: Active profile details + edit entry
             activeProfile?.let { p ->
                 val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
-                val weightText = if (p.weight == 0) "Not set" else "${p.weight} kg"
+                val settings = LocalUserSettings.current
+                val unit = settings.weightUnit
+
+                val weightText =
+                    if (p.weight == 0) "Not set"
+                    else {
+                        val shown = displayWeightFromKg(p.weight.toDouble(), unit)
+                        "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
+                    }
 
                 Card(
                     modifier = Modifier
