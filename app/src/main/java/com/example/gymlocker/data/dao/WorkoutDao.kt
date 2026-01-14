@@ -94,4 +94,7 @@ interface WorkoutDao {
         """
     )
     suspend fun getMostRecentWorkoutForUser(userId: Long): WorkoutSummary?
+
+    @Query("SELECT * FROM workouts WHERE workoutId = :workoutId LIMIT 1")
+    suspend fun getWorkoutById(workoutId: Long): Workout?
 }

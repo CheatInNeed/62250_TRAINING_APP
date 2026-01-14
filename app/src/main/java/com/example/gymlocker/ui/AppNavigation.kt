@@ -15,7 +15,10 @@ import com.example.gymlocker.ui.history.WorkoutHistoryScreen
 import com.example.gymlocker.ui.home.HomeScreen
 import com.example.gymlocker.ui.profile.CreateProfileScreen
 import com.example.gymlocker.ui.profile.EditProfileScreen
+import com.example.gymlocker.ui.profile.ExerciseDetailScreen
+import com.example.gymlocker.ui.profile.ExerciseListScreen
 import com.example.gymlocker.ui.profile.ProfileScreen
+import com.example.gymlocker.ui.profile.ProfileStatsScreen
 import com.example.gymlocker.ui.splash.SplashScreen
 import com.example.gymlocker.ui.template.CreateTemplateScreen
 import com.example.gymlocker.ui.template.EditTemplateScreen
@@ -162,6 +165,32 @@ fun AppNavigation() {
         composable("editProfile") {
             EditProfileScreen(
                 navController = navController,
+                profileViewModel = profileViewModel
+            )
+        }
+        composable("profileStats") {
+            ProfileStatsScreen(
+                navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel,
+                profileViewModel = profileViewModel
+            )
+        }
+        composable("exerciseList") {
+            ExerciseListScreen(
+                navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel,
+                profileViewModel = profileViewModel
+            )
+        }
+        composable(
+            route = "exerciseDetail/{exerciseId}",
+            arguments = listOf(navArgument("exerciseId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val exerciseId = backStackEntry.arguments?.getLong("exerciseId") ?: 0L
+            ExerciseDetailScreen(
+                exerciseId = exerciseId,
+                navController = navController,
+                activeWorkoutViewModel = activeWorkoutViewModel,
                 profileViewModel = profileViewModel
             )
         }

@@ -268,4 +268,43 @@ interface PerformedSetDao {
         userId: Long,
         startInclusive: String
     ): kotlinx.coroutines.flow.Flow<List<WorkoutVolumeRow>>
+
+    // Exercise statistics queries
+    @Query(
+        """
+        SELECT COUNT(*) FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        WHERE w.userId = :userId
+          AND el.exerciseId = :exerciseId
+          AND ps.isCompleted = 1
+        """
+    )
+    suspend fun getTotalSetsForExercise(userId: Long, exerciseId: Long): Int
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(ps.weight * ps.reps), 0.0) FROM performed_set ps
+        JOIN exercise_log el ON el.id = ps.exerciseLogId
+        JOIN workouts w ON w.workoutId = el.workoutId
+        WHERE w.userId = :userId
+          AND el.exerciseId = :exerciseId
+          AND ps.isCompleted = 1
+        """
+    )
+    suspend fun getTotalVolumeForExercise(userId: Long, exerciseId: Long): Double
+
+    @Query(
+        """
+        SELECT DISTINCT w.workoutId
+        FROM workouts w
+        JOIN exercise_log el ON el.workoutId = w.workoutId
+        JOIN performed_set ps ON ps.exerciseLogId = el.id
+        WHERE w.userId = :userId
+          AND el.exerciseId = :exerciseId
+          AND ps.isCompleted = 1
+        ORDER BY w.date DESC
+        """
+    )
+    suspend fun getWorkoutIdsForExercise(userId: Long, exerciseId: Long): List<Long>
 }
