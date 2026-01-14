@@ -11,11 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,6 +25,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,25 +35,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.template.WorkoutTemplate
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.WeeklyBarChart
-import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import kotlinx.coroutines.flow.flowOf
 import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.viewmodel.StatsRange
-
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -64,13 +60,8 @@ fun HomeScreen(
     navController: NavController,
     activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
-    // ✅ StatViewModel can now be created with viewModel() (no factory)
     val statViewModel: StatViewModel = viewModel()
 
-    val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
-
-
-    // ✅ Completed workouts (profile-scoped)
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
@@ -97,8 +88,6 @@ fun HomeScreen(
 
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
-
-
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Home") }) },
@@ -148,8 +137,8 @@ fun HomeScreen(
             return@Scaffold
         }
 
-        // ✅ We have a profile -> use its userId everywhere (NO hardcoded 1L)
         val userId = activeProfileUserId!!
+
         val workoutsThisWeek by exerciseLogDao
             .observeCompletedWorkoutCountInRangeForUser(
                 userId = userId,
@@ -157,7 +146,6 @@ fun HomeScreen(
                 endInclusive = endInclusive
             )
             .collectAsState(initial = 0)
-
 
         val weeklyVolume by statViewModel
             .weeklyVolumeLast3Months(userId)
@@ -190,8 +178,10 @@ fun HomeScreen(
                 )
             }
 
+            // PRIMARY theme usage
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
 
+            // SECONDARY theme usage
             item {
                 StatsCard(
                     weeklyHours = weeklyHours,
@@ -202,6 +192,7 @@ fun HomeScreen(
                 )
             }
 
+            // TERTIARY theme usage
             item {
                 CompletedWorkoutsCard(
                     workouts = completedWorkouts,
@@ -216,11 +207,23 @@ fun HomeScreen(
 fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
     val workoutText = if (workoutsThisWeek == 1) "workout" else "workouts"
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("This week", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "This week",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            Text("$workoutsThisWeek $workoutText this week")
+            Text(
+                "$workoutsThisWeek $workoutText this week",
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         }
     }
 }
@@ -232,13 +235,15 @@ private fun SegmentedToggle(
     isLeftSelected: Boolean,
     onLeftClick: () -> Unit,
     onRightClick: () -> Unit,
+    selectedContainerColor: androidx.compose.ui.graphics.Color,
+    selectedContentColor: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier
 ) {
-    val selectedColors = androidx.compose.material3.ButtonDefaults.buttonColors(
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary
+    val selectedColors = ButtonDefaults.buttonColors(
+        containerColor = selectedContainerColor,
+        contentColor = selectedContentColor
     )
-    val unselectedColors = androidx.compose.material3.ButtonDefaults.buttonColors(
+    val unselectedColors = ButtonDefaults.buttonColors(
         containerColor = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -274,14 +279,23 @@ fun StatsCard(
     weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
     weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
     distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
-    statsRange: com.example.gymlocker.viewmodel.StatsRange,
-    onRangeChange: (com.example.gymlocker.viewmodel.StatsRange) -> Unit
+    statsRange: StatsRange,
+    onRangeChange: (StatsRange) -> Unit
 ) {
     var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Stats", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Stats",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -289,20 +303,26 @@ fun StatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // PRIMARY used here (range toggle)
                 SegmentedToggle(
                     leftText = "Week",
                     rightText = "Month",
-                    isLeftSelected = statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK,
-                    onLeftClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.WEEK) },
-                    onRightClick = { onRangeChange(com.example.gymlocker.viewmodel.StatsRange.MONTH) }
+                    isLeftSelected = statsRange == StatsRange.WEEK,
+                    onLeftClick = { onRangeChange(StatsRange.WEEK) },
+                    onRightClick = { onRangeChange(StatsRange.MONTH) },
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
                 )
 
+                // TERTIARY used here (mode toggle)
                 SegmentedToggle(
                     leftText = "Hours",
                     rightText = "Volume",
                     isLeftSelected = mode == WeeklyGraphMode.HOURS,
                     onLeftClick = { mode = WeeklyGraphMode.HOURS },
-                    onRightClick = { mode = WeeklyGraphMode.VOLUME }
+                    onRightClick = { mode = WeeklyGraphMode.VOLUME },
+                    selectedContainerColor = MaterialTheme.colorScheme.tertiary,
+                    selectedContentColor = MaterialTheme.colorScheme.onTertiary
                 )
             }
 
@@ -314,7 +334,7 @@ fun StatsCard(
                 else
                     "Volume per week (last 3 months)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -340,12 +360,12 @@ fun StatsCard(
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = if (statsRange == com.example.gymlocker.viewmodel.StatsRange.WEEK)
+                text = if (statsRange == StatsRange.WEEK)
                     "Training balance (this week)"
                 else
                     "Training balance (this month)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.75f)
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -357,7 +377,6 @@ fun StatsCard(
         }
     }
 }
-
 
 /**
  * ✅ Pretty date:
@@ -379,68 +398,46 @@ fun CompletedWorkoutsCard(
     workouts: List<WorkoutSummary>,
     onViewHistoryClick: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("Completed Workouts")
+            Text(
+                "Completed Workouts",
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
             Spacer(modifier = Modifier.height(8.dp))
 
             if (workouts.isEmpty()) {
-                Text("No completed workouts yet.", textAlign = TextAlign.Center)
+                Text(
+                    "No completed workouts yet.",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
             } else {
                 workouts.take(5).forEach { w ->
                     val prettyDate = prettyWorkoutDate(w.date)
-                    Text("• ${w.name} - $prettyDate - ${w.exerciseCount} exercises")
+                    Text(
+                        "• ${w.name} - $prettyDate - ${w.exerciseCount} exercises",
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
                 TextButton(
                     onClick = onViewHistoryClick,
                     modifier = Modifier.align(Alignment.End)
-                ) { Text("Workout History") }
-            }
-        }
-    }
-}
-
-@Composable
-fun TemplatesCard(
-    templates: List<WorkoutTemplate>,
-    onStartFromTemplate: (Long) -> Unit
-) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Templates")
-            Spacer(modifier = Modifier.height(8.dp))
-            if (templates.isEmpty()) {
-                Text("No templates yet.")
-            } else {
-                templates.take(5).forEach { t ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onStartFromTemplate(t.templateId) }
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(t.name)
-                        Text(t.date)
-                    }
+                ) {
+                    Text(
+                        "Workout History",
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
                 }
             }
         }
     }
 }
-
-/*@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    GymLockerTheme {
-        val nav = rememberNavController()
-        val activeWorkoutViewModel: ActiveWorkoutViewModel = viewModel()
-
-        HomeScreen(
-            navController = nav,
-            activeWorkoutViewModel = activeWorkoutViewModel
-        )
-    }
-}*/
