@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -88,9 +89,11 @@ fun WorkoutNumpadBar(
     onNext: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val darkBackground = Color(0xFF2C2C2E)
-    val buttonBackground = Color(0xFF3A3A3C)
-    val accentColor = Color(0xFF3A82F7)
+    // Use MaterialTheme colors instead of hardcoded colors
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val buttonBackground = MaterialTheme.colorScheme.surfaceVariant
+    val accentColor = MaterialTheme.colorScheme.primary
+    val contentColor = MaterialTheme.colorScheme.onSurface
 
     AnimatedVisibility(
         visible = isVisible,
@@ -106,7 +109,8 @@ fun WorkoutNumpadBar(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = darkBackground
+            color = surfaceColor,
+            tonalElevation = 3.dp
         ) {
             Row(
                 modifier = Modifier
@@ -120,7 +124,8 @@ fun WorkoutNumpadBar(
                     onDown = onNavigateDown,
                     onLeft = onNavigateLeft,
                     onRight = onNavigateRight,
-                    buttonBackground = buttonBackground
+                    buttonBackground = buttonBackground,
+                    contentColor = contentColor
                 )
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -135,38 +140,39 @@ fun WorkoutNumpadBar(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        NumpadButton("1", buttonBackground, Modifier.weight(1f)) { onNumberClick("1") }
-                        NumpadButton("2", buttonBackground, Modifier.weight(1f)) { onNumberClick("2") }
-                        NumpadButton("3", buttonBackground, Modifier.weight(1f)) { onNumberClick("3") }
+                        NumpadButton("1", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("1") }
+                        NumpadButton("2", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("2") }
+                        NumpadButton("3", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("3") }
                     }
                     // Row 2: 4 5 6
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        NumpadButton("4", buttonBackground, Modifier.weight(1f)) { onNumberClick("4") }
-                        NumpadButton("5", buttonBackground, Modifier.weight(1f)) { onNumberClick("5") }
-                        NumpadButton("6", buttonBackground, Modifier.weight(1f)) { onNumberClick("6") }
+                        NumpadButton("4", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("4") }
+                        NumpadButton("5", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("5") }
+                        NumpadButton("6", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("6") }
                     }
                     // Row 3: 7 8 9
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        NumpadButton("7", buttonBackground, Modifier.weight(1f)) { onNumberClick("7") }
-                        NumpadButton("8", buttonBackground, Modifier.weight(1f)) { onNumberClick("8") }
-                        NumpadButton("9", buttonBackground, Modifier.weight(1f)) { onNumberClick("9") }
+                        NumpadButton("7", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("7") }
+                        NumpadButton("8", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("8") }
+                        NumpadButton("9", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("9") }
                     }
                     // Row 4: , 0 ⌫
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        NumpadButton(",", buttonBackground, Modifier.weight(1f)) { onNumberClick(",") }
-                        NumpadButton("0", buttonBackground, Modifier.weight(1f)) { onNumberClick("0") }
+                        NumpadButton(",", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick(",") }
+                        NumpadButton("0", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("0") }
                         IconButton(
                             icon = Icons.AutoMirrored.Filled.Backspace,
                             backgroundColor = buttonBackground,
+                            contentColor = contentColor,
                             contentDescription = "Delete",
                             modifier = Modifier.weight(1f),
                             onClick = onBackspace
@@ -184,6 +190,7 @@ fun WorkoutNumpadBar(
                     IconButton(
                         icon = Icons.Filled.KeyboardHide,
                         backgroundColor = buttonBackground,
+                        contentColor = contentColor,
                         contentDescription = "Hide",
                         onClick = onHide
                     )
@@ -193,18 +200,20 @@ fun WorkoutNumpadBar(
                         IconButton(
                             icon = Icons.Filled.Remove,
                             backgroundColor = buttonBackground,
+                            contentColor = contentColor,
                             contentDescription = "Minus",
                             onClick = onMinus
                         )
                         IconButton(
                             icon = Icons.Filled.Add,
                             backgroundColor = buttonBackground,
+                            contentColor = contentColor,
                             contentDescription = "Plus",
                             onClick = onPlus
                         )
                     }
 
-                    // Next button (complete set)
+                    // Next button (complete set) - uses primary color
                     Box(
                         modifier = Modifier
                             .width(88.dp)
@@ -221,12 +230,12 @@ fun WorkoutNumpadBar(
                             Icon(
                                 imageVector = Icons.Filled.Check,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = "Next",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 14.sp
                             )
@@ -247,7 +256,8 @@ private fun NavigationDpad(
     onDown: () -> Unit,
     onLeft: () -> Unit,
     onRight: () -> Unit,
-    buttonBackground: Color
+    buttonBackground: Color,
+    contentColor: Color
 ) {
     val arrowButtonSize = 40.dp
     val arrowIconSize = 20.dp
@@ -267,7 +277,7 @@ private fun NavigationDpad(
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowUp,
                 contentDescription = "Up",
-                tint = Color.White,
+                tint = contentColor,
                 modifier = Modifier.size(arrowIconSize)
             )
         }
@@ -291,7 +301,7 @@ private fun NavigationDpad(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                     contentDescription = "Left",
-                    tint = Color.White,
+                    tint = contentColor,
                     modifier = Modifier.size(arrowIconSize)
                 )
             }
@@ -308,7 +318,7 @@ private fun NavigationDpad(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "Right",
-                    tint = Color.White,
+                    tint = contentColor,
                     modifier = Modifier.size(arrowIconSize)
                 )
             }
@@ -328,7 +338,7 @@ private fun NavigationDpad(
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowDown,
                 contentDescription = "Down",
-                tint = Color.White,
+                tint = contentColor,
                 modifier = Modifier.size(arrowIconSize)
             )
         }
@@ -342,6 +352,7 @@ private fun NavigationDpad(
 private fun NumpadButton(
     text: String,
     backgroundColor: Color,
+    contentColor: Color,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -355,7 +366,7 @@ private fun NumpadButton(
     ) {
         Text(
             text = text,
-            color = Color.White,
+            color = contentColor,
             fontSize = 20.sp,
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center
@@ -370,6 +381,7 @@ private fun NumpadButton(
 private fun IconButton(
     icon: ImageVector,
     backgroundColor: Color,
+    contentColor: Color,
     contentDescription: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
@@ -385,7 +397,7 @@ private fun IconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = Color.White,
+            tint = contentColor,
             modifier = Modifier.size(22.dp)
         )
     }
@@ -399,12 +411,13 @@ fun NumpadRevealHandle(
     onReveal: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val handleColor = Color(0xFF3A3A3C)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val handleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF2C2C2E))
+            .background(surfaceColor)
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
                     if (dragAmount < -20) {
