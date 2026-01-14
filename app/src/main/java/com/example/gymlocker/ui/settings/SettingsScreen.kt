@@ -75,7 +75,7 @@ fun SettingsScreen(
         AppTheme.RED to "Red",
         AppTheme.BLUE to "Blue",
         AppTheme.GREEN to "Green",
-        AppTheme.MATRIX to "Matrix"
+        AppTheme.MATRIX to "Welcome to the Matrix™"
     )
 
     var selectedTheme by remember(currentSettings.userId, currentSettings.appTheme) {
