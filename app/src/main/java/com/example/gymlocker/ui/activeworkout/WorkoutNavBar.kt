@@ -24,9 +24,6 @@ import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
@@ -70,16 +67,13 @@ data class CursorPosition(
 
 /**
  * A workout navigation bar with:
- * - Left side: D-pad navigation arrows (up/down/left/right)
- * - Center: Number pad (1-9, 0, comma, backspace)
- * - Right side: Plus/Minus buttons, Next button, Hide keyboard button
+ * - Left side: Number pad (1-9, 0, comma, backspace)
+ * - Right side: Hide button, Left/Right arrows, Plus/Minus buttons, Next button
  */
 @Composable
 fun WorkoutNumpadBar(
     isVisible: Boolean,
     onHide: () -> Unit,
-    onNavigateUp: () -> Unit,
-    onNavigateDown: () -> Unit,
     onNavigateLeft: () -> Unit,
     onNavigateRight: () -> Unit,
     onNumberClick: (String) -> Unit = {},
@@ -118,19 +112,7 @@ fun WorkoutNumpadBar(
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // LEFT SIDE: Navigation D-pad
-                NavigationDpad(
-                    onUp = onNavigateUp,
-                    onDown = onNavigateDown,
-                    onLeft = onNavigateLeft,
-                    onRight = onNavigateRight,
-                    buttonBackground = buttonBackground,
-                    contentColor = contentColor
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // CENTER: Number pad (3x4 grid)
+                // LEFT SIDE: Number pad (3x4 grid)
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -186,7 +168,7 @@ fun WorkoutNumpadBar(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Hide keyboard button - same size as Next button
+                    // Hide keyboard button - same width as other buttons
                     Box(
                         modifier = Modifier
                             .width(88.dp)
@@ -201,6 +183,24 @@ fun WorkoutNumpadBar(
                             contentDescription = "Hide",
                             tint = contentColor,
                             modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    // Left/Right navigation row
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            backgroundColor = buttonBackground,
+                            contentColor = contentColor,
+                            contentDescription = "Left",
+                            onClick = onNavigateLeft
+                        )
+                        IconButton(
+                            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            backgroundColor = buttonBackground,
+                            contentColor = contentColor,
+                            contentDescription = "Right",
+                            onClick = onNavigateRight
                         )
                     }
 
@@ -222,7 +222,7 @@ fun WorkoutNumpadBar(
                         )
                     }
 
-                    // Next button (complete set) - uses primary color
+                    // Next button (move to next field) - uses primary color
                     Box(
                         modifier = Modifier
                             .width(88.dp)
@@ -237,7 +237,7 @@ fun WorkoutNumpadBar(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Check,
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
                                 modifier = Modifier.size(18.dp)
@@ -256,103 +256,6 @@ fun WorkoutNumpadBar(
     }
 }
 
-/**
- * D-pad navigation control with arrows only
- */
-@Composable
-private fun NavigationDpad(
-    onUp: () -> Unit,
-    onDown: () -> Unit,
-    onLeft: () -> Unit,
-    onRight: () -> Unit,
-    buttonBackground: Color,
-    contentColor: Color
-) {
-    val arrowButtonSize = 40.dp
-    val arrowIconSize = 20.dp
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Up arrow
-        Box(
-            modifier = Modifier
-                .size(arrowButtonSize)
-                .clip(RoundedCornerShape(8.dp))
-                .background(buttonBackground)
-                .clickable { onUp() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowUp,
-                contentDescription = "Up",
-                tint = contentColor,
-                modifier = Modifier.size(arrowIconSize)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Middle row: Left and Right arrows
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Left arrow
-            Box(
-                modifier = Modifier
-                    .size(arrowButtonSize)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(buttonBackground)
-                    .clickable { onLeft() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = "Left",
-                    tint = contentColor,
-                    modifier = Modifier.size(arrowIconSize)
-                )
-            }
-
-            // Right arrow
-            Box(
-                modifier = Modifier
-                    .size(arrowButtonSize)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(buttonBackground)
-                    .clickable { onRight() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Right",
-                    tint = contentColor,
-                    modifier = Modifier.size(arrowIconSize)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Down arrow
-        Box(
-            modifier = Modifier
-                .size(arrowButtonSize)
-                .clip(RoundedCornerShape(8.dp))
-                .background(buttonBackground)
-                .clickable { onDown() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.KeyboardArrowDown,
-                contentDescription = "Down",
-                tint = contentColor,
-                modifier = Modifier.size(arrowIconSize)
-            )
-        }
-    }
-}
 
 /**
  * A single numpad button with text
@@ -459,8 +362,6 @@ fun WorkoutNumpadBarPreview() {
         WorkoutNumpadBar(
             isVisible = true,
             onHide = {},
-            onNavigateUp = {},
-            onNavigateDown = {},
             onNavigateLeft = {},
             onNavigateRight = {},
             onNumberClick = {},

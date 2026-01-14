@@ -259,42 +259,6 @@ fun ActiveWorkoutScreen(
                         isNumpadVisible = false
                         cursorPosition = null  // Clear the blue marker when hiding
                     },
-                    onNavigateUp = {
-                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
-                        val current = cursorPosition
-                        if (current == null) {
-                            // Start at first cell
-                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
-                        } else {
-                            // Move up within same exercise's sets, or to previous exercise
-                            if (current.setIndex > 0) {
-                                cursorPosition = current.copy(setIndex = current.setIndex - 1)
-                            } else if (current.exerciseIndex > 0) {
-                                val prevExercise = activeExercises[current.exerciseIndex - 1]
-                                cursorPosition = current.copy(
-                                    exerciseIndex = current.exerciseIndex - 1,
-                                    setIndex = (prevExercise.sets.size - 1).coerceAtLeast(0)
-                                )
-                            }
-                        }
-                    },
-                    onNavigateDown = {
-                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
-                        val current = cursorPosition
-                        if (current == null) {
-                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
-                        } else {
-                            val currentExercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
-                            if (current.setIndex < currentExercise.sets.size - 1) {
-                                cursorPosition = current.copy(setIndex = current.setIndex + 1)
-                            } else if (current.exerciseIndex < activeExercises.size - 1) {
-                                cursorPosition = current.copy(
-                                    exerciseIndex = current.exerciseIndex + 1,
-                                    setIndex = 0
-                                )
-                            }
-                        }
-                    },
                     onNavigateLeft = {
                         if (activeExercises.isEmpty()) return@WorkoutNumpadBar
                         val current = cursorPosition
@@ -388,22 +352,17 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     onNext = {
-                        val current = cursorPosition ?: return@WorkoutNumpadBar
-                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
-                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
-
-                        // Mark current set as done
-                        viewModel.toggleSetDone(exercise.exerciseId, set.setNumber, true)
-
-                        // Move to next set or next exercise
-                        if (current.setIndex < exercise.sets.size - 1) {
-                            cursorPosition = current.copy(setIndex = current.setIndex + 1, field = FieldType.WEIGHT)
-                        } else if (current.exerciseIndex < activeExercises.size - 1) {
-                            cursorPosition = current.copy(
-                                exerciseIndex = current.exerciseIndex + 1,
-                                setIndex = 0,
-                                field = FieldType.WEIGHT
-                            )
+                        // Just move to the next field (right)
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            cursorPosition = when (current.field) {
+                                FieldType.WEIGHT -> current.copy(field = FieldType.REPS)
+                                FieldType.REPS -> current.copy(field = FieldType.DONE)
+                                FieldType.DONE -> current // Already at rightmost, stay there
+                            }
                         }
                     }
                 )
