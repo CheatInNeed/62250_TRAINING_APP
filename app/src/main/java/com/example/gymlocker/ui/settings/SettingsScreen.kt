@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.data.auth.SessionManager
+import com.example.gymlocker.data.entity.AppTheme
 import com.example.gymlocker.data.entity.WeightUnit
 import com.example.gymlocker.data.repo.SettingsRepository
 import kotlinx.coroutines.launch
@@ -69,6 +70,18 @@ fun SettingsScreen(
     var restTimerEnabled by remember(currentSettings.userId, currentSettings.restTimerEnabled) {
         mutableStateOf(currentSettings.restTimerEnabled)
     }
+    val themeOptions = listOf(
+        AppTheme.DEFAULT to "Default (matches system)",
+        AppTheme.RED to "Red",
+        AppTheme.BLUE to "Blue",
+        AppTheme.GREEN to "Green"
+    )
+
+    var selectedTheme by remember(currentSettings.userId, currentSettings.appTheme) {
+        mutableStateOf(currentSettings.appTheme)
+    }
+
+    var expanded by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -167,6 +180,41 @@ fun SettingsScreen(
                     )
                 }
             }
+            Column(Modifier.padding(16.dp)) {
+                Text("Choose theme", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    TextField(
+                        value = themeOptions.first { it.first == selectedTheme }.second,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) }
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        themeOptions.forEach { (theme, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    selectedTheme = theme
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
 
             Button(
@@ -176,7 +224,8 @@ fun SettingsScreen(
                             it.copy(
                                 weightUnit = selectedUnit,
                                 restTimerEnabled = restTimerEnabled,
-                                forceDarkMode = forceDarkMode
+                                forceDarkMode = forceDarkMode,
+                                appTheme = selectedTheme
                             )
                         }
                         navController.popBackStack()
