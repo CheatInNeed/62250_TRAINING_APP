@@ -78,7 +78,7 @@ private val GreenDark = darkColorScheme(
 private val MatrixDark = darkColorScheme(
     primary = Color(0xFF00FF41),     // Neon green
     secondary = Color(0xFF00C853),   // Slightly darker neon green
-    tertiary = Color(0xFF76FF03),    // Lime neon
+    tertiary = Color(0xFF000000),    // Lime neon
 
     background = Color(0xFF000000),  // True black
     surface = Color(0xFF050505),     // Almost black (cards)

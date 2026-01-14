@@ -210,7 +210,9 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            // use tertiary directly so it actually changes with the 3-color themes
+            containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -287,7 +289,9 @@ fun StatsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
+            // use tertiary directly so it actually changes with the 3-color themes
+            containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -303,26 +307,26 @@ fun StatsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // PRIMARY used here (range toggle)
+
                 SegmentedToggle(
                     leftText = "Week",
                     rightText = "Month",
                     isLeftSelected = statsRange == StatsRange.WEEK,
                     onLeftClick = { onRangeChange(StatsRange.WEEK) },
                     onRightClick = { onRangeChange(StatsRange.MONTH) },
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
+                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
+                    selectedContentColor = MaterialTheme.colorScheme.onSecondary
                 )
 
-                // TERTIARY used here (mode toggle)
+
                 SegmentedToggle(
                     leftText = "Hours",
                     rightText = "Volume",
                     isLeftSelected = mode == WeeklyGraphMode.HOURS,
                     onLeftClick = { mode = WeeklyGraphMode.HOURS },
                     onRightClick = { mode = WeeklyGraphMode.VOLUME },
-                    selectedContainerColor = MaterialTheme.colorScheme.tertiary,
-                    selectedContentColor = MaterialTheme.colorScheme.onTertiary
+                    selectedContainerColor = MaterialTheme.colorScheme.secondary,
+                    selectedContentColor = MaterialTheme.colorScheme.onSecondary
                 )
             }
 
@@ -401,7 +405,9 @@ fun CompletedWorkoutsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            // use tertiary directly so it actually changes with the 3-color themes
+            containerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -423,7 +429,7 @@ fun CompletedWorkoutsCard(
                     val prettyDate = prettyWorkoutDate(w.date)
                     Text(
                         "• ${w.name} - $prettyDate - ${w.exerciseCount} exercises",
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -434,7 +440,7 @@ fun CompletedWorkoutsCard(
                 ) {
                     Text(
                         "Workout History",
-                        color = MaterialTheme.colorScheme.tertiary
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
