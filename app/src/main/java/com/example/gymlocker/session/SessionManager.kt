@@ -26,6 +26,24 @@ class SessionManager(private val context: Context) {
      * We validate it belongs to the current authId before using it.
      */
     private val KEY_LAST_PROFILE_USER_ID = longPreferencesKey("last_profile_user_id")
+    // ✅ Profile photo (stored as URI string, per profile userId)
+    private fun KEY_PROFILE_PHOTO_URI(userId: Long) =
+        stringPreferencesKey("profile_photo_uri_$userId")
+
+    fun profilePhotoUri(userId: Long): Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[KEY_PROFILE_PHOTO_URI(userId)] }
+
+    suspend fun setProfilePhotoUri(userId: Long, uri: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PROFILE_PHOTO_URI(userId)] = uri
+        }
+    }
+
+    suspend fun clearProfilePhotoUri(userId: Long) {
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_PROFILE_PHOTO_URI(userId))
+        }
+    }
 
     // ✅ Units (stored as strings)
     private val KEY_WEIGHT_UNIT = stringPreferencesKey("weight_unit") // "kg" | "lb"
