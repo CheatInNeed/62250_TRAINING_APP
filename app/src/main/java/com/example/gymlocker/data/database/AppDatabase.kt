@@ -16,6 +16,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.random.Random
+import androidx.room.TypeConverters
 
 @Database(
     entities = [
@@ -26,6 +27,7 @@ import kotlin.random.Random
         Exercises::class,
         ExerciseLog::class,
         PerformedSet::class,
+        UserSettings::class,
 
         ExerciseRestPreference::class,
 
@@ -33,9 +35,10 @@ import kotlin.random.Random
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 5,
-    exportSchema = false
-)
+    version = 6,
+    exportSchema = false)
+
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
@@ -52,6 +55,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun templateSetDao(): TemplateSetDao
 
     abstract fun exerciseRestPreferenceDao(): ExerciseRestPreferenceDao
+
+    abstract fun userSettingsDao(): UserSettingsDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
