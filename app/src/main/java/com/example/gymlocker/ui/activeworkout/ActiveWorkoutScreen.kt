@@ -282,7 +282,27 @@ fun ActiveWorkoutScreen(
                 // Show reveal handle when numpad is hidden
                 if (!isNumpadVisible) {
                     NumpadRevealHandle(
-                        onReveal = { isNumpadVisible = true }
+                        onReveal = {
+                            isNumpadVisible = true
+                            // Auto-select first incomplete set when opening numpad
+                            if (cursorPosition == null && activeExercises.isNotEmpty()) {
+                                var found = false
+                                for ((exIdx, exercise) in activeExercises.withIndex()) {
+                                    for ((setIdx, set) in exercise.sets.withIndex()) {
+                                        if (!set.isDone) {
+                                            cursorPosition = CursorPosition(exIdx, setIdx, FieldType.WEIGHT)
+                                            found = true
+                                            break
+                                        }
+                                    }
+                                    if (found) break
+                                }
+                                // If all sets are done, select the first set
+                                if (!found) {
+                                    cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                                }
+                            }
+                        }
                     )
                 }
 
@@ -539,7 +559,8 @@ fun ActiveWorkoutScreen(
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
                             },
-                            onOpenDetails = { detailExercise = exercise }
+                            onOpenDetails = { detailExercise = exercise },
+                            isNumpadVisible = isNumpadVisible
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
@@ -589,7 +610,8 @@ fun ActiveWorkoutExerciseItem(
     onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit,
     onDeleteExercise: () -> Unit = {},
     onDeleteSet: (setNumber: Int) -> Unit = {},
-    onOpenDetails: () -> Unit
+    onOpenDetails: () -> Unit,
+    isNumpadVisible: Boolean = false
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -762,7 +784,8 @@ fun ActiveWorkoutExerciseItem(
                             selectedField = selectedField,
                             onFieldSelected = { field ->
                                 onCursorChange(CursorPosition(exerciseIndex, setIndex, field))
-                            }
+                            },
+                            isNumpadVisible = isNumpadVisible
                         )
                     } else {
                         SwipeableSetRow(
@@ -781,7 +804,8 @@ fun ActiveWorkoutExerciseItem(
                                 selectedField = selectedField,
                                 onFieldSelected = { field ->
                                     onCursorChange(CursorPosition(exerciseIndex, setIndex, field))
-                                }
+                                },
+                                isNumpadVisible = isNumpadVisible
                             )
                         }
                     }
@@ -826,7 +850,8 @@ fun ExerciseSetRow(
     onRepsChange: (String) -> Unit,
     onToggleDone: (Boolean) -> Unit,
     selectedField: FieldType? = null,
-    onFieldSelected: (FieldType) -> Unit = {}
+    onFieldSelected: (FieldType) -> Unit = {},
+    isNumpadVisible: Boolean = false
 ) {
     val alphaContainer = 0.15f
     val selectedAlpha = 0.4f
@@ -902,6 +927,7 @@ fun ExerciseSetRow(
                         onWeightChange(newText)
                     }
                 },
+                readOnly = isNumpadVisible,
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
@@ -948,6 +974,7 @@ fun ExerciseSetRow(
             TextField(
                 value = if (set.reps == 0) "" else set.reps.toString(),
                 onValueChange = onRepsChange,
+                readOnly = isNumpadVisible,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–") },
