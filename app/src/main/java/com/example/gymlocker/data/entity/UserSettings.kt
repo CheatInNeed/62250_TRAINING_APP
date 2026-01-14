@@ -27,6 +27,7 @@ enum class AppTheme {
     DEFAULT, // matches system colors/dynamic
     RED,
     BLUE,
-    GREEN
+    GREEN,
+    MATRIX
 }
 

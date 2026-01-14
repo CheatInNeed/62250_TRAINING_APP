@@ -51,11 +51,49 @@ private val RedDark = darkColorScheme(
 )
 
 // Same idea for Blue and Green
-private val BlueLight = lightColorScheme(primary = Color(0xFF1565C0))
-private val BlueDark  = darkColorScheme(primary = Color(0xFF90CAF9))
+private val BlueLight = lightColorScheme(
+    primary = Color(0xFF1565C0),    // strong blue
+    secondary = Color(0xFF4E5BA6),  // muted indigo
+    tertiary = Color(0xFF00838F)    // teal accent
+)
 
-private val GreenLight = lightColorScheme(primary = Color(0xFF2E7D32))
-private val GreenDark  = darkColorScheme(primary = Color(0xFFA5D6A7))
+private val BlueDark = darkColorScheme(
+    primary = Color(0xFF90CAF9),    // light blue
+    secondary = Color(0xFFC2C5FF),  // soft indigo
+    tertiary = Color(0xFF73D6E3)    // bright teal accent
+)
+
+private val GreenLight = lightColorScheme(
+    primary = Color(0xFF2E7D32),    // strong green
+    secondary = Color(0xFF4E6356),  // muted “forest / sage” neutral
+    tertiary = Color(0xFF006A6A)    // deep teal-green accent
+)
+
+private val GreenDark = darkColorScheme(
+    primary = Color(0xFFA5D6A7),    // light green
+    secondary = Color(0xFFB7CCBC),  // soft sage
+    tertiary = Color(0xFF5BD7D7)    // cyan/teal pop
+)
+
+private val MatrixDark = darkColorScheme(
+    primary = Color(0xFF00FF41),     // Neon green
+    secondary = Color(0xFF00C853),   // Slightly darker neon green
+    tertiary = Color(0xFF76FF03),    // Lime neon
+
+    background = Color(0xFF000000),  // True black
+    surface = Color(0xFF050505),     // Almost black (cards)
+    surfaceVariant = Color(0xFF0B0B0B),
+
+    onPrimary = Color(0xFF000000),
+    onSecondary = Color(0xFF000000),
+    onTertiary = Color(0xFF000000),
+
+    onBackground = Color(0xFF00FF41), // Neon text
+    onSurface = Color(0xFF00FF41),
+    onSurfaceVariant = Color(0xFF00E676),
+
+    outline = Color(0xFF00FF41)
+)
 
 @Composable
 fun GymLockerTheme(
@@ -103,6 +141,7 @@ fun GymLockerTheme(
         AppTheme.RED -> if (effectiveDarkTheme) RedDark else RedLight
         AppTheme.BLUE -> if (effectiveDarkTheme) BlueDark else BlueLight
         AppTheme.GREEN -> if (effectiveDarkTheme) GreenDark else GreenLight
+        AppTheme.MATRIX -> MatrixDark
     }
 
 
