@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.data.auth.HeightUnit
+import com.example.gymlocker.data.auth.WeightUnit
 import com.example.gymlocker.data.entity.User
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +38,12 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
 
     val activeProfileUserId: StateFlow<Long?> = session.activeProfileUserId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val weightUnit: StateFlow<WeightUnit> = session.weightUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeightUnit.KG)
+
+    val heightUnit: StateFlow<HeightUnit> = session.heightUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HeightUnit.CM)
 
     val profiles: StateFlow<List<User>> =
         authId.flatMapLatest { id ->
@@ -71,6 +79,14 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
     fun setActiveProfile(userId: Long) {
         viewModelScope.launch { session.setActiveProfile(userId) }
     }
+    fun setWeightUnit(unit: WeightUnit) {
+        viewModelScope.launch { session.setWeightUnit(unit) }
+    }
+
+    fun setHeightUnit(unit: HeightUnit) {
+        viewModelScope.launch { session.setHeightUnit(unit) }
+    }
+
 
     fun clearActiveProfile() {
         viewModelScope.launch { session.clearActiveProfile() }
