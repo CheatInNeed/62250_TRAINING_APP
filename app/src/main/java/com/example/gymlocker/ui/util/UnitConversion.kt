@@ -2,6 +2,8 @@ package com.example.gymlocker.util
 
 import com.example.gymlocker.data.entity.WeightUnit
 import kotlin.math.roundToInt
+import java.util.Locale
+import kotlin.math.pow
 
 private const val KG_TO_LB = 2.2046226218
 
@@ -49,7 +51,12 @@ fun formatWeight(
     weight: Double,
     decimals: Int = 1
 ): String {
-    val factor = Math.pow(10.0, decimals.toDouble())
+    // When decimals == 0 we want "80" not "80.0"
+    if (decimals <= 0) return weight.roundToInt().toString()
+
+    val factor = 10.0.pow(decimals)
     val rounded = (weight * factor).roundToInt() / factor
-    return rounded.toString()
+
+    // Keep a stable decimal format (e.g. 80.5, 80.25)
+    return String.format(Locale.US, "%.${decimals}f", rounded)
 }

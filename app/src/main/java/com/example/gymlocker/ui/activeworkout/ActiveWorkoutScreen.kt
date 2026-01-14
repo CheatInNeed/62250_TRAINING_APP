@@ -76,6 +76,12 @@ import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
+import kotlin.math.roundToInt
 
 
 
@@ -120,24 +126,32 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    val totalVolume by remember(activeExercises, unit) {
+    // Always compute volume in storage units (kg * reps)
+    val totalVolumeKg by remember(activeExercises) {
         derivedStateOf {
             activeExercises.sumOf { ex ->
                 ex.sets
                     .asSequence()
                     .filter { it.isDone }
                     .sumOf { set ->
-                        val shownWeight = displayWeightFromKg(set.weight.toDouble(), unit)
-                        shownWeight * set.reps.toDouble()
+                        set.weight.toDouble() * set.reps.toDouble()
                     }
             }
         }
     }
 
-    val totalVolumeText = remember(totalVolume) {
-        if (totalVolume % 1.0 == 0.0) totalVolume.toLong().toString()
-        else String.format("%.2f", totalVolume)
+// Convert the total to the selected unit (same scalar factor as weight conversion)
+    val totalVolumeShown by remember(totalVolumeKg, unit) {
+        derivedStateOf {
+            displayWeightFromKg(totalVolumeKg, unit)
+        }
     }
+
+// Round for display (matches how you show weights elsewhere)
+    val totalVolumeText = remember(totalVolumeShown, unit) {
+        totalVolumeShown.roundToInt().toString()
+    }
+
 
     // ✅ Only start the timer if a profile exists.
     LaunchedEffect(hasActiveProfile) {
@@ -399,6 +413,8 @@ fun ActiveWorkoutExerciseItem(
 
     var showRestDialog by remember { mutableStateOf(false) }
     var restSeconds by remember(exercise.exerciseId) { mutableStateOf<Int?>(null) }
+
+
     val unit = LocalUserSettings.current.weightUnit
 
 // Hent saved default rest for denne exercise (per user)
@@ -631,12 +647,16 @@ fun ExerciseSetRow(
     }
     val unit = LocalUserSettings.current.weightUnit
 
-    val weightDisplayText = remember(set.weight, unit) {
-        if (set.weight == 0) ""
-        else {
-            val shown = displayWeightFromKg(set.weight.toDouble(), unit)
-            // Choose decimals; 0 keeps it simple. You can do 1 for LB if you prefer.
-            formatWeight(shown, decimals = 0)
+// IMPORTANT: keep an editable string while focused; don't overwrite on every recomposition
+    var isWeightFocused by remember { mutableStateOf(false) }
+    var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
+
+// When NOT editing, sync display from canonical stored kg value
+    LaunchedEffect(set.weight, unit) {
+        if (!isWeightFocused) {
+            weightText =
+                if (set.weight == 0) ""
+                else formatWeight(displayWeightFromKg(set.weight.toDouble(), unit), decimals = 0)
         }
     }
 
@@ -662,13 +682,22 @@ fun ExerciseSetRow(
             contentAlignment = Alignment.Center
         ) {
             TextField(
-                value = weightDisplayText,
-                onValueChange = onWeightChange,
+                value = weightText,
+                onValueChange = { newText ->
+                    // allow empty OR digits only (matches your Int storage)
+                    if (newText.isEmpty() || newText.all { it.isDigit() }) {
+                        weightText = newText
+                        onWeightChange(newText)
+                    }
+                },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier
+                    .fillMaxWidth(.9f)
+                    .onFocusChanged { isWeightFocused = it.isFocused },
                 placeholder = { Text("–") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    // unchanged
                     unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
