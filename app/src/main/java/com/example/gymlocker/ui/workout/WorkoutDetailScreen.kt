@@ -174,7 +174,7 @@ fun WorkoutDetailScreen(
                                 ) {
                                     Text("Set ${set.setNumber}", style = MaterialTheme.typography.bodyMedium)
                                     Text(
-                                        text = if (set.isCompleted) "${set.weight} kg x ${set.reps}" else "${set.weight} kg x ${set.reps} (skipped)",
+                                        text = if (set.isCompleted) "${set.weight} kg x ${set.reps}" else "(skipped)",
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
