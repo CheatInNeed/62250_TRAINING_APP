@@ -178,16 +178,17 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onDismiss = {
+        onCancel = {
+            showFinishSummarySheet = false
+        },
+
+        onFinished = {
             showFinishSummarySheet = false
             navController.navigate("home") {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 launchSingleTop = true
             }
         },
-
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
         workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
