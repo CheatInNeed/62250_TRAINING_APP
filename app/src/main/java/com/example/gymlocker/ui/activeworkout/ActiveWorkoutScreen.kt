@@ -88,11 +88,10 @@ fun ActiveWorkoutScreen(
     val activeExercises by viewModel.activeExercises.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var showUnfinishedSetsDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
 
-    var showQuickFinishWarning by remember { mutableStateOf(false) }
-    var showNameDialog by remember { mutableStateOf(false) }
+    //finish sheet
+    var showFinishSummarySheet by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
 
     //Rest timer
@@ -100,7 +99,6 @@ fun ActiveWorkoutScreen(
 
     // ✅ Live validation state for name length
     val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
-    var nameTooLongAttempt by remember { mutableStateOf(false) }
 
     val progress by remember(activeExercises) {
         derivedStateOf {
@@ -142,9 +140,7 @@ fun ActiveWorkoutScreen(
     if (!hasActiveProfile) {
         showAddExerciseSheet = false
         showDiscardDialog = false
-        showUnfinishedSetsDialog = false
-        showQuickFinishWarning = false
-        showNameDialog = false
+        showFinishSummarySheet = false
         detailExercise = null
     }
 
@@ -168,101 +164,39 @@ fun ActiveWorkoutScreen(
         )
     }
 
-    if (showUnfinishedSetsDialog) {
-        AlertDialog(
-            onDismissRequest = { showUnfinishedSetsDialog = false },
-            title = { Text("Unfinished sets") },
-            text = { Text("You have unfinished sets. Do you want to mark these as complete?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.markAllUnfinishedMeaningfulSetsDone()
-                    showUnfinishedSetsDialog = false
-                    workoutNameInput = ""
-                    nameTooLongAttempt = false
-                    showNameDialog = true
-                }) { Text("Mark as complete") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showUnfinishedSetsDialog = false
-                    workoutNameInput = ""
-                    nameTooLongAttempt = false
-                    showNameDialog = true
-                }) { Text("Keep unfinished") }
+    val unfinishedMeaningfulSetCount by remember(activeExercises) {
+        derivedStateOf {
+            activeExercises.sumOf { ex ->
+                ex.sets.count { s -> s.weight > 0 && s.reps > 0 && !s.isDone }
             }
-        )
+        }
     }
 
-    if (showQuickFinishWarning) {
-        AlertDialog(
-            onDismissRequest = { showQuickFinishWarning = false },
-            title = { Text("Workout is too short") },
-            text = { Text("This workout is under 1 minute. Are you sure you want to finish it?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showQuickFinishWarning = false
-                    if (viewModel.hasUnfinishedMeaningfulSets()) {
-                        showUnfinishedSetsDialog = true
-                    } else {
-                        workoutNameInput = ""
-                        nameTooLongAttempt = false
-                        showNameDialog = true
-                    }
-                }) { Text("Finish anyway") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showQuickFinishWarning = false }) { Text("Keep training") }
-            }
-        )
-    }
+    FinishWorkoutSummarySheet(
+        visible = showFinishSummarySheet,
+        onDismiss = { showFinishSummarySheet = false },
 
-    if (showNameDialog) {
-        val maxLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
-        val trimmed = workoutNameInput.trim()
-        val tooLong = trimmed.length > maxLen
-        val blank = trimmed.isBlank()
+        initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
+        workoutDurationText = "Varighed: ${viewModel.formatTime(elapsedTime)}",
+        isVeryShortWorkout = elapsedTime < 60,
+        unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
 
-        AlertDialog(
-            onDismissRequest = { showNameDialog = false },
-            title = { Text("Enter Workout Name") },
-            text = {
-                OutlinedTextField(
-                    value = workoutNameInput,
-                    onValueChange = { newValue ->
-                        if (newValue.length <= maxLen) {
-                            workoutNameInput = newValue
-                        } else {
-                            workoutNameInput = newValue
-                        }
-                    },
-                    label = { Text("Workout name") },
-                    singleLine = true,
-                    isError = blank || tooLong,
-                    supportingText = {
-                        when {
-                            blank -> Text("Please enter a name.")
-                            tooLong -> Text("Max $maxLen characters.")
-                            else -> Text("${trimmed.length} / $maxLen")
-                        }
-                    }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showNameDialog = false
-                        viewModel.finishWorkoutWithName(trimmed)
-                        navController.popBackUnlessAtRoot()
-                        navController.popBackUnlessAtRoot()
-                    },
-                    enabled = !blank && !tooLong
-                ) { Text("Finish") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showNameDialog = false }) { Text("Cancel") }
+        maxNameLength = maxNameLen,
+
+        onSave = { name, markUnfinishedAsDone ->
+            if (markUnfinishedAsDone) {
+                viewModel.markAllUnfinishedMeaningfulSetsDone()
             }
-        )
-    }
+
+            viewModel.finishWorkoutWithName(name)
+
+            showFinishSummarySheet = false
+
+            // Samme navigation som du allerede gør i name-dialogen
+            navController.popBackUnlessAtRoot()
+            navController.popBackUnlessAtRoot()
+        }
+    )
 
     Scaffold(
         topBar = {
@@ -281,16 +215,11 @@ fun ActiveWorkoutScreen(
 
                     Button(
                         onClick = {
-                            if (!hasActiveProfile) return@Button
-                            when {
-                                elapsedTime < 60 -> showQuickFinishWarning = true
-                                viewModel.hasUnfinishedMeaningfulSets() -> showUnfinishedSetsDialog = true
-                                else -> {
-                                    workoutNameInput = ""
-                                    nameTooLongAttempt = false
-                                    showNameDialog = true
-                                }
+                            // Smart default name (kun når man åbner sheetet)
+                            if (workoutNameInput.isBlank()) {
+                                workoutNameInput = defaultWorkoutName()
                             }
+                            showFinishSummarySheet = true
                         },
                         modifier = Modifier.padding(end = 8.dp),
                         enabled = hasActiveProfile
@@ -790,4 +719,11 @@ fun ActiveWorkoutScreenPreview() {
             ).create(ActiveWorkoutViewModel::class.java)
         )
     }
+}
+
+private fun defaultWorkoutName(): String {
+    // Super simpelt “smart default” uden at ændre ViewModel
+    // (du kan senere gøre den smartere med split/push/pull osv.)
+    // TODO Make this good
+    return "Workout"
 }
