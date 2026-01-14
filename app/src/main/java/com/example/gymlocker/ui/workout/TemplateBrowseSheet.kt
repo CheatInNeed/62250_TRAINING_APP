@@ -15,6 +15,13 @@ import androidx.compose.ui.platform.LocalContext
 import com.example.gymlocker.data.database.AppDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,7 +81,20 @@ fun TemplateBrowseSheet(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search templates") },
+                placeholder = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("Search templates")
+                    }
+                },
                 singleLine = true
             )
 
@@ -94,15 +114,50 @@ fun TemplateBrowseSheet(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(t.name, style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(4.dp))
-                            val summary = templateSummaries[t.templateId] ?: "Loading..."
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // LEFT:
+                            Column(modifier = Modifier.weight(1f)) {
 
-                            Text(
-                                summary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = t.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (t.isFavorite) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Icon(
+                                            imageVector = Icons.Filled.Star,
+                                            contentDescription = "Favorite",
+                                            modifier = Modifier.size(18.dp),
+                                            tint = Color(0xFFFFC107) // gul
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(4.dp))
+
+                                val summary = templateSummaries[t.templateId] ?: "Loading..."
+                                Text(
+                                    text = summary,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+
+                            // RIGHT
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = "Open details",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
