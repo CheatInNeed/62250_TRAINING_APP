@@ -951,6 +951,8 @@ fun ExerciseSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = if (selectedField == FieldType.REPS)
                         selectedBorderColor.copy(alpha = selectedAlpha)
