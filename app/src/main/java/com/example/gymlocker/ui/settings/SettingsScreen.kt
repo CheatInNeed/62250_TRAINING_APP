@@ -75,7 +75,7 @@ fun SettingsScreen(
         AppTheme.RED to "Red",
         AppTheme.BLUE to "Blue",
         AppTheme.GREEN to "Green",
-        AppTheme.RETRO to "Retro arcade",
+        AppTheme.ARCADE to "Arcade",
         AppTheme.SpongeBob to "SpongeBob™",
         AppTheme.SpiderMan to "Spider-Man™",
         AppTheme.MATRIX to "Welcome to the Matrix™",

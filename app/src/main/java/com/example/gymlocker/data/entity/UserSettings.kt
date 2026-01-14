@@ -29,7 +29,7 @@ enum class AppTheme {
     BLUE,
     GREEN,
     MATRIX,
-    RETRO,
+    ARCADE,
     SpongeBob,
     SpiderMan,
 }

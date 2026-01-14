@@ -3,7 +3,9 @@ package com.example.gymlocker.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -14,13 +16,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.example.gymlocker.data.entity.AppTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.unit.dp
 
-// ---------- Compact helpers (SeaBreeze system) ----------
+// ============================================================
+// "System matches Default" theme rules
+// - background / surface / surfaceVariant are the reliable baseline layers
+// - tertiary is an ACCENT only (never assumed as main card surface)
+// - DEFAULT keeps dynamic colors (Material You) when available
+// ============================================================
 
 private fun lightCompactScheme(
     primary: Color,
@@ -29,25 +34,33 @@ private fun lightCompactScheme(
     onSecondary: Color,
     tertiary: Color,
     onTertiary: Color,
-    background: Color = tertiary,
-    onBackground: Color = onTertiary,
-    surface: Color = tertiary,
-    onSurface: Color = onTertiary,
+    background: Color,
+    onBackground: Color,
+    surface: Color,
+    onSurface: Color,
+    surfaceVariant: Color = surface,
+    onSurfaceVariant: Color = onSurface,
     outline: Color? = null
 ) = lightColorScheme(
     primary = primary,
     onPrimary = onPrimary,
+
     secondary = secondary,
     onSecondary = onSecondary,
+
     tertiary = tertiary,
     onTertiary = onTertiary,
+
     background = background,
     onBackground = onBackground,
+
     surface = surface,
     onSurface = onSurface,
-    surfaceVariant = tertiary,
-    onSurfaceVariant = onTertiary,
-    outline = outline ?: onTertiary.copy(alpha = 0.35f)
+
+    surfaceVariant = surfaceVariant,
+    onSurfaceVariant = onSurfaceVariant,
+
+    outline = outline ?: onSurface.copy(alpha = 0.35f)
 )
 
 private fun darkCompactScheme(
@@ -57,65 +70,91 @@ private fun darkCompactScheme(
     onSecondary: Color,
     tertiary: Color,
     onTertiary: Color,
-    background: Color = tertiary,
-    onBackground: Color = onTertiary,
-    surface: Color = tertiary,
-    onSurface: Color = onTertiary,
+    background: Color,
+    onBackground: Color,
+    surface: Color,
+    onSurface: Color,
+    surfaceVariant: Color = surface,
+    onSurfaceVariant: Color = onSurface,
     outline: Color? = null
 ) = darkColorScheme(
     primary = primary,
     onPrimary = onPrimary,
+
     secondary = secondary,
     onSecondary = onSecondary,
+
     tertiary = tertiary,
     onTertiary = onTertiary,
+
     background = background,
     onBackground = onBackground,
+
     surface = surface,
     onSurface = onSurface,
-    surfaceVariant = tertiary,
-    onSurfaceVariant = onTertiary,
-    outline = outline ?: onTertiary.copy(alpha = 0.35f)
+
+    surfaceVariant = surfaceVariant,
+    onSurfaceVariant = onSurfaceVariant,
+
+    outline = outline ?: onSurface.copy(alpha = 0.35f)
 )
 
-// ---------- DEFAULT (Material defaults you already had) ----------
-// Keep these as-is (or convert later if you want). They’re only used when AppTheme.DEFAULT + not dynamic.
-private val DarkColorScheme = darkColorScheme(
+// ---------- DEFAULT (your old fallback schemes) ----------
+// These are only used when AppTheme.DEFAULT AND dynamicColor is not used/available.
+private val DefaultFallbackDark = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
     tertiary = Pink80
 )
 
-private val LightColorScheme = lightColorScheme(
+private val DefaultFallbackLight = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
     tertiary = Pink40
 )
 
-// ---------- RED (now matches SeaBreeze system: on*, background/surface, surfaceVariant, outline) ----------
+// ---------- RED ----------
 private val RedLight = lightCompactScheme(
     primary = Color(0xFFB3261E),
     onPrimary = Color(0xFFFFFFFF),
+
     secondary = Color(0xFF7D5260),
     onSecondary = Color(0xFFFFFFFF),
 
-    // Keep red theme as-is (already readable)
-    tertiary = Color(0xFFFFFBFE),
-    onTertiary = Color(0xFF1C1B1F),
+    tertiary = Color(0xFFFFDAD6),          // accent container
+    onTertiary = Color(0xFF2B0A06),
+
     background = Color(0xFFFFFBFE),
+    onBackground = Color(0xFF1C1B1F),
+
     surface = Color(0xFFFFFBFE),
+    onSurface = Color(0xFF1C1B1F),
+
+    surfaceVariant = Color(0xFFF6EFF2),
+    onSurfaceVariant = Color(0xFF1C1B1F),
+
     outline = Color(0xFF8C8C8C)
 )
 
 private val RedDark = darkCompactScheme(
     primary = Color(0xFFFFB4AB),
     onPrimary = Color(0xFF410002),
+
     secondary = Color(0xFFEFB8C8),
     onSecondary = Color(0xFF2D151C),
-    tertiary = Color(0xFF121212),
-    onTertiary = Color(0xFFE6E1E5),
+
+    tertiary = Color(0xFF5C1A12),          // accent container
+    onTertiary = Color(0xFFFFDAD6),
+
     background = Color(0xFF0F0F0F),
+    onBackground = Color(0xFFE6E1E5),
+
     surface = Color(0xFF121212),
+    onSurface = Color(0xFFE6E1E5),
+
+    surfaceVariant = Color(0xFF1A1A1A),
+    onSurfaceVariant = Color(0xFFE6E1E5),
+
     outline = Color(0xFF6A6A6A)
 )
 
@@ -127,189 +166,228 @@ private val BlueLight = lightCompactScheme(
     secondary = Color(0xFF4E5BA6),
     onSecondary = Color(0xFFFFFFFF),
 
-    // ✅ More contrast: cards/surfaces darker than background
-    tertiary = Color(0xFFE7F0F6),     // card surface / containers (darker)
+    tertiary = Color(0xFFE7F0F6),          // accent container
     onTertiary = Color(0xFF0E1B24),
 
-    background = Color(0xFFF7FBFE),   // screen background (lighter)
-    surface = Color(0xFFE7F0F6),      // cards/sheets/inputs (darker)
+    background = Color(0xFFF7FBFE),
+    onBackground = Color(0xFF0E1B24),
+
+    surface = Color(0xFFE7F0F6),
+    onSurface = Color(0xFF0E1B24),
+
+    surfaceVariant = Color(0xFFDCE7EE),
+    onSurfaceVariant = Color(0xFF0E1B24),
+
     outline = Color(0xFF9FB2BE)
 )
 
 private val BlueDark = darkCompactScheme(
-    primary = Color(0xFF90CAF9),      // light blue
+    primary = Color(0xFF90CAF9),
     onPrimary = Color(0xFF061622),
 
-    secondary = Color(0xFFC2C5FF),    // soft indigo
+    secondary = Color(0xFFC2C5FF),
     onSecondary = Color(0xFF0E1024),
 
-    // ✅ Cards/surfaces should be lighter than background
-    tertiary = Color(0xFF0E1A21),     // card surface / containers
-    onTertiary = Color(0xFFE7F2F5),   // foam text
+    tertiary = Color(0xFF0E1A21),          // accent container
+    onTertiary = Color(0xFFE7F2F5),
 
-    background = Color(0xFF060C10),   // deeper screen background
-    surface = Color(0xFF0E1A21),      // cards/sheets/inputs
-    outline = Color(0xFF4B6776)       // subtle outline
+    background = Color(0xFF060C10),
+    onBackground = Color(0xFFE7F2F5),
+
+    surface = Color(0xFF0E1A21),
+    onSurface = Color(0xFFE7F2F5),
+
+    surfaceVariant = Color(0xFF122634),
+    onSurfaceVariant = Color(0xFFE7F2F5),
+
+    outline = Color(0xFF4B6776)
 )
 
-
-// ---------- GREEN (adjusted to match Blue separation system) ----------
+// ---------- GREEN ----------
 private val GreenLight = lightCompactScheme(
-    primary = Color(0xFF2E7D32),      // strong green
+    primary = Color(0xFF2E7D32),
     onPrimary = Color(0xFFFFFFFF),
 
-    secondary = Color(0xFF4E6356),    // muted forest/sage
+    secondary = Color(0xFF4E6356),
     onSecondary = Color(0xFFFFFFFF),
 
-    // ✅ Match BlueLight separation
     tertiary = Color(0xFFE7F0F6),
     onTertiary = Color(0xFF0E1B24),
 
     background = Color(0xFFF7FBFE),
+    onBackground = Color(0xFF0E1B24),
+
     surface = Color(0xFFE7F0F6),
+    onSurface = Color(0xFF0E1B24),
+
+    surfaceVariant = Color(0xFFDCE7EE),
+    onSurfaceVariant = Color(0xFF0E1B24),
+
     outline = Color(0xFF9FB2BE)
 )
 
 private val GreenDark = darkCompactScheme(
-    primary = Color(0xFFA5D6A7),      // light green
+    primary = Color(0xFFA5D6A7),
     onPrimary = Color(0xFF061622),
 
-    secondary = Color(0xFFB7CCBC),    // soft sage
+    secondary = Color(0xFFB7CCBC),
     onSecondary = Color(0xFF05201F),
 
-    // ✅ Match BlueDark separation
     tertiary = Color(0xFF0E1A21),
     onTertiary = Color(0xFFE7F2F5),
 
     background = Color(0xFF060C10),
+    onBackground = Color(0xFFE7F2F5),
+
     surface = Color(0xFF0E1A21),
+    onSurface = Color(0xFFE7F2F5),
+
+    surfaceVariant = Color(0xFF122634),
+    onSurfaceVariant = Color(0xFFE7F2F5),
+
     outline = Color(0xFF4B6776)
 )
 
 // ---------- RETRO ----------
-private val RetroArcadeLight = lightCompactScheme(
-    primary = Color(0xFFFF00E5),      // neon magenta
+private val ArcadeLight = lightCompactScheme(
+    primary = Color(0xFFFF00E5),
     onPrimary = Color(0xFF000000),
-    secondary = Color(0xFF002AFF),    // neon blue
+
+    secondary = Color(0xFF002AFF),
     onSecondary = Color(0xFFFFFFFF),
-    tertiary = Color(0xFFF7F2FF),     // soft lilac-ish surface
+
+    tertiary = Color(0xFFF7F2FF),          // accent container
     onTertiary = Color(0xFF1B1024),
+
     background = Color(0xFFFCF7FF),
+    onBackground = Color(0xFF1B1024),
+
     surface = Color(0xFFF7F2FF),
+    onSurface = Color(0xFF1B1024),
+
+    surfaceVariant = Color(0xFFF0E8FF),
+    onSurfaceVariant = Color(0xFF1B1024),
+
     outline = Color(0xFFB9A6D6)
 )
 
-private val RetroArcadeDark = darkCompactScheme(
+private val ArcadeDark = darkCompactScheme(
     primary = Color(0xFFFF4DEB),
     onPrimary = Color(0xFF1A0017),
+
     secondary = Color(0xFF4DFAFF),
     onSecondary = Color(0xFF002022),
-    tertiary = Color(0xFF0D0712),
+
+    tertiary = Color(0xFF1A1024),          // accent container
     onTertiary = Color(0xFFF4EFFF),
+
     background = Color(0xFF08040B),
+    onBackground = Color(0xFFF4EFFF),
+
     surface = Color(0xFF0D0712),
+    onSurface = Color(0xFFF4EFFF),
+
+    surfaceVariant = Color(0xFF151020),
+    onSurfaceVariant = Color(0xFFF4EFFF),
+
     outline = Color(0xFF6C5A83)
 )
 
-// ---------- SPONGEBOB ----------
-// ---------- SPONGEBOB (Matrix-style explicit surfaces) ----------
+// ---------- SPONGEBOB (explicit) ----------
 private val SpongeBobLight = lightColorScheme(
-    primary = Color(0xFFFFD400),        // sponge yellow
-    onPrimary = Color(0xFF2A1F00),      // brown ink (cartoony)
+    primary = Color(0xFFFFD400),
+    onPrimary = Color(0xFF2A1F00),
 
-    secondary = Color(0xFF0077C8),      // ocean blue
+    secondary = Color(0xFF0077C8),
     onSecondary = Color(0xFFFFFFFF),
 
-    tertiary = Color(0xFFFFF1B8),       // soft warm highlight
+    tertiary = Color(0xFFFFF1B8),       // accent container
     onTertiary = Color(0xFF2A1F00),
 
-    background = Color(0xFFE6FAFF),     // sky/aqua background
+    background = Color(0xFFE6FAFF),
     onBackground = Color(0xFF1F1B16),
 
-    surface = Color(0xFFFFF6D9),        // sand/cream cards
+    surface = Color(0xFFFFF6D9),
     onSurface = Color(0xFF1F1B16),
 
-    surfaceVariant = Color(0xFFFFEDBF), // slightly deeper sand
+    surfaceVariant = Color(0xFFFFEDBF),
     onSurfaceVariant = Color(0xFF1F1B16),
 
-    outline = Color(0xFF2CB67D)         // seaweed green outline (gimmick)
+    outline = Color(0xFF2CB67D)
 )
 
 private val SpongeBobDark = darkColorScheme(
-    primary = Color(0xFFFFE066),        // readable yellow
+    primary = Color(0xFFFFE066),
     onPrimary = Color(0xFF2A1F00),
 
-    secondary = Color(0xFF6EC6FF),      // light ocean
+    secondary = Color(0xFF6EC6FF),
     onSecondary = Color(0xFF001F2A),
 
-    tertiary = Color(0xFFB7F3FF),       // bubble highlight
+    tertiary = Color(0xFFB7F3FF),       // accent container
     onTertiary = Color(0xFF001F2A),
 
-    background = Color(0xFF041015),     // deep ocean
+    background = Color(0xFF041015),
     onBackground = Color(0xFFFFF4D9),
 
-    surface = Color(0xFF0B1E26),        // ocean surface (cards)
+    surface = Color(0xFF0B1E26),
     onSurface = Color(0xFFFFF4D9),
 
-    surfaceVariant = Color(0xFF12313D), // slightly lighter for controls
+    surfaceVariant = Color(0xFF12313D),
     onSurfaceVariant = Color(0xFFFFF4D9),
 
-    outline = Color(0xFFFFD400)         // yellow outline pop (gimmick)
+    outline = Color(0xFFFFD400)
 )
 
-// ---------- SPIDERMAN (Matrix-style explicit surfaces) ----------
-// ---------- SPIDERMAN (Light: classic cartoon daytime) ----------
+// ---------- SPIDERMAN (explicit) ----------
 private val SpiderManLight = lightColorScheme(
-    primary = Color(0xFFE53935),        // Spidey red
+    primary = Color(0xFFE53935),
     onPrimary = Color(0xFFFFFFFF),
 
-    secondary = Color(0xFF1E5AA8),      // Spidey suit blue (slightly brighter than navy)
+    secondary = Color(0xFF1E5AA8),
     onSecondary = Color(0xFFFFFFFF),
 
-    tertiary = Color(0xFFFFFFFF),       // panel white (cards can use surface instead)
-    onTertiary = Color(0xFF0B1220),     // deep ink
+    tertiary = Color(0xFFFFD6D6),       // accent container (soft comic tint)
+    onTertiary = Color(0xFF0B1220),
 
-    background = Color(0xFFBFE7FF),     // sky blue (the vibe)
-    onBackground = Color(0xFF0B1220),   // comic ink
+    background = Color(0xFFBFE7FF),
+    onBackground = Color(0xFF0B1220),
 
-    surface = Color(0xFFF8FBFF),        // bright “panel” surface
+    surface = Color(0xFFF8FBFF),
     onSurface = Color(0xFF0B1220),
 
-    surfaceVariant = Color(0xFFE7F2FF), // soft panel tint for inputs/toggles
+    surfaceVariant = Color(0xFFE7F2FF),
     onSurfaceVariant = Color(0xFF0B1220),
 
-    outline = Color(0xFF0B1220)         // web-line ink (strong gimmick)
+    outline = Color(0xFF0B1220)
 )
-
 
 private val SpiderManDark = darkColorScheme(
-    primary = Color(0xFFFF4D4D),        // punchy comic red
+    primary = Color(0xFFFF4D4D),
     onPrimary = Color(0xFF200002),
 
-    secondary = Color(0xFF4DA3FF),      // electric spider blue
+    secondary = Color(0xFF4DA3FF),
     onSecondary = Color(0xFF00121F),
 
-    tertiary = Color(0xFFECEFF1),       // web white
-    onTertiary = Color(0xFF081018),
+    tertiary = Color(0xFF1B0F14),       // accent container (deep red-black)
+    onTertiary = Color(0xFFECEFF1),
 
-    background = Color(0xFF060A12),     // deep night navy
+    background = Color(0xFF060A12),
     onBackground = Color(0xFFECEFF1),
 
-    surface = Color(0xFF0E1A21),        // card surface (your dark separation pattern)
+    surface = Color(0xFF0E1A21),
     onSurface = Color(0xFFECEFF1),
 
-    surfaceVariant = Color(0xFF122634), // slightly lighter for controls
+    surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFECEFF1),
 
-    outline = Color(0xFFECEFF1)         // “web” outline pop (gimmick)
+    outline = Color(0xFFECEFF1)
 )
 
-
-// ---------- MATRIX (keep explicit because it’s intentionally special/semantic) ----------
+// ---------- MATRIX (explicit special/semantic) ----------
 private val MatrixDark = darkColorScheme(
     primary = Color(0xFF00FF41),
     secondary = Color(0xFF00C853),
-    tertiary = Color(0xFF000000),
+    tertiary = Color(0xFF000000),       // accent exists but baseline is background/surface
 
     background = Color(0xFF000000),
     surface = Color(0xFF050505),
@@ -326,6 +404,7 @@ private val MatrixDark = darkColorScheme(
     outline = Color(0xFF00FF41)
 )
 
+// ---------- Shapes ----------
 private val DefaultShapes = Shapes()
 
 private val SpongeBobShapes = Shapes(
@@ -344,10 +423,6 @@ private val SpiderManShapes = Shapes(
     extraLarge = RoundedCornerShape(22.dp),
 )
 
-
-
-
-
 @Composable
 fun GymLockerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -355,14 +430,13 @@ fun GymLockerTheme(
     content: @Composable () -> Unit
 ) {
     val settings = com.example.gymlocker.ui.settings.LocalUserSettings.current
-
     val effectiveDarkTheme = settings.forceDarkMode || darkTheme
+
     val shapes = when (settings.appTheme) {
         AppTheme.SpongeBob -> SpongeBobShapes
         AppTheme.SpiderMan -> SpiderManShapes
         else -> DefaultShapes
     }
-
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -382,13 +456,13 @@ fun GymLockerTheme(
                 val context = LocalContext.current
                 if (effectiveDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
-            else -> if (effectiveDarkTheme) DarkColorScheme else LightColorScheme
+            else -> if (effectiveDarkTheme) DefaultFallbackDark else DefaultFallbackLight
         }
 
         AppTheme.RED -> if (effectiveDarkTheme) RedDark else RedLight
         AppTheme.BLUE -> if (effectiveDarkTheme) BlueDark else BlueLight
         AppTheme.GREEN -> if (effectiveDarkTheme) GreenDark else GreenLight
-        AppTheme.RETRO -> if (effectiveDarkTheme) RetroArcadeDark else RetroArcadeLight
+        AppTheme.ARCADE -> if (effectiveDarkTheme) ArcadeDark else ArcadeLight
         AppTheme.SpongeBob -> if (effectiveDarkTheme) SpongeBobDark else SpongeBobLight
         AppTheme.SpiderMan -> if (effectiveDarkTheme) SpiderManDark else SpiderManLight
         AppTheme.MATRIX -> MatrixDark
