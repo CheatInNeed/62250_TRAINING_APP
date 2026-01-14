@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
@@ -115,20 +116,160 @@ fun WorkoutList(
     workouts: List<WorkoutSummary>,
     onWorkoutClick: (Long) -> Unit
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(workouts) { workout ->
-            val prettyDate = prettyWorkoutDate(workout.date)
+    val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
 
-            ListItem(
-                headlineContent = {
-                    Text("${workout.name} - $prettyDate - ${workout.exerciseCount} exercises")
-                },
-                modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
+    // Parse once, sort newest first, and group into human-friendly sections
+    val sections = remember(workouts) {
+        workouts
+            .map { ws -> ws to ws.safeLocalDateTime(formatter) }
+            .sortedByDescending { (_, dt) -> dt ?: LocalDateTime.MIN }
+            .groupBy { (_, dt) ->
+                // If parse fails, keep them in "Unknown date"
+                dt?.toLocalDate()
+            }
+            .toSortedMap(compareByDescending { it }) // newest date section first
+    }
+
+    if (workouts.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "No completed workouts yet.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.outline
             )
-            HorizontalDivider()
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        sections.forEach { (date, itemsForDate) ->
+            item {
+                Text(
+                    text = sectionTitleForDate(date),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                )
+            }
+
+            items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
+                WorkoutHistoryCard(
+                    workout = ws,
+                    dateTime = dt,
+                    onClick = { onWorkoutClick(ws.workoutId) }
+                )
+            }
+        }
+
+        item { Spacer(Modifier.height(72.dp)) } // breathing room above bottom bar
+    }
+}
+
+@Composable
+private fun WorkoutHistoryCard(
+    workout: WorkoutSummary,
+    dateTime: LocalDateTime?,
+    onClick: () -> Unit
+) {
+    val timeText = remember(dateTime) {
+        dateTime?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: ""
+    }
+
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            // Title row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = workout.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (timeText.isNotBlank()) {
+                        Text(
+                            text = timeText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+
+                // Small badge for exercise count
+                AssistChip(
+                    onClick = { /* no-op */ },
+                    label = { Text("${workout.exerciseCount} exercises") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.List,
+                            contentDescription = null
+                        )
+                    }
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Meta line (you can extend later with duration, sets, etc.)
+            Text(
+                text = metaLine(workout, dateTime),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
+
+private fun metaLine(workout: WorkoutSummary, dateTime: LocalDateTime?): String {
+    // Keep this short and skimmable.
+    // If later you add duration/sets, you can append "• 42 min • 18 sets" etc.
+    val datePart = dateTime?.toLocalDate()?.let { d ->
+        d.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
+    } ?: "Unknown date"
+
+    return datePart
+}
+
+private fun WorkoutSummary.safeLocalDateTime(formatter: DateTimeFormatter): LocalDateTime? {
+    return try {
+        LocalDateTime.parse(this.date, formatter)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun sectionTitleForDate(date: LocalDate?): String {
+    if (date == null) return "Unknown date"
+
+    val today = LocalDate.now()
+    return when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> {
+            // If within last 7 days: weekday name. Else: full date.
+            val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(date, today)
+            if (daysAgo in 2..6) {
+                date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            } else {
+                date.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+            }
+        }
+    }
+}
+
 
 /* ---- Calendar code unchanged below ---- */
 

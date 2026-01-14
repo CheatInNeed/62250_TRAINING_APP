@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.gymlocker.data.entity.WeightUnit
+import com.example.gymlocker.util.storageKgFromInput
 
 class EditTemplateViewModel(
     private val appContext: Context,
@@ -142,20 +144,23 @@ class EditTemplateViewModel(
         }
     }
 
-    fun updateSetWeight(exerciseId: Long, setNumber: Int, weight: String) {
+    fun updateSetWeight(exerciseId: Long, setNumber: Int, weightText: String, unit: WeightUnit) {
+        val kg = weightText.toDoubleOrNull()
+            ?.let { storageKgFromInput(it, unit) }
+            ?.toFloat()
+            ?: 0f
+
         _selectedExercises.value = _selectedExercises.value.map { exercise ->
-            if (exercise.exerciseId != exerciseId) {
-                exercise
-            } else {
-                exercise.copy(
-                    sets = exercise.sets.map { set ->
-                        if (set.setNumber != setNumber) set
-                        else set.copy(weight = weight.toFloatOrNull() ?: 0f)
-                    }
-                )
-            }
+            if (exercise.exerciseId != exerciseId) exercise
+            else exercise.copy(
+                sets = exercise.sets.map { set ->
+                    if (set.setNumber != setNumber) set
+                    else set.copy(weight = kg)
+                }
+            )
         }
     }
+
 
     fun updateSetReps(exerciseId: Long, setNumber: Int, reps: String) {
         _selectedExercises.value = _selectedExercises.value.map { exercise ->

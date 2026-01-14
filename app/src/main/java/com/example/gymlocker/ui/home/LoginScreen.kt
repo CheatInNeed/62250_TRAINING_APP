@@ -23,6 +23,18 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        // 👇 hardcoded dev-login
+        val devEmail = "test@test.dk"
+        val devPassword = "password"
+
+        // (valgfrit) vis dem i felterne, så man kan se hvad der sker
+        email = devEmail
+        password = devPassword
+
+        authViewModel.login(devEmail, devPassword)
+    }
+
+    LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
             if (loggedIn) {
                 navController.navigate("home") {

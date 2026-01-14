@@ -7,6 +7,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.data.auth.HeightUnit
+import com.example.gymlocker.data.auth.WeightUnit
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import com.example.gymlocker.data.entity.User
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +41,18 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
 
     val activeProfileUserId: StateFlow<Long?> = session.activeProfileUserId
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val weightUnit: StateFlow<WeightUnit> = session.weightUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeightUnit.KG)
+
+    val heightUnit: StateFlow<HeightUnit> = session.heightUnit
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HeightUnit.CM)
+
+    val activeProfilePhotoUri: StateFlow<String?> =
+        activeProfileUserId.flatMapLatest { userId ->
+            if (userId == null) flowOf(null)
+            else session.profilePhotoUri(userId)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val profiles: StateFlow<List<User>> =
         authId.flatMapLatest { id ->
@@ -71,10 +88,32 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
     fun setActiveProfile(userId: Long) {
         viewModelScope.launch { session.setActiveProfile(userId) }
     }
+    fun setWeightUnit(unit: WeightUnit) {
+        viewModelScope.launch { session.setWeightUnit(unit) }
+    }
+
+    fun setHeightUnit(unit: HeightUnit) {
+        viewModelScope.launch { session.setHeightUnit(unit) }
+    }
+
 
     fun clearActiveProfile() {
         viewModelScope.launch { session.clearActiveProfile() }
     }
+    fun setActiveProfilePhoto(uri: String) {
+        viewModelScope.launch {
+            val userId = activeProfileUserId.value ?: return@launch
+            session.setProfilePhotoUri(userId, uri)
+        }
+    }
+
+    fun removeActiveProfilePhoto() {
+        viewModelScope.launch {
+            val userId = activeProfileUserId.value ?: return@launch
+            session.clearProfilePhotoUri(userId)
+        }
+    }
+
 
     fun createProfile(
         name: String,
@@ -162,6 +201,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
             db.withTransaction {
                 // 1) manual cleanup (no FK)
                 restPrefDao.deleteAllForUser(userIdToDelete)
+                db.userSettingsDao().deleteForUser(userIdToDelete)
 
                 // 2) delete the user (cascades handle workouts/templates + children)
                 userDao.deleteById(userIdToDelete)

@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
+import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseStatsUi
 
@@ -20,10 +21,11 @@ fun ExerciseDetailsDialog(
 ) {
     var muscleGroupName by remember { mutableStateOf<String?>(null) }
     var stats by remember { mutableStateOf<ExerciseStatsUi?>(null) }
+    val unit = LocalUserSettings.current.weightUnit
 
     LaunchedEffect(exerciseId, muscleGroupId) {
         muscleGroupName = viewModel.getMuscleGroupName(muscleGroupId)
-        stats = viewModel.getExerciseStatsUi(exerciseId)
+        stats = viewModel.getExerciseStatsUi(exerciseId, unit)
     }
 
     AlertDialog(

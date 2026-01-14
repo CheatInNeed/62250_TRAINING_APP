@@ -22,6 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.viewmodel.ProfileViewModel
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.storageKgFromInput
+import com.example.gymlocker.util.weightUnitLabel
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,6 +39,10 @@ fun CreateProfileScreen(
     var name by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
     var weight by remember { mutableStateOf("") }
+    val settings = LocalUserSettings.current
+    val unit = settings.weightUnit
+
+
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Create Profile") }) }
@@ -68,7 +76,7 @@ fun CreateProfileScreen(
             OutlinedTextField(
                 value = weight,
                 onValueChange = { weight = it },
-                label = { Text("Weight (kg)") },
+                label = { Text("Weight (${weightUnitLabel(unit)})") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -81,13 +89,16 @@ fun CreateProfileScreen(
                     if (authId == null || cleanName.isBlank()) return@Button
 
                     val h = height.toIntOrNull() ?: 0
-                    val w = weight.toIntOrNull() ?: 0
+                    val wKg = weight.toDoubleOrNull()
+                        ?.let { storageKgFromInput(it, unit).roundToInt() }
+                        ?: 0
+
 
                     // ✅ Create + auto-select happens inside VM
                     profileViewModel.createProfile(
                         name = cleanName,
                         height = h,
-                        weight = w
+                        weight = wKg
                     ) {
                         // Go back to Profile screen
                         navController.popBackStack()

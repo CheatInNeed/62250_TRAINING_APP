@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "session")
@@ -25,6 +26,54 @@ class SessionManager(private val context: Context) {
      * We validate it belongs to the current authId before using it.
      */
     private val KEY_LAST_PROFILE_USER_ID = longPreferencesKey("last_profile_user_id")
+    // ✅ Profile photo (stored as URI string, per profile userId)
+    private fun KEY_PROFILE_PHOTO_URI(userId: Long) =
+        stringPreferencesKey("profile_photo_uri_$userId")
+
+    fun profilePhotoUri(userId: Long): Flow<String?> =
+        context.dataStore.data.map { prefs -> prefs[KEY_PROFILE_PHOTO_URI(userId)] }
+
+    suspend fun setProfilePhotoUri(userId: Long, uri: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PROFILE_PHOTO_URI(userId)] = uri
+        }
+    }
+
+    suspend fun clearProfilePhotoUri(userId: Long) {
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_PROFILE_PHOTO_URI(userId))
+        }
+    }
+
+    // ✅ Units (stored as strings)
+    private val KEY_WEIGHT_UNIT = stringPreferencesKey("weight_unit") // "kg" | "lb"
+    private val KEY_HEIGHT_UNIT = stringPreferencesKey("height_unit") // "cm" | "ft_in"
+
+    val weightUnit: Flow<WeightUnit> = context.dataStore.data.map { prefs ->
+        when (prefs[KEY_WEIGHT_UNIT] ?: "kg") {
+            "lb" -> WeightUnit.LB
+            else -> WeightUnit.KG
+        }
+    }
+
+    val heightUnit: Flow<HeightUnit> = context.dataStore.data.map { prefs ->
+        when (prefs[KEY_HEIGHT_UNIT] ?: "cm") {
+            "ft_in" -> HeightUnit.FT_IN
+            else -> HeightUnit.CM
+        }
+    }
+
+    suspend fun setWeightUnit(unit: WeightUnit) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_WEIGHT_UNIT] = if (unit == WeightUnit.LB) "lb" else "kg"
+        }
+    }
+
+    suspend fun setHeightUnit(unit: HeightUnit) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_HEIGHT_UNIT] = if (unit == HeightUnit.FT_IN) "ft_in" else "cm"
+        }
+    }
 
     val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_LOGGED_IN] ?: false
@@ -33,6 +82,7 @@ class SessionManager(private val context: Context) {
     val authId: Flow<Long?> = context.dataStore.data.map { prefs ->
         prefs[KEY_AUTH_ID]
     }
+
 
     val activeProfileUserId: Flow<Long?> = context.dataStore.data.map { prefs ->
         prefs[KEY_ACTIVE_PROFILE_USER_ID]
@@ -78,4 +128,8 @@ class SessionManager(private val context: Context) {
             // keep KEY_LAST_PROFILE_USER_ID
         }
     }
+
 }
+enum class WeightUnit { KG, LB }
+enum class HeightUnit { CM, FT_IN }
+

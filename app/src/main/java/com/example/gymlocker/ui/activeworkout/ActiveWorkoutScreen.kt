@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.activeworkout
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -12,9 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
@@ -72,6 +77,27 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardType
+import kotlin.math.roundToInt
+
+
+
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
@@ -94,8 +120,17 @@ fun ActiveWorkoutScreen(
     var showFinishSummarySheet by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
 
+    // Numpad navigation state
+    var isNumpadVisible by remember { mutableStateOf(false) }
+    var cursorPosition by remember { mutableStateOf<CursorPosition?>(null) }
+    val listState = rememberLazyListState()
+
+    val scope = rememberCoroutineScope()
+
     //Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
+
+    val unit = LocalUserSettings.current.weightUnit
 
     // ✅ Live validation state for name length
     val maxNameLen = ActiveWorkoutViewModel.MAX_WORKOUT_NAME_LENGTH
@@ -109,21 +144,32 @@ fun ActiveWorkoutScreen(
         }
     }
 
-    val totalVolume by remember(activeExercises) {
+    // Always compute volume in storage units (kg * reps)
+    val totalVolumeKg by remember(activeExercises) {
         derivedStateOf {
             activeExercises.sumOf { ex ->
                 ex.sets
                     .asSequence()
                     .filter { it.isDone }
-                    .sumOf { it.weight.toDouble() * it.reps.toDouble() }
+                    .sumOf { set ->
+                        set.weight.toDouble() * set.reps.toDouble()
+                    }
             }
         }
     }
 
-    val totalVolumeText = remember(totalVolume) {
-        if (totalVolume % 1.0 == 0.0) totalVolume.toLong().toString()
-        else String.format("%.2f", totalVolume)
+// Convert the total to the selected unit (same scalar factor as weight conversion)
+    val totalVolumeShown by remember(totalVolumeKg, unit) {
+        derivedStateOf {
+            displayWeightFromKg(totalVolumeKg, unit)
+        }
     }
+
+// Round for display (matches how you show weights elsewhere)
+    val totalVolumeText = remember(totalVolumeShown, unit) {
+        totalVolumeShown.roundToInt().toString()
+    }
+
 
     // ✅ Only start the timer if a profile exists.
     LaunchedEffect(hasActiveProfile) {
@@ -133,6 +179,14 @@ fun ActiveWorkoutScreen(
             // Be safe: if user somehow navigates here without a profile,
             // make sure the VM isn't "running" a workout.
             viewModel.stopTimer()
+        }
+    }
+
+    // Scroll to the selected exercise when cursor position changes
+    LaunchedEffect(cursorPosition) {
+        cursorPosition?.let { pos ->
+            // Scroll to the exercise at the cursor position
+            listState.animateScrollToItem(pos.exerciseIndex)
         }
     }
 
@@ -174,64 +228,358 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onDismiss = { showFinishSummarySheet = false },
+        onCancel = {
+            showFinishSummarySheet = false
+        },
 
+        onFinished = {
+            showFinishSummarySheet = false
+            navController.navigate("home") {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                launchSingleTop = true
+            }
+        },
         initialWorkoutName = workoutNameInput.ifBlank { defaultWorkoutName() },
-        workoutDurationText = "Varighed: ${viewModel.formatTime(elapsedTime)}",
+        workoutDurationText = viewModel.formatTime(elapsedTime),
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,
-
+        onMarkUnfinishedAsDone = { viewModel.markAllUnfinishedMeaningfulSetsDone() },
         onSave = { name, markUnfinishedAsDone ->
             if (markUnfinishedAsDone) {
                 viewModel.markAllUnfinishedMeaningfulSetsDone()
             }
-
             viewModel.finishWorkoutWithName(name)
-
-            showFinishSummarySheet = false
-            navController.popBackUnlessAtRoot()
-            navController.popBackUnlessAtRoot()
-        }
+        },
     )
+
+    // Lige før Scaffold: UI state til at åbne/lukke rest-timer baren
+    var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
+
+// Done/total sets til midten
+    val doneSets by remember(activeExercises) {
+        derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
+    }
+    val totalSets by remember(activeExercises) {
+        derivedStateOf { activeExercises.sumOf { it.sets.size }.coerceAtLeast(0) }
+    }
+
+    fun formatElapsedMmSs(seconds: Long): String {
+        val total = seconds.coerceAtLeast(0).toInt()
+        val m = total / 60
+        val s = total % 60
+        return "%d:%02d".format(m, s)
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Active Workout") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = { showDiscardDialog = true },
-                        enabled = hasActiveProfile
-                    ) { Text("Discard") }
+            // Custom AppBar container
+            var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
 
-                    Button(
-                        onClick = {
-                            // Smart default name (kun når man åbner sheetet)
-                            if (workoutNameInput.isBlank()) {
-                                workoutNameInput = defaultWorkoutName()
-                            }
-                            showFinishSummarySheet = true
-                        },
-                        modifier = Modifier.padding(end = 8.dp),
-                        enabled = hasActiveProfile
-                    ) { Text("Finish") }
+            val doneSets by remember(activeExercises) {
+                derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
+            }
+            val totalSets by remember(activeExercises) {
+                derivedStateOf { activeExercises.sumOf { it.sets.size } }
+            }
+
+            val timeText = formatElapsedMmSs(elapsedTime)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                TopAppBar(
+                    title = { Text("Active Workout") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    if (workoutNameInput.isBlank()) {
+                                        workoutNameInput = viewModel.suggestDefaultWorkoutName()
+                                    }
+                                    showFinishSummarySheet = true
+                                }
+                            },
+                            modifier = Modifier.padding(end = 8.dp),
+                            enabled = hasActiveProfile
+                        ) { Text("Finish") }
+                    }
+                )
+
+                // ✅ Locked 3-column metrics row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // LEFT (timer)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { restTimerExpanded = !restTimerExpanded },
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.AccessTime,
+                                contentDescription = "Timer",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = timeText, // fx 0:29
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    // CENTER (sets)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Sets progress",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "$doneSets / $totalSets",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+
+                    // RIGHT (volume)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.FitnessCenter,
+                                contentDescription = "Volume",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "$totalVolumeText ${weightUnitLabel(unit)}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
                 }
-            )
+
+                // ✅ Edge-to-edge progress bar (no padding)
+                LinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color(0xFFE0E0E0)
+                )
+            }
         },
         bottomBar = {
             Column {
+                // Show reveal handle when numpad is hidden
+                if (!isNumpadVisible) {
+                    NumpadRevealHandle(
+                        onReveal = {
+                            isNumpadVisible = true
+                            // Auto-select first incomplete set when opening numpad
+                            if (cursorPosition == null && activeExercises.isNotEmpty()) {
+                                var found = false
+                                for ((exIdx, exercise) in activeExercises.withIndex()) {
+                                    for ((setIdx, set) in exercise.sets.withIndex()) {
+                                        if (!set.isDone) {
+                                            cursorPosition = CursorPosition(exIdx, setIdx, FieldType.WEIGHT)
+                                            found = true
+                                            break
+                                        }
+                                    }
+                                    if (found) break
+                                }
+                                // If all sets are done, select the first set
+                                if (!found) {
+                                    cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                                }
+                            }
+                        }
+                    )
+                }
+
+                // The numpad bar with animation
+                WorkoutNumpadBar(
+                    isVisible = isNumpadVisible,
+                    onHide = {
+                        isNumpadVisible = false
+                        cursorPosition = null  // Clear the blue marker when hiding
+                    },
+                    onNavigateLeft = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            cursorPosition = when (current.field) {
+                                FieldType.WEIGHT -> current // Already at leftmost
+                                FieldType.REPS -> current.copy(field = FieldType.WEIGHT)
+                                FieldType.DONE -> current.copy(field = FieldType.REPS)
+                            }
+                        }
+                    },
+                    onNavigateRight = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            cursorPosition = when (current.field) {
+                                FieldType.WEIGHT -> current.copy(field = FieldType.REPS)
+                                FieldType.REPS -> current.copy(field = FieldType.DONE)
+                                FieldType.DONE -> current // Already at rightmost
+                            }
+                        }
+                    },
+                    onNumberClick = { digit ->
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                val newValue = set.weight.toString().let {
+                                    if (it == "0") digit else it + digit
+                                }
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.REPS -> {
+                                val newValue = set.reps.toString().let {
+                                    if (it == "0") digit else it + digit
+                                }
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.DONE -> { /* Numbers don't apply to checkbox */ }
+                        }
+                    },
+                    onBackspace = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                val newValue = set.weight.toString().dropLast(1).ifEmpty { "0" }
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.REPS -> {
+                                val newValue = set.reps.toString().dropLast(1).ifEmpty { "0" }
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue)
+                            }
+                            FieldType.DONE -> { /* Backspace doesn't apply to checkbox */ }
+                        }
+                    },
+                    onPlus = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, (set.weight + 1).toString())
+                            }
+                            FieldType.REPS -> {
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, (set.reps + 1).toString())
+                            }
+                            FieldType.DONE -> { /* Plus doesn't apply to checkbox */ }
+                        }
+                    },
+                    onMinus = {
+                        val current = cursorPosition ?: return@WorkoutNumpadBar
+                        val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                        val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                        when (current.field) {
+                            FieldType.WEIGHT -> {
+                                val newValue = (set.weight - 1).coerceAtLeast(0)
+                                viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue.toString())
+                            }
+                            FieldType.REPS -> {
+                                val newValue = (set.reps - 1).coerceAtLeast(0)
+                                viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue.toString())
+                            }
+                            FieldType.DONE -> { /* Minus doesn't apply to checkbox */ }
+                        }
+                    },
+                    onNext = {
+                        if (activeExercises.isEmpty()) return@WorkoutNumpadBar
+                        val current = cursorPosition
+                        if (current == null) {
+                            cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
+                        } else {
+                            when (current.field) {
+                                FieldType.WEIGHT -> {
+                                    // Move to reps field
+                                    cursorPosition = current.copy(field = FieldType.REPS)
+                                }
+                                FieldType.REPS -> {
+                                    // Move to done field
+                                    cursorPosition = current.copy(field = FieldType.DONE)
+                                }
+                                FieldType.DONE -> {
+                                    // Mark current set as done
+                                    val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
+                                    val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                                    viewModel.toggleSetDone(exercise.exerciseId, set.setNumber, true)
+
+                                    // Move to next set in same exercise, or next exercise
+                                    if (current.setIndex < exercise.sets.size - 1) {
+                                        // Move to next set in same exercise
+                                        cursorPosition = current.copy(
+                                            setIndex = current.setIndex + 1,
+                                            field = FieldType.WEIGHT
+                                        )
+                                    } else if (current.exerciseIndex < activeExercises.size - 1) {
+                                        // Move to first set of next exercise
+                                        cursorPosition = current.copy(
+                                            exerciseIndex = current.exerciseIndex + 1,
+                                            setIndex = 0,
+                                            field = FieldType.WEIGHT
+                                        )
+                                    }
+                                    // If last set of last exercise, stay where we are
+                                }
+                            }
+                        }
+                    }
+                )
                 RestTimerBar(
                     state = restTimer,
                     onSkip = { viewModel.skipRestTimer() }
                 )
+                val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
+
+                if (restTimerEnabled && restTimerExpanded) {
+                    RestTimerBar(
+                        state = restTimer,
+                        onSkip = { viewModel.skipRestTimer() }
+                    )
+                }
+
                 ActiveWorkoutBanner(navController, viewModel)
-                AppBottomBar(navController)
+
+                // Only show AppBottomBar when numpad is hidden
+                if (!isNumpadVisible) {
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -279,41 +627,57 @@ fun ActiveWorkoutScreen(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
+                    .fillMaxWidth(),
+                    //.padding(horizontal = 16.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Timer: ${viewModel.formatTime(elapsedTime)}")
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    progress = progress
-                )
-                Text(
-                    text = "Total volume: $totalVolumeText kg",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                //Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (activeExercises.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text("No exercises added yet.")
                         Text("Start by adding your first exercise.")
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { showAddExerciseSheet = true }) { Text("Add Exercise") }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showAddExerciseSheet = true },
+                            modifier = Modifier.fillMaxWidth(0.4f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add exercise"
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text("Add Exercise")
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        DiscardWorkoutButton(
+                            enabled = hasActiveProfile,
+                            onClick = { showDiscardDialog = true },
+                            modifier = Modifier.fillMaxWidth(0.4f)
+                        )
                     }
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 16.dp)
                 ) {
-                    items(activeExercises) { exercise ->
+                    itemsIndexed(activeExercises) { exerciseIndex, exercise ->
                         ActiveWorkoutExerciseItem(
                             exercise = exercise,
+                            exerciseIndex = exerciseIndex,
+                            cursorPosition = cursorPosition,
+                            onCursorChange = { newPos -> cursorPosition = newPos },
                             viewModel = viewModel,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onMarkAllSetsDone = { viewModel.markAllSetsDone(exercise.exerciseId) },
@@ -330,18 +694,37 @@ fun ActiveWorkoutScreen(
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
                             },
-                            onOpenDetails = { detailExercise = exercise }
+                            onOpenDetails = { detailExercise = exercise },
+                            isNumpadVisible = isNumpadVisible
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(16.dp))
+
                         Button(
                             onClick = { showAddExerciseSheet = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = "Add exercise"
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text("Add Exercise")
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        DiscardWorkoutButton(
+                            enabled = hasActiveProfile,
+                            onClick = { showDiscardDialog = true },
                             modifier = Modifier.fillMaxWidth()
-                        ) { Text("Add Exercise") }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        )
+
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
             }
@@ -369,6 +752,9 @@ fun ActiveWorkoutScreen(
 @Composable
 fun ActiveWorkoutExerciseItem(
     exercise: ActiveExerciseState,
+    exerciseIndex: Int,
+    cursorPosition: CursorPosition?,
+    onCursorChange: (CursorPosition?) -> Unit,
     viewModel: ActiveWorkoutViewModel,
     onAddSet: () -> Unit,
     onMarkAllSetsDone: () -> Unit,
@@ -377,7 +763,8 @@ fun ActiveWorkoutExerciseItem(
     onToggleDone: (setNumber: Int, isDone: Boolean) -> Unit,
     onDeleteExercise: () -> Unit = {},
     onDeleteSet: (setNumber: Int) -> Unit = {},
-    onOpenDetails: () -> Unit
+    onOpenDetails: () -> Unit,
+    isNumpadVisible: Boolean = false
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -386,10 +773,15 @@ fun ActiveWorkoutExerciseItem(
     var showRestDialog by remember { mutableStateOf(false) }
     var restSeconds by remember(exercise.exerciseId) { mutableStateOf<Int?>(null) }
 
-// Hent saved default rest for denne exercise (per user)
-    LaunchedEffect(exercise.exerciseId) {
-        restSeconds = viewModel.readDefaultRestSeconds(exerciseId = exercise.exerciseId)
 
+    val unit = LocalUserSettings.current.weightUnit
+    val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
+
+    // Hent saved default rest for denne exercise (per user)
+    LaunchedEffect(exercise.exerciseId, restTimerEnabled) {
+        restSeconds =
+            if (restTimerEnabled) viewModel.readDefaultRestSeconds(exerciseId = exercise.exerciseId)
+            else null
     }
 
     if (showDeleteConfirm) {
@@ -433,25 +825,30 @@ fun ActiveWorkoutExerciseItem(
                         )
                         .padding(vertical = 2.dp)
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .wrapContentWidth()
-                        .clickable { showRestDialog = true }
-                        .padding(top = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Timer,
-                        contentDescription = "Rest timer",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                if (restTimerEnabled) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .clickable { showRestDialog = true }
+                            .padding(top = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Timer,
+                            contentDescription = "Rest timer",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
 
-                    Text(
-                        text = "  Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        Text(
+                            text = "  Rest timer: ${restSeconds?.let { viewModel.formatRestSeconds(it) } ?: "Off"}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {
+                    // Safety: if user disables while dialog is open
+                    if (showRestDialog) showRestDialog = false
                 }
             }
 
@@ -508,7 +905,7 @@ fun ActiveWorkoutExerciseItem(
         ) {
             Text("SET", modifier = Modifier.weight(0.5f))
             Text("PREVIOUS", modifier = Modifier.weight(1f))
-            Text("KG", modifier = Modifier.weight(0.7f))
+            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f))
             Text("REPS", modifier = Modifier.weight(0.7f))
             Text("✓", modifier = Modifier.weight(0.4f))
         }
@@ -524,8 +921,15 @@ fun ActiveWorkoutExerciseItem(
                 textAlign = TextAlign.Center
             )
         } else {
-            exercise.sets.forEach { set ->
+            exercise.sets.forEachIndexed { setIndex, set ->
                 key(set.setNumber) {
+                    // Determine if this set row has a selected field
+                    val selectedField = if (
+                        cursorPosition != null &&
+                        cursorPosition.exerciseIndex == exerciseIndex &&
+                        cursorPosition.setIndex == setIndex
+                    ) cursorPosition.field else null
+
                     if (deleteSetsMode) {
                         ExerciseSetRow(
                             set = set,
@@ -536,7 +940,12 @@ fun ActiveWorkoutExerciseItem(
                             },
                             onWeightChange = { onWeightChange(set.setNumber, it) },
                             onRepsChange = { onRepsChange(set.setNumber, it) },
-                            onToggleDone = { onToggleDone(set.setNumber, it) }
+                            onToggleDone = { onToggleDone(set.setNumber, it) },
+                            selectedField = selectedField,
+                            onFieldSelected = { field ->
+                                onCursorChange(CursorPosition(exerciseIndex, setIndex, field))
+                            },
+                            isNumpadVisible = isNumpadVisible
                         )
                     } else {
                         SwipeableSetRow(
@@ -551,7 +960,12 @@ fun ActiveWorkoutExerciseItem(
                                 onDelete = { /* hidden */ },
                                 onWeightChange = { onWeightChange(set.setNumber, it) },
                                 onRepsChange = { onRepsChange(set.setNumber, it) },
-                                onToggleDone = { onToggleDone(set.setNumber, it) }
+                                onToggleDone = { onToggleDone(set.setNumber, it) },
+                                selectedField = selectedField,
+                                onFieldSelected = { field ->
+                                    onCursorChange(CursorPosition(exerciseIndex, setIndex, field))
+                                },
+                                isNumpadVisible = isNumpadVisible
                             )
                         }
                     }
@@ -560,10 +974,22 @@ fun ActiveWorkoutExerciseItem(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Button(
+        OutlinedButton(
             onClick = onAddSet,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("+ Add Set") }
+            modifier = Modifier.fillMaxWidth(),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.primary
+        )
+
+        ) {
+            Icon(
+            imageVector = Icons.Filled.Add,
+            contentDescription = "Add set"
+        )
+            Spacer(Modifier.width(2.dp))
+            Text("Add Set")
+        }
     }
 
     if (showRestDialog) {
@@ -594,9 +1020,14 @@ fun ExerciseSetRow(
     onDelete: () -> Unit,
     onWeightChange: (String) -> Unit,
     onRepsChange: (String) -> Unit,
-    onToggleDone: (Boolean) -> Unit
+    onToggleDone: (Boolean) -> Unit,
+    selectedField: FieldType? = null,
+    onFieldSelected: (FieldType) -> Unit = {},
+    isNumpadVisible: Boolean = false
 ) {
     val alphaContainer = 0.15f
+    val selectedAlpha = 0.4f
+    val selectedBorderColor = Color(0xFF3A82F7)
 
     val isWeightPrefilled = set.isWeightPrefilled
     val isRepsPrefilled = set.isRepsPrefilled
@@ -613,6 +1044,20 @@ fun ExerciseSetRow(
         else -> Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+    }
+    val unit = LocalUserSettings.current.weightUnit
+
+// IMPORTANT: keep an editable string while focused; don't overwrite on every recomposition
+    var isWeightFocused by remember { mutableStateOf(false) }
+    var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
+
+// When NOT editing, sync display from canonical stored kg value
+    LaunchedEffect(set.weight, unit) {
+        if (!isWeightFocused) {
+            weightText =
+                if (set.weight == 0) ""
+                else formatWeight(displayWeightFromKg(set.weight.toDouble(), unit), decimals = 0)
+        }
     }
 
     Row(
@@ -633,18 +1078,42 @@ fun ExerciseSetRow(
         Box(
             modifier = Modifier
                 .weight(0.9f)
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 4.dp)
+                .then(
+                    if (selectedField == FieldType.WEIGHT) {
+                        Modifier.background(
+                            selectedBorderColor.copy(alpha = 0.2f),
+                            RoundedCornerShape(8.dp)
+                        )
+                    } else Modifier
+                )
+                .clickable { onFieldSelected(FieldType.WEIGHT) },
             contentAlignment = Alignment.Center
         ) {
             TextField(
-                value = if (set.weight == 0) "" else set.weight.toString(),
-                onValueChange = onWeightChange,
+                value = weightText,
+                onValueChange = { newText ->
+                    // allow empty OR digits only (matches your Int storage)
+                    if (newText.isEmpty() || newText.all { it.isDigit() }) {
+                        weightText = newText
+                        onWeightChange(newText)
+                    }
+                },
+                readOnly = isNumpadVisible,
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier
+                    .fillMaxWidth(.9f)
+                    .onFocusChanged { isWeightFocused = it.isFocused },
                 placeholder = { Text("–") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
+                    unfocusedContainerColor = if (selectedField == FieldType.WEIGHT)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
+                    focusedContainerColor = if (selectedField == FieldType.WEIGHT)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
@@ -662,18 +1131,34 @@ fun ExerciseSetRow(
         Box(
             modifier = Modifier
                 .weight(0.9f)
-                .padding(horizontal = 4.dp),
+                .padding(horizontal = 4.dp)
+                .then(
+                    if (selectedField == FieldType.REPS) {
+                        Modifier.background(
+                            selectedBorderColor.copy(alpha = 0.2f),
+                            RoundedCornerShape(8.dp)
+                        )
+                    } else Modifier
+                )
+                .clickable { onFieldSelected(FieldType.REPS) },
             contentAlignment = Alignment.Center
         ) {
             TextField(
                 value = if (set.reps == 0) "" else set.reps.toString(),
                 onValueChange = onRepsChange,
+                readOnly = isNumpadVisible,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
+                    unfocusedContainerColor = if (selectedField == FieldType.REPS)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
+                    focusedContainerColor = if (selectedField == FieldType.REPS)
+                        selectedBorderColor.copy(alpha = selectedAlpha)
+                    else Color.Gray.copy(alpha = alphaContainer),
                     disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
@@ -688,11 +1173,26 @@ fun ExerciseSetRow(
             )
         }
 
-        Checkbox(
-            checked = set.isDone,
-            onCheckedChange = onToggleDone,
-            modifier = Modifier.weight(0.4f)
-        )
+        // Checkbox with selection highlight
+        Box(
+            modifier = Modifier
+                .weight(0.4f)
+                .then(
+                    if (selectedField == FieldType.DONE) {
+                        Modifier.background(
+                            selectedBorderColor.copy(alpha = 0.2f),
+                            RoundedCornerShape(8.dp)
+                        )
+                    } else Modifier
+                )
+                .clickable { onFieldSelected(FieldType.DONE) },
+            contentAlignment = Alignment.Center
+        ) {
+            Checkbox(
+                checked = set.isDone,
+                onCheckedChange = onToggleDone
+            )
+        }
 
         if (deleteMode) {
             TextButton(
@@ -717,6 +1217,32 @@ fun ActiveWorkoutScreenPreview() {
         )
     }
 }
+@Composable
+fun DiscardWorkoutButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = MaterialTheme.colorScheme.error
+        )
+    ) {
+        Text("Discard workout")
+    }
+}
+
+private fun formatVolumeCompact(value: Int): String {
+    return when {
+        value >= 1_000_000 -> String.format("%.1ft", value / 1_000_000f) // 1t = 1000kg -> her er det "kg-reps", så det er bare compact visning
+        value >= 10_000 -> String.format("%.1fk", value / 1_000f)
+        else -> value.toString()
+    }
+}
+
 
 private fun defaultWorkoutName(): String {
     // Super simpelt “smart default” uden at ændre ViewModel
