@@ -268,4 +268,44 @@ interface PerformedSetDao {
         userId: Long,
         startInclusive: String
     ): kotlinx.coroutines.flow.Flow<List<WorkoutVolumeRow>>
+
+
+    @Query(
+        """
+    SELECT w.workoutId FROM workouts w
+    JOIN exercise_log el ON el.workoutId = w.workoutId
+    JOIN performed_set ps ON ps.exerciseLogId = el.id
+    WHERE w.userId = :userId
+      AND el.exerciseId = :exerciseId
+      AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+    ORDER BY w.date DESC
+    LIMIT 1
+    """
+    )
+    suspend fun getLatestWorkoutIdForExerciseExcludingWorkoutForUser(
+        userId: Long,
+        exerciseId: Long,
+        excludeWorkoutId: Long?
+    ): Long?
+
+
+    @Query(
+        """
+    SELECT ps.* FROM performed_set ps
+    JOIN exercise_log el ON el.id = ps.exerciseLogId
+    JOIN workouts w ON w.workoutId = el.workoutId
+    WHERE w.userId = :userId
+      AND el.exerciseId = :exerciseId
+      AND ps.setNumber = :setNumber
+      AND (:excludeWorkoutId IS NULL OR w.workoutId != :excludeWorkoutId)
+    ORDER BY w.date DESC
+    LIMIT 1
+    """
+    )
+    suspend fun getLatestSetForExerciseAndNumberExcludingWorkoutForUser(
+        userId: Long,
+        exerciseId: Long,
+        setNumber: Int,
+        excludeWorkoutId: Long?
+    ): PerformedSet?
 }
