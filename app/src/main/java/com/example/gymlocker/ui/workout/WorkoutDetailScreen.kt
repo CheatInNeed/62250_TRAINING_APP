@@ -254,7 +254,7 @@ fun WorkoutDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(16.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 // 1) Workout name
                 item {
@@ -337,24 +337,25 @@ fun WorkoutDetailScreen(
                     // Column headers (like Active, but without PREVIOUS + ✓)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             "SET",
-                            modifier = Modifier.weight(0.6f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier.weight(0.8f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Start
                         )
                         Text(
-                            weightUnitLabel(unit).uppercase(),
-                            modifier = Modifier.weight(1f),
+                            "KG",
+                            modifier = Modifier.weight(1.2f),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                         Text(
                             "REPS",
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1.0f),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.End
                         )
                     }
 
@@ -371,26 +372,25 @@ fun WorkoutDetailScreen(
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
                                 .alpha(alpha),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = set.setNumber.toString(),
-                                modifier = Modifier.weight(0.6f),
+                                modifier = Modifier.weight(0.8f),
                                 color = MaterialTheme.colorScheme.onBackground,
                                 textAlign = TextAlign.Start
                             )
                             Text(
                                 text = wText,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1.2f),
                                 color = MaterialTheme.colorScheme.onBackground,
                                 textAlign = TextAlign.Center
                             )
                             Text(
                                 text = set.reps.toString(),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1.0f),
                                 color = MaterialTheme.colorScheme.onBackground,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.End
                             )
                         }
                     }
