@@ -35,7 +35,7 @@ interface WorkoutDao {
         likePattern: String
     ): List<String>
 
-    // Existing (global) summaries (you already have it)
+    /*// Existing (global) summaries (you already have it)
     @Query(
         """
         SELECT 
@@ -49,7 +49,7 @@ interface WorkoutDao {
         ORDER BY w.workoutId DESC
         """
     )
-    fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+    fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>*/
 
     // ✅ NEW: pull workouts from a date-string boundary (works because your date format is lexicographically sortable)
     @Query(
@@ -62,7 +62,7 @@ interface WorkoutDao {
     )
     fun observeWorkoutsFrom(userId: Long, startInclusive: String): Flow<List<Workout>>
 
-    // ✅ NEW: user-filtered summaries (Profile needs this)
+    /*// ✅ NEW: user-filtered summaries (Profile needs this)
     @Query(
         """
         SELECT 
@@ -77,7 +77,7 @@ interface WorkoutDao {
         ORDER BY w.workoutId DESC
         """
     )
-    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>
+    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>*/
 
     // ✅ NEW: total workouts for Profile summary
     @Query("SELECT COUNT(*) FROM workouts WHERE userId = :userId")
@@ -100,4 +100,41 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workouts WHERE workoutId = :workoutId LIMIT 1")
     suspend fun getWorkoutById(workoutId: Long): Workout?
+
+    @Query(
+        """
+    SELECT 
+        w.workoutId AS workoutId,
+        w.date AS date,
+        w.name AS name,
+        COUNT(DISTINCT el.id) AS exerciseCount,
+        GROUP_CONCAT(DISTINCT mg.name) AS muscleGroupsCsv
+    FROM workouts w
+    LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
+    LEFT JOIN exercises e ON e.exerciseId = el.exerciseId
+    LEFT JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+    GROUP BY w.workoutId
+    ORDER BY w.workoutId DESC
+    """
+    )
+    fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+
+    @Query(
+        """
+    SELECT 
+        w.workoutId AS workoutId,
+        w.date AS date,
+        w.name AS name,
+        COUNT(DISTINCT el.id) AS exerciseCount,
+        GROUP_CONCAT(DISTINCT mg.name) AS muscleGroupsCsv
+    FROM workouts w
+    LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
+    LEFT JOIN exercises e ON e.exerciseId = el.exerciseId
+    LEFT JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+    WHERE w.userId = :userId
+    GROUP BY w.workoutId
+    ORDER BY w.workoutId DESC
+    """
+    )
+    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>
 }

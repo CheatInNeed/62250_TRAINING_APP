@@ -50,6 +50,7 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import androidx.compose.material.icons.filled.FitnessCenter
 
 enum class HistoryViewMode { LIST, CALENDAR }
 
@@ -234,9 +235,25 @@ private fun WorkoutHistoryCard(
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    if (timeText.isNotBlank()) {
+                    val muscleLine = remember(workout.muscleGroupsCsv) {
+                        workout.muscleGroupsCsv
+                            ?.split(",")
+                            ?.map { it.trim() }
+                            ?.filter { it.isNotBlank() }
+                            ?.joinToString(" • ")
+                            .orEmpty()
+                    }
+
+                    val subLine = when {
+                        muscleLine.isNotBlank() && timeText.isNotBlank() -> "$muscleLine  •  $timeText"
+                        muscleLine.isNotBlank() -> muscleLine
+                        timeText.isNotBlank() -> timeText
+                        else -> ""
+                    }
+
+                    if (subLine.isNotBlank()) {
                         Text(
-                            text = timeText,
+                            text = subLine,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -244,36 +261,24 @@ private fun WorkoutHistoryCard(
                 }
 
                 // Small badge for exercise count
-                AssistChip(
-                    onClick = { /* no-op */ },
-                    label = { Text("${workout.exerciseCount} exercises") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = null
-                        )
-                    }
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${workout.exerciseCount} exercises",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Meta line
-            Text(
-                text = metaLine(workout, dateTime),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
-}
-
-private fun metaLine(workout: WorkoutSummary, dateTime: LocalDateTime?): String {
-    val datePart = dateTime?.toLocalDate()?.let { d ->
-        d.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
-    } ?: "Unknown date"
-
-    return datePart
 }
 
 private fun WorkoutSummary.safeLocalDateTime(formatter: DateTimeFormatter): LocalDateTime? {

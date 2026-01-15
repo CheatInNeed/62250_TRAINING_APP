@@ -4,5 +4,6 @@ data class WorkoutSummary(
     val workoutId: Long,
     val date: String,
     val name: String,
-    val exerciseCount: Int
+    val exerciseCount: Int,
+    val muscleGroupsCsv: String?
 )
