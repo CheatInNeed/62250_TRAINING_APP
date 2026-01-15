@@ -89,6 +89,7 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ExerciseSetState
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.example.gymlocker.ui.components.RestTimerBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -810,7 +811,8 @@ fun ActiveWorkoutExerciseItem(
     }
 
     if (showRestDialog) {
-        RestTimerInputDialog(
+        RestTimerBottomSheet(
+            visible = true,
             initialSeconds = restSeconds,
             onDismiss = { showRestDialog = false },
             onSave = { seconds ->
@@ -819,13 +821,15 @@ fun ActiveWorkoutExerciseItem(
                     restSeconds = seconds
                 )
                 restSeconds = seconds
-                showRestDialog = false
             },
             onClear = {
                 viewModel.setDefaultRestSeconds(exerciseId = exercise.exerciseId, restSeconds = 0)
                 restSeconds = null
-                showRestDialog = false
-            }
+            },
+            stepSeconds = 15,
+            quickSelectSeconds = listOf(60, 90, 120, 180, 300), // 1:00, 1:30, 2:00, 3:00
+            maxSeconds = 60 * 30,
+            minSeconds = 15
         )
     }
 }
