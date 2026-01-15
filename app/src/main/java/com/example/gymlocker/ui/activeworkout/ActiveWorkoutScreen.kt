@@ -562,10 +562,7 @@ fun ActiveWorkoutScreen(
                         }
                     }
                 )
-                RestTimerBar(
-                    state = restTimer,
-                    onSkip = { viewModel.skipRestTimer() }
-                )
+
                 val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
 
                 if (restTimerEnabled && restTimerExpanded) {
