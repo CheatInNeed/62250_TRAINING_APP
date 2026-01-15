@@ -313,6 +313,12 @@ fun ProfileScreen(
                             onClick = { navController.navigate("editProfile") },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("Edit profile") }
+
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { navController.navigate("profileStats") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("View Statistics") }
                     }
                 }
             }
