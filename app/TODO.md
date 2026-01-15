@@ -73,3 +73,15 @@ This document tracks known issues, technical debt, and planned improvements for 
 
 - `DEBUG_WIPE_DB = false` must guarantee **NO seed actions** occur.
 - When possible, all DB seed logic should run **once** and be idempotent.
+
+
+
+UI
+- Card backs not visible in default theme
+- segments in browse templates not visible
+- Red theme light background and card back to similar
+- 
+
+
+
+
