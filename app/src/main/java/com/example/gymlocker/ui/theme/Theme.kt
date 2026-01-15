@@ -205,25 +205,25 @@ private val BlueDark = darkCompactScheme(
 
 // ---------- GREEN ----------
 private val GreenLight = lightCompactScheme(
-    primary = Color(0xFF2E7D32),
+    primary = Color(0xFF1B7A4B),          // bog emerald
     onPrimary = Color(0xFFFFFFFF),
 
-    secondary = Color(0xFF4E6356),
+    secondary = Color(0xFF3F6D52),        // moss green
     onSecondary = Color(0xFFFFFFFF),
 
-    tertiary = Color(0xFFE7F0F6),
-    onTertiary = Color(0xFF0E1B24),
+    tertiary = Color(0xFF9A7B2F),         // ancient amber/gold accent
+    onTertiary = Color(0xFF1A1206),
 
-    background = Color(0xFFF7FBFE),
-    onBackground = Color(0xFF0E1B24),
+    background = Color(0xFFF3F7F3),       // swamp mist
+    onBackground = Color(0xFF0E1A14),
 
-    surface = Color(0xFFE7F0F6),
-    onSurface = Color(0xFF0E1B24),
+    surface = Color(0xFFE6EEE7),          // wet stone
+    onSurface = Color(0xFF0E1A14),
 
-    surfaceVariant = Color(0xFFDCE7EE),
-    onSurfaceVariant = Color(0xFF0E1B24),
+    surfaceVariant = Color(0xFFD3DED4),   // mossy slab / input fill
+    onSurfaceVariant = Color(0xFF2B3B32),
 
-    outline = Color(0xFF9FB2BE)
+    outline = Color(0xFF6F8277)
 )
 
 private val GreenDark = darkCompactScheme(
@@ -403,6 +403,104 @@ private val MatrixDark = darkColorScheme(
 
     outline = Color(0xFF00FF41)
 )
+// ============================================================
+// SWAMP THEME — LIGHT
+// Deep Ancient Swamp (misty daylight)
+// ============================================================
+
+val SwampLightColors = lightColorScheme(
+    primary = Color(0xFF1B7A4B),          // bog emerald
+    onPrimary = Color(0xFFFFFFFF),
+
+    secondary = Color(0xFF3F6D52),        // moss green
+    onSecondary = Color(0xFFFFFFFF),
+
+    tertiary = Color(0xFF9A7B2F),         // ancient amber/gold accent
+    onTertiary = Color(0xFF1A1206),
+
+    background = Color(0xFFF3F7F3),       // swamp mist
+    onBackground = Color(0xFF0E1A14),
+
+    surface = Color(0xFFE6EEE7),          // wet stone
+    onSurface = Color(0xFF0E1A14),
+
+    surfaceVariant = Color(0xFFD3DED4),   // mossy slab / input fill
+    onSurfaceVariant = Color(0xFF2B3B32),
+
+    outline = Color(0xFF6F8277)
+)
+// ============================================================
+// SWAMP THEME — DARK
+// Deep Ancient Swamp (night / peat + bioluminescence)
+// ============================================================
+
+val SwampDarkColors = darkColorScheme(
+    primary = Color(0xFF38D987),          // bioluminescent swamp green
+    onPrimary = Color(0xFF062014),
+
+    secondary = Color(0xFF6FB58A),        // moss highlight
+    onSecondary = Color(0xFF071A10),
+
+    tertiary = Color(0xFFD0A84A),         // rune amber accent
+    onTertiary = Color(0xFF1C1204),
+
+    background = Color(0xFF07130E),       // deep peat water
+    onBackground = Color(0xFFE7F2EA),
+
+    surface = Color(0xFF0C1D16),          // moss rock (slightly lighter than bg)
+    onSurface = Color(0xFFE7F2EA),
+
+    surfaceVariant = Color(0xFF143125),   // input / chips base
+    onSurfaceVariant = Color(0xFFBFD3C6),
+
+    outline = Color(0xFF496357)
+)
+val LockerRoomLightColors = lightColorScheme(
+    primary = Color(0xFF1E5AAE),          // locker blue
+    onPrimary = Color(0xFFFFFFFF),
+
+    secondary = Color(0xFFC62828),        // varsity red
+    onSecondary = Color(0xFFFFFFFF),
+
+    tertiary = Color(0xFFFFFFFF),         // clean label white accent
+    onTertiary = Color(0xFF0E1A2B),
+
+    background = Color(0xFFF6F8FC),       // bright hallway wall
+    onBackground = Color(0xFF0E1A2B),
+
+    surface = Color(0xFFFFFFFF),          // cards = clean paper/paint
+    onSurface = Color(0xFF0E1A2B),
+
+    surfaceVariant = Color(0xFFE7EEF9),   // locker paint tint (inputs/chips base)
+    onSurfaceVariant = Color(0xFF2A3D59),
+
+    outline = Color(0xFF8AA4C7)
+)// ============================================================
+// LOCKER ROOM THEME — DARK
+// High School Gym Locker (night gym + cool blue highlights)
+// ============================================================
+
+val LockerRoomDarkColors = darkColorScheme(
+    primary = Color(0xFF66A7FF),          // bright locker blue highlight
+    onPrimary = Color(0xFF061326),
+
+    secondary = Color(0xFFFF6B6B),        // softened varsity red for dark mode
+    onSecondary = Color(0xFF2A0000),
+
+    tertiary = Color(0xFFF2F5FA),         // clean label white
+    onTertiary = Color(0xFF07101D),
+
+    background = Color(0xFF070E18),       // gym lights off
+    onBackground = Color(0xFFEAF1FF),
+
+    surface = Color(0xFF0E1A2B),          // dark locker metal
+    onSurface = Color(0xFFEAF1FF),
+
+    surfaceVariant = Color(0xFF172947),   // input/chip base
+    onSurfaceVariant = Color(0xFFC7D7F2),
+
+    outline = Color(0xFF3F5F8B)
+)
 
 // ---------- Shapes ----------
 private val DefaultShapes = Shapes()
@@ -465,6 +563,9 @@ fun GymLockerTheme(
         AppTheme.ARCADE -> if (effectiveDarkTheme) ArcadeDark else ArcadeLight
         AppTheme.SpongeBob -> if (effectiveDarkTheme) SpongeBobDark else SpongeBobLight
         AppTheme.SpiderMan -> if (effectiveDarkTheme) SpiderManDark else SpiderManLight
+        AppTheme.Swamp -> if (effectiveDarkTheme) SwampDarkColors else SwampLightColors
+        AppTheme.LockerRoom -> if (effectiveDarkTheme) LockerRoomDarkColors else LockerRoomLightColors
+
         AppTheme.MATRIX -> MatrixDark
     }
 

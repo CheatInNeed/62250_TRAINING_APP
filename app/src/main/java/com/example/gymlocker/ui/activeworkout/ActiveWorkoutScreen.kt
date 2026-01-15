@@ -17,9 +17,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,13 +37,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -46,11 +53,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -62,38 +75,20 @@ import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
-import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
-import com.example.gymlocker.ui.theme.GymLockerTheme
-import com.example.gymlocker.ui.util.popBackUnlessAtRoot
-import com.example.gymlocker.viewmodel.ActiveExerciseState
-import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import com.example.gymlocker.viewmodel.ExerciseSetState
 import com.example.gymlocker.ui.components.RestTimerBar
 import com.example.gymlocker.ui.components.RestTimerInputDialog
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Icon
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
+import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
 import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.ui.theme.GymLockerTheme
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.KeyboardType
+import com.example.gymlocker.viewmodel.ActiveExerciseState
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.ExerciseSetState
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-
-
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,13 +108,13 @@ fun ActiveWorkoutScreen(
     var showDiscardDialog by remember { mutableStateOf(false) }
     var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
 
-    //finish sheet
+    // finish sheet
     var showFinishSummarySheet by remember { mutableStateOf(false) }
     var workoutNameInput by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
 
-    //Rest timer
+    // Rest timer
     val restTimer by viewModel.restTimerState.collectAsState()
 
     val unit = LocalUserSettings.current.weightUnit
@@ -150,18 +145,15 @@ fun ActiveWorkoutScreen(
         }
     }
 
-// Convert the total to the selected unit (same scalar factor as weight conversion)
+    // Convert the total to the selected unit (same scalar factor as weight conversion)
     val totalVolumeShown by remember(totalVolumeKg, unit) {
-        derivedStateOf {
-            displayWeightFromKg(totalVolumeKg, unit)
-        }
+        derivedStateOf { displayWeightFromKg(totalVolumeKg, unit) }
     }
 
-// Round for display (matches how you show weights elsewhere)
+    // Round for display (matches how you show weights elsewhere)
     val totalVolumeText = remember(totalVolumeShown, unit) {
         totalVolumeShown.roundToInt().toString()
     }
-
 
     // ✅ Only start the timer if a profile exists.
     LaunchedEffect(hasActiveProfile) {
@@ -188,17 +180,26 @@ fun ActiveWorkoutScreen(
             title = { Text("Discard Workout?") },
             text = { Text("Are you sure you want to discard this workout? All progress will be lost.") },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.discardWorkout()
-                    showDiscardDialog = false
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
-                    }
-                }) { Text("Discard") }
+                TextButton(
+                    onClick = {
+                        viewModel.discardWorkout()
+                        showDiscardDialog = false
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
-            }
+                TextButton(
+                    onClick = { showDiscardDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Cancel") }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
 
@@ -212,10 +213,7 @@ fun ActiveWorkoutScreen(
 
     FinishWorkoutSummarySheet(
         visible = showFinishSummarySheet,
-        onCancel = {
-            showFinishSummarySheet = false
-        },
-
+        onCancel = { showFinishSummarySheet = false },
         onFinished = {
             showFinishSummarySheet = false
             navController.navigate("home") {
@@ -237,16 +235,8 @@ fun ActiveWorkoutScreen(
         },
     )
 
-    // Lige før Scaffold: UI state til at åbne/lukke rest-timer baren
+    // UI state to open/close rest-timer bar
     var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
-
-// Done/total sets til midten
-    val doneSets by remember(activeExercises) {
-        derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
-    }
-    val totalSets by remember(activeExercises) {
-        derivedStateOf { activeExercises.sumOf { it.sets.size }.coerceAtLeast(0) }
-    }
 
     fun formatElapsedMmSs(seconds: Long): String {
         val total = seconds.coerceAtLeast(0).toInt()
@@ -256,17 +246,8 @@ fun ActiveWorkoutScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            // Custom AppBar container
-            var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
-
-            val doneSets by remember(activeExercises) {
-                derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
-            }
-            val totalSets by remember(activeExercises) {
-                derivedStateOf { activeExercises.sumOf { it.sets.size } }
-            }
-
             val timeText = formatElapsedMmSs(elapsedTime)
 
             Column(
@@ -292,9 +273,21 @@ fun ActiveWorkoutScreen(
                                 }
                             },
                             modifier = Modifier.padding(end = 8.dp),
-                            enabled = hasActiveProfile
+                            enabled = hasActiveProfile,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         ) { Text("Finish") }
-                    }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                        actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    )
                 )
 
                 // ✅ Locked 3-column metrics row
@@ -319,13 +312,21 @@ fun ActiveWorkoutScreen(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = timeText, // fx 0:29
-                                style = MaterialTheme.typography.titleMedium
+                                text = timeText,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
                     // CENTER (sets)
+                    val doneSets by remember(activeExercises) {
+                        derivedStateOf { activeExercises.sumOf { ex -> ex.sets.count { it.isDone } } }
+                    }
+                    val totalSets by remember(activeExercises) {
+                        derivedStateOf { activeExercises.sumOf { it.sets.size } }
+                    }
+
                     Box(
                         modifier = Modifier.weight(1f),
                         contentAlignment = Alignment.Center
@@ -339,7 +340,8 @@ fun ActiveWorkoutScreen(
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "$doneSets / $totalSets",
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -358,7 +360,8 @@ fun ActiveWorkoutScreen(
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "$totalVolumeText ${weightUnitLabel(unit)}",
-                                style = MaterialTheme.typography.titleMedium
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -371,7 +374,7 @@ fun ActiveWorkoutScreen(
                         .fillMaxWidth()
                         .height(4.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    trackColor = Color(0xFFE0E0E0)
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             }
         },
@@ -397,6 +400,7 @@ fun ActiveWorkoutScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(innerPadding)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -405,23 +409,34 @@ fun ActiveWorkoutScreen(
                 Text(
                     text = "No profile selected",
                     style = MaterialTheme.typography.headlineSmall,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Create or select a profile before starting a workout.",
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
                     onClick = { navController.navigate("profile") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 ) {
                     Text("Go to Profile")
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                TextButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                TextButton(
+                    onClick = { navController.popBackUnlessAtRoot() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) {
                     Text("Back")
                 }
             }
@@ -431,30 +446,32 @@ fun ActiveWorkoutScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                    //.padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                //Spacer(modifier = Modifier.height(8.dp))
-            }
-
             if (activeExercises.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("No exercises added yet.")
-                        Text("Start by adding your first exercise.")
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "No exercises added yet.",
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            "Start by adding your first exercise.",
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
 
                         Spacer(Modifier.height(16.dp))
 
                         Button(
                             onClick = { showAddExerciseSheet = true },
-                            modifier = Modifier.fillMaxWidth(0.4f)
+                            modifier = Modifier.fillMaxWidth(0.4f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
@@ -508,8 +525,13 @@ fun ActiveWorkoutScreen(
 
                         Button(
                             onClick = { showAddExerciseSheet = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Add,
@@ -572,11 +594,10 @@ fun ActiveWorkoutExerciseItem(
     var showRestDialog by remember { mutableStateOf(false) }
     var restSeconds by remember(exercise.exerciseId) { mutableStateOf<Int?>(null) }
 
-
     val unit = LocalUserSettings.current.weightUnit
     val restTimerEnabled = LocalUserSettings.current.restTimerEnabled
 
-    // Hent saved default rest for denne exercise (per user)
+    // Read saved default rest for this exercise
     LaunchedEffect(exercise.exerciseId, restTimerEnabled) {
         restSeconds =
             if (restTimerEnabled) viewModel.readDefaultRestSeconds(exerciseId = exercise.exerciseId)
@@ -589,14 +610,23 @@ fun ActiveWorkoutExerciseItem(
             title = { Text("Remove exercise?") },
             text = { Text("Are you sure you want to remove this exercise from the workout?") },
             confirmButton = {
-                TextButton(onClick = {
-                    onDeleteExercise()
-                    showDeleteConfirm = false
-                }) { Text("Remove") }
+                TextButton(
+                    onClick = {
+                        onDeleteExercise()
+                        showDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Remove") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
-            }
+                TextButton(
+                    onClick = { showDeleteConfirm = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Cancel") }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
 
@@ -610,9 +640,7 @@ fun ActiveWorkoutExerciseItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier.weight(1f) // <-- IKKE combinedClickable her
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = exercise.exerciseName,
                     style = MaterialTheme.typography.titleMedium,
@@ -622,8 +650,10 @@ fun ActiveWorkoutExerciseItem(
                             onClick = { onOpenDetails() },
                             onLongClick = { onMarkAllSetsDone() }
                         )
-                        .padding(vertical = 2.dp)
+                        .padding(vertical = 2.dp),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
+
                 if (restTimerEnabled) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -646,29 +676,33 @@ fun ActiveWorkoutExerciseItem(
                         )
                     }
                 } else {
-                    // Safety: if user disables while dialog is open
                     if (showRestDialog) showRestDialog = false
                 }
             }
 
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More")
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "More",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
                 }
 
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Mark all sets as complete") },
+                        text = { Text("Mark all sets as complete", color = MaterialTheme.colorScheme.onSurface) },
                         onClick = {
                             showMenu = false
                             onMarkAllSetsDone()
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete exercise") },
+                        text = { Text("Delete exercise", color = MaterialTheme.colorScheme.onSurface) },
                         onClick = {
                             showMenu = false
                             showDeleteConfirm = true
@@ -677,7 +711,7 @@ fun ActiveWorkoutExerciseItem(
 
                     if (!deleteSetsMode) {
                         DropdownMenuItem(
-                            text = { Text("Delete sets") },
+                            text = { Text("Delete sets", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 showMenu = false
                                 deleteSetsMode = true
@@ -685,7 +719,7 @@ fun ActiveWorkoutExerciseItem(
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text("Done deleting sets") },
+                            text = { Text("Done deleting sets", color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 showMenu = false
                                 deleteSetsMode = false
@@ -702,11 +736,11 @@ fun ActiveWorkoutExerciseItem(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("SET", modifier = Modifier.weight(0.5f))
-            Text("PREVIOUS", modifier = Modifier.weight(1f))
-            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f))
-            Text("REPS", modifier = Modifier.weight(0.7f))
-            Text("✓", modifier = Modifier.weight(0.4f))
+            Text("SET", modifier = Modifier.weight(0.5f), color = MaterialTheme.colorScheme.onBackground)
+            Text("PREVIOUS", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground)
+            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f), color = MaterialTheme.colorScheme.onBackground)
+            Text("REPS", modifier = Modifier.weight(0.7f), color = MaterialTheme.colorScheme.onBackground)
+            Text("✓", modifier = Modifier.weight(0.4f), color = MaterialTheme.colorScheme.onBackground)
         }
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -717,7 +751,8 @@ fun ActiveWorkoutExerciseItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onBackground
             )
         } else {
             exercise.sets.forEach { set ->
@@ -761,16 +796,16 @@ fun ActiveWorkoutExerciseItem(
             modifier = Modifier.fillMaxWidth(),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
             colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.primary
-        )
-
+                contentColor = MaterialTheme.colorScheme.primary
+            )
         ) {
             Icon(
-            imageVector = Icons.Filled.Add,
-            contentDescription = "Add set"
-        )
+                imageVector = Icons.Filled.Add,
+                contentDescription = "Add set",
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(Modifier.width(2.dp))
-            Text("Add Set")
+            Text("Add Set", color = MaterialTheme.colorScheme.primary)
         }
     }
 
@@ -824,11 +859,11 @@ fun ExerciseSetRow(
     }
     val unit = LocalUserSettings.current.weightUnit
 
-// IMPORTANT: keep an editable string while focused; don't overwrite on every recomposition
+    // IMPORTANT: keep an editable string while focused; don't overwrite on every recomposition
     var isWeightFocused by remember { mutableStateOf(false) }
     var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
 
-// When NOT editing, sync display from canonical stored kg value
+    // When NOT editing, sync display from canonical stored kg value
     LaunchedEffect(set.weight, unit) {
         if (!isWeightFocused) {
             weightText =
@@ -844,12 +879,14 @@ fun ExerciseSetRow(
         Text(
             text = set.setNumber.toString(),
             modifier = Modifier.weight(0.5f),
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground
         )
         Text(
             text = set.previous ?: "-",
             modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground
         )
 
         Box(
@@ -871,14 +908,15 @@ fun ExerciseSetRow(
                 modifier = Modifier
                     .fillMaxWidth(.9f)
                     .onFocusChanged { isWeightFocused = it.isFocused },
-                placeholder = { Text("–") },
+                placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
+                    // Inputs live on surfaceVariant, not hardcoded Gray
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = if (isWeightPrefilled) prefillAlpha else normalAlpha
                     ),
@@ -886,7 +924,8 @@ fun ExerciseSetRow(
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
+                    errorIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -902,12 +941,14 @@ fun ExerciseSetRow(
                 onValueChange = onRepsChange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
-                placeholder = { Text("–") },
+                placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = if (isRepsPrefilled) prefillAlpha else normalAlpha
                     ),
@@ -915,7 +956,8 @@ fun ExerciseSetRow(
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
+                    errorIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -949,6 +991,7 @@ fun ActiveWorkoutScreenPreview() {
         )
     }
 }
+
 @Composable
 fun DiscardWorkoutButton(
     enabled: Boolean,
@@ -960,7 +1003,8 @@ fun DiscardWorkoutButton(
         enabled = enabled,
         modifier = modifier,
         colors = ButtonDefaults.textButtonColors(
-            contentColor = MaterialTheme.colorScheme.error
+            contentColor = MaterialTheme.colorScheme.error,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     ) {
         Text("Discard workout")
@@ -969,16 +1013,12 @@ fun DiscardWorkoutButton(
 
 private fun formatVolumeCompact(value: Int): String {
     return when {
-        value >= 1_000_000 -> String.format("%.1ft", value / 1_000_000f) // 1t = 1000kg -> her er det "kg-reps", så det er bare compact visning
+        value >= 1_000_000 -> String.format("%.1ft", value / 1_000_000f)
         value >= 10_000 -> String.format("%.1fk", value / 1_000f)
         else -> value.toString()
     }
 }
 
-
 private fun defaultWorkoutName(): String {
-    // Super simpelt “smart default” uden at ændre ViewModel
-    // (du kan senere gøre den smartere med split/push/pull osv.)
-    // TODO Make this good
     return "Workout"
 }

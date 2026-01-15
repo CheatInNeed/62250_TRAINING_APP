@@ -85,12 +85,6 @@ fun HomeScreen(
         .collectAsState(initial = "Finder seneste workout…")
 
     val context = LocalContext.current
-    val repo = remember { SettingsRepository(context.applicationContext) }
-    val settingsOrNull by repo.activeSettings.collectAsState(initial = null)
-    val scope = rememberCoroutineScope()
-
-    val currentSettings = settingsOrNull
-
     val session = remember { SessionManager(context.applicationContext) }
     val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
 
@@ -213,20 +207,6 @@ fun HomeScreen(
                 )
             }
 
-            item {
-                if (currentSettings != null) {
-                    ThemeSwitcherCard(
-                        currentTheme = currentSettings.appTheme,
-                        forceDarkMode = currentSettings.forceDarkMode,
-                        onThemeSelected = { theme ->
-                            scope.launch { repo.updateForActive { it.copy(appTheme = theme) } }
-                        },
-                        onForceDarkChanged = { enabled ->
-                            scope.launch { repo.updateForActive { it.copy(forceDarkMode = enabled) } }
-                        }
-                    )
-                }
-            }
 
             item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
 
@@ -511,78 +491,6 @@ private fun ThemeSwitcherCard(
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                text = "Theme tester",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = currentTheme.name,
-                    onValueChange = {},
-                    readOnly = true,
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            Icons.Filled.Palette,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
-                    label = { Text("App theme") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                ) {
-                    val themes = listOf(
-                        AppTheme.DEFAULT,
-                        AppTheme.BLUE,
-                        AppTheme.GREEN,
-                        AppTheme.RED,
-                        AppTheme.ARCADE,
-                        AppTheme.SpongeBob,
-                        AppTheme.SpiderMan,
-                        AppTheme.MATRIX
-                    )
-
-                    themes.forEach { theme ->
-                        DropdownMenuItem(
-                            text = { Text(theme.name) },
-                            onClick = {
-                                expanded = false
-                                onThemeSelected(theme)
-                            },
-                            colors = MenuDefaults.itemColors(
-                                textColor = MaterialTheme.colorScheme.onSurface,
-                                leadingIconColor = MaterialTheme.colorScheme.onSurface,
-                                trailingIconColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        )
-                    }
-                }
-            }
-
             Spacer(Modifier.height(12.dp))
 
             Row(
@@ -616,4 +524,4 @@ private fun ThemeSwitcherCard(
             }
         }
     }
-}
+

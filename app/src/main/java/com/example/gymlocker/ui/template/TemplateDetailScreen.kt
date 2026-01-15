@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.template
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,8 +11,28 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -23,15 +44,15 @@ import com.example.gymlocker.data.entity.template.TemplateExerciseWithSets
 import com.example.gymlocker.data.entity.template.WorkoutTemplateWithExercises
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.gymlocker.ui.settings.LocalUserSettings
-import com.example.gymlocker.util.displayWeightFromKg
-import com.example.gymlocker.util.formatWeight
-import com.example.gymlocker.util.weightUnitLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,21 +124,36 @@ fun TemplateDetailScreen(
                     showDeleteConfirm.value = false
                     pendingDeleteTemplateExerciseId.value = null
                 }) { Text("Cancel") }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
 
     val template = templateState.value
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = { Text("Template") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
@@ -130,15 +166,18 @@ fun TemplateDetailScreen(
         if (isLoading.value) {
             Box(
                 modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Loading...")
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (template != null) {
             Column(
                 modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(innerPadding)
                     .padding(16.dp)
             ) {
@@ -150,13 +189,16 @@ fun TemplateDetailScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = template.template.name,
-                            style = MaterialTheme.typography.headlineSmall
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Text(
                             text = template.template.date,
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+
                     IconButton(
                         enabled = activeProfileUserId != null,
                         onClick = {
@@ -177,15 +219,23 @@ fun TemplateDetailScreen(
                             }
                         }
                     ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = "Start workout")
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = "Start workout",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
+
                     IconButton(
-                        onClick = {
-                            navController.navigate("editTemplate/$templateId")
-                        }
+                        onClick = { navController.navigate("editTemplate/$templateId") }
                     ) {
-                        Icon(Icons.Filled.Edit, contentDescription = "Edit template")
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = "Edit template",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
+
                     IconButton(
                         onClick = {
                             scope.launch {
@@ -197,20 +247,26 @@ fun TemplateDetailScreen(
                         Icon(
                             if (template.template.isFavorite) Icons.Filled.Star else Icons.Outlined.Star,
                             contentDescription = "Toggle favorite",
-                            tint = if (template.template.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = if (template.template.isFavorite)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Text(text = "Exercises", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Exercises",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn {
                     items(template.exercises) { exerciseWithSets ->
                         ExerciseCard(
-
                             exerciseWithSets = exerciseWithSets,
                             onRequestDelete = {
                                 pendingDeleteTemplateExerciseId.value = exerciseWithSets.templateExercise.id
@@ -224,11 +280,15 @@ fun TemplateDetailScreen(
         } else {
             Box(
                 modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Template not found")
+                Text(
+                    "Template not found",
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
     }
@@ -251,7 +311,13 @@ fun ExerciseCard(
         fetchedExerciseName.value = exercise?.name ?: "Unknown Exercise"
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -261,24 +327,34 @@ fun ExerciseCard(
                 Text(
                     text = fetchedExerciseName.value,
                     style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 IconButton(onClick = onRequestDelete) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete exercise")
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Delete exercise",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Sets", style = MaterialTheme.typography.labelMedium)
+            Text(
+                text = "Sets",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(4.dp))
+
             exerciseWithSets.sets.forEach { set ->
                 val shown = displayWeightFromKg(set.weight.toDouble(), unit)
                 Text(
                     text = "Set ${set.setNumber}: ${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)} × ${set.reps} reps",
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
     }
 }
-

@@ -1,27 +1,21 @@
 package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.gymlocker.viewmodel.RestTimerState
-import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.Text
-import androidx.compose.ui.unit.dp
-import androidx.compose.material3.Surface
 
 @Composable
 fun RestTimerBar(
@@ -38,15 +32,18 @@ fun RestTimerBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         tonalElevation = 2.dp
     ) {
-        androidx.compose.foundation.layout.Column {
+        Column {
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .padding(top = 6.dp, bottom = 10.dp),
-                progress = progress
+                progress = progress,
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outline
             )
 
             Row(
@@ -58,15 +55,20 @@ fun RestTimerBar(
             ) {
                 Text(
                     text = state.remainingText,
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Button(onClick = onSkip) {
+                Button(
+                    onClick = onSkip,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
                     Text("Skip")
                 }
             }
         }
     }
 }
-
-

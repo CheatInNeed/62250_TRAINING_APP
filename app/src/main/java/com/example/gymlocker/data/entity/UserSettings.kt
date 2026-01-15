@@ -32,5 +32,7 @@ enum class AppTheme {
     ARCADE,
     SpongeBob,
     SpiderMan,
+    Swamp,
+    LockerRoom,
 }
 

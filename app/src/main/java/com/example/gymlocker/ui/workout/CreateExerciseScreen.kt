@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -24,9 +26,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,26 +59,54 @@ fun CreateExerciseScreen(
 
     var muscleGroupExpanded by remember { mutableStateOf(false) }
 
-    val selectedMuscleGroupName = muscleGroups.find { it.muscleGroupId == selectedMuscleGroupId }?.name ?: ""
+    val selectedMuscleGroupName =
+        muscleGroups.find { it.muscleGroupId == selectedMuscleGroupId }?.name ?: ""
+
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        cursorColor = MaterialTheme.colorScheme.primary,
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        errorBorderColor = MaterialTheme.colorScheme.error,
+        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        errorLabelColor = MaterialTheme.colorScheme.error,
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant
+    )
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Create Exercise") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        viewModel.resetForm()
-                        navController.popBackStack()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            viewModel.resetForm()
+                            navController.popBackStack()
+                        }
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
@@ -89,7 +121,8 @@ fun CreateExerciseScreen(
                 isError = exerciseNameError != null,
                 supportingText = exerciseNameError?.let { { Text(it) } },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
+                colors = fieldColors
             )
 
             // Muscle Group Dropdown
@@ -106,15 +139,17 @@ fun CreateExerciseScreen(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = muscleGroupExpanded) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                    colors = fieldColors
                 )
                 ExposedDropdownMenu(
                     expanded = muscleGroupExpanded,
-                    onDismissRequest = { muscleGroupExpanded = false }
+                    onDismissRequest = { muscleGroupExpanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                 ) {
                     muscleGroups.forEach { muscleGroup ->
                         DropdownMenuItem(
-                            text = { Text(muscleGroup.name) },
+                            text = { Text(muscleGroup.name, color = MaterialTheme.colorScheme.onSurface) },
                             onClick = {
                                 viewModel.selectMuscleGroup(muscleGroup.muscleGroupId)
                                 muscleGroupExpanded = false
@@ -128,7 +163,8 @@ fun CreateExerciseScreen(
             Text(
                 text = "Default Starting Values (optional)",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(top = 8.dp),
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 text = "These will be used as suggestions when you add this exercise to a workout.",
@@ -148,7 +184,8 @@ fun CreateExerciseScreen(
                     label = { Text("Start Weight (kg)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    colors = fieldColors
                 )
 
                 OutlinedTextField(
@@ -159,7 +196,8 @@ fun CreateExerciseScreen(
                     label = { Text("Start Reps") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
-                    singleLine = true
+                    singleLine = true,
+                    colors = fieldColors
                 )
             }
 
@@ -176,11 +214,16 @@ fun CreateExerciseScreen(
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                enabled = viewModel.canSave() && !isSaving
+                enabled = viewModel.canSave() && !isSaving,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Text(if (isSaving) "Saving..." else "Create Exercise")
             }
         }
     }
 }
-

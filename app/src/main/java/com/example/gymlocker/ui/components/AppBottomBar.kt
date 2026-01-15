@@ -1,9 +1,14 @@
 package com.example.gymlocker.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -13,25 +18,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.filled.Add
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun AppBottomBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
-    val selectedColor = MaterialTheme.colorScheme.primary
-    val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val homeRoutes = setOf("home")
     val workoutRoutes = setOf(
@@ -51,15 +48,14 @@ fun AppBottomBar(navController: NavController) {
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {
-        // ✅ System colors for nav icons
         val selectedColor = MaterialTheme.colorScheme.primary
-        val unselectedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+        val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
 
         Row(
-            modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            // HOME (venstre)
+            // HOME (left)
             IconButton(
                 onClick = {
                     if (currentRoute != "home") {
@@ -78,16 +74,16 @@ fun AppBottomBar(navController: NavController) {
                 )
             }
 
-            // WORKOUT (midten) — dynamisk ikon
+            // WORKOUT (middle) — dynamic icon
             val isOnWorkoutPage = currentRoute == "workout"
 
             IconButton(
                 onClick = {
                     if (isOnWorkoutPage) {
-                        // På workout-siden: start tom workout
+                        // On workout page: start empty workout
                         navController.navigate("activeWorkout") { launchSingleTop = true }
                     } else {
-                        // Alle andre sider: gå til workout-siden
+                        // Elsewhere: go to workout page
                         navController.navigate("workout") {
                             launchSingleTop = true
                             restoreState = true
@@ -96,7 +92,7 @@ fun AppBottomBar(navController: NavController) {
                 }
             ) {
                 if (isOnWorkoutPage) {
-                    // Primary circle + onPrimary plus (matches system)
+                    // Primary circle + onPrimary plus (CTA)
                     Box(
                         modifier = Modifier
                             .size(52.dp)
@@ -111,7 +107,7 @@ fun AppBottomBar(navController: NavController) {
                         )
                     }
                 } else {
-                    // Normal dumbbell ikon
+                    // Normal dumbbell icon
                     Icon(
                         imageVector = Icons.Filled.FitnessCenter,
                         contentDescription = "Workout",
@@ -120,7 +116,7 @@ fun AppBottomBar(navController: NavController) {
                 }
             }
 
-            // PROFILE (højre)
+            // PROFILE (right)
             IconButton(
                 onClick = {
                     if (currentRoute != "profile") {

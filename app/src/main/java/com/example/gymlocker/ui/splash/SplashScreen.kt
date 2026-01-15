@@ -6,9 +6,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,7 +85,6 @@ fun SplashScreen(
             }
         }
 
-
         val elapsed = System.currentTimeMillis() - start
         val remaining = max(0L, minShowMs - elapsed)
         if (remaining > 0) kotlinx.coroutines.delay(remaining)
@@ -100,8 +100,9 @@ fun SplashScreen(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -119,16 +120,20 @@ fun SplashScreen(
 
             Spacer(Modifier.height(16.dp))
 
-
             Text(
                 text = "Track. Progress. Repeat.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                // Splash is a screen layer; use onBackground for default text
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(Modifier.height(20.dp))
 
-            CircularProgressIndicator()
+            CircularProgressIndicator(
+                // Explicitly set to avoid theme surprises; progress indicators are accents
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         }
     }
 }

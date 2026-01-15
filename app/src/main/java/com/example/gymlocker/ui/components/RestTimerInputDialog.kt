@@ -3,10 +3,16 @@ package com.example.gymlocker.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -26,14 +32,53 @@ fun RestTimerInputDialog(
         title = { Text("Set rest timer") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Enter mm:ss (e.g. 2:30) or seconds (e.g. 150).")
+                Text(
+                    "Enter mm:ss (e.g. 2:30) or seconds (e.g. 150).",
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it; error = null },
                     singleLine = true,
-                    placeholder = { Text("2:30") },
-                    supportingText = { if (error != null) Text(error!!) }
+                    placeholder = {
+                        Text(
+                            "2:30",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    supportingText = {
+                        if (error != null) {
+                            Text(
+                                error!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    isError = error != null,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+
+                        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                        errorLabelColor = MaterialTheme.colorScheme.error,
+
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             }
         },
@@ -50,7 +95,10 @@ fun RestTimerInputDialog(
         dismissButton = {
             TextButton(onClick = onClear) { Text("Clear") }
             TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface
     )
 }
 

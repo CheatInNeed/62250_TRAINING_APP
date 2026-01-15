@@ -6,26 +6,35 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -41,10 +50,10 @@ fun SlideToFinish(
 
     var trackWidthPx by remember { mutableStateOf(0f) }
     val thumbSize = 44.dp
-    val thumbSizePx = with(androidx.compose.ui.platform.LocalDensity.current) { thumbSize.toPx() }
+    val density = LocalDensity.current
+    val thumbSizePx = with(density) { thumbSize.toPx() }
     val horizontalPadding = 6.dp
-    val horizontalPaddingPx = with(androidx.compose.ui.platform.LocalDensity.current) { horizontalPadding.toPx() }
-
+    val horizontalPaddingPx = with(density) { horizontalPadding.toPx() }
 
     val x = remember { Animatable(0f) }
     var completed by remember { mutableStateOf(false) }
@@ -57,9 +66,9 @@ fun SlideToFinish(
     // Text fades out as you drag
     val textAlpha = if (!enabled) 0.35f else (1f - (progress * 1.2f)).coerceIn(0f, 1f)
 
-    // Color shifts blue -> green (at 100%)
+    // Track: primary (brand) -> secondary (accent) at 100%
     val startColor = MaterialTheme.colorScheme.primary
-    val endColor = Color(0xFF2E7D32)
+    val endColor = MaterialTheme.colorScheme.secondary
     val trackColor = lerpColor(startColor, endColor, progress)
 
     Box(
@@ -109,14 +118,12 @@ fun SlideToFinish(
                         if (done) {
                             completed = true
 
-                            // "Heavy" haptic at end
                             // Compose har ikke "heavyImpact" som i iOS; LongPress føles tungest på Android.
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
 
                             scope.launch {
                                 // snap to end
                                 x.animateTo(max, tween(120))
-                                // success + navigate after 1s
                                 onFinished()
                             }
                         } else {

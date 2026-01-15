@@ -2,22 +2,47 @@ package com.example.gymlocker.ui.addexercise
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.Exercises
 
 enum class ExerciseFilterMode { BY_NAME, BY_MUSCLE_GROUP }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,7 +52,8 @@ fun AddExerciseSheet(
 ) {
     var selectedExercises by remember { mutableStateOf(setOf<Long>()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val context = LocalContext.current
+
+    val context = androidx.compose.ui.platform.LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
 
     val allExercises by db.exerciseDao()
@@ -46,16 +72,21 @@ fun AddExerciseSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Box(modifier = Modifier.fillMaxHeight()) {
-
             Column(
                 modifier = Modifier
                     .padding(16.dp)
                     .fillMaxHeight()
             ) {
-                Text("Add Exercise")
+                Text(
+                    "Add Exercise",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Sort by musclegroup
@@ -91,14 +122,23 @@ fun AddExerciseSheet(
 
                         DropdownMenu(
                             expanded = showMuscleGroupMenu,
-                            onDismissRequest = { showMuscleGroupMenu = false }
+                            onDismissRequest = { showMuscleGroupMenu = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             DropdownMenuItem(
                                 text = { Text("All muscle groups") },
                                 onClick = {
                                     selectedMuscleGroupId = null
                                     showMuscleGroupMenu = false
-                                }
+                                },
+                                colors = MenuDefaults.itemColors(
+                                    textColor = MaterialTheme.colorScheme.onSurface,
+                                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                                    trailingIconColor = MaterialTheme.colorScheme.onSurface,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
                             )
 
                             allMuscleGroups.forEach { mg ->
@@ -107,7 +147,15 @@ fun AddExerciseSheet(
                                     onClick = {
                                         selectedMuscleGroupId = mg.muscleGroupId
                                         showMuscleGroupMenu = false
-                                    }
+                                    },
+                                    colors = MenuDefaults.itemColors(
+                                        textColor = MaterialTheme.colorScheme.onSurface,
+                                        leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                                        trailingIconColor = MaterialTheme.colorScheme.onSurface,
+                                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                    )
                                 )
                             }
                         }
@@ -120,7 +168,30 @@ fun AddExerciseSheet(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search for an exercise") }
+                    placeholder = {
+                        Text(
+                            "Search for an exercise",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -184,14 +255,19 @@ fun AddExerciseSheet(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),  // Flot, afrundet Android-stil
-                        shape = RoundedCornerShape(28.dp)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f),
+                            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f)
+                        )
                     ) {
                         Text("Add exercise(s)")
                     }
                 }
             }
-
         }
     }
 }
@@ -202,22 +278,30 @@ fun ExerciseListItem(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val bgColor = if (selected) Color(0x332196F3) else Color.Transparent
+    val container = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface
+    val content = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .background(bgColor)
-            .clickable(onClick = onClick)
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = container,
+            contentColor = content
+        )
     ) {
-        Row(modifier = Modifier.padding(16.dp)) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = if (selected) "✔" else "💪",
-                modifier = Modifier.padding(end = 16.dp)
+                modifier = Modifier.padding(end = 16.dp),
+                color = content
             )
             Column {
-                Text(text = exercise.name)
+                Text(
+                    text = exercise.name,
+                    color = content
+                )
             }
         }
     }

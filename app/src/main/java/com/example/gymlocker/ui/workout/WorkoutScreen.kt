@@ -1,57 +1,57 @@
 package com.example.gymlocker.ui.workout
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import com.example.gymlocker.data.auth.SessionManager
-import com.example.gymlocker.ui.components.ActiveWorkoutBanner
-import com.example.gymlocker.ui.components.AppBottomBar
-import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.material.icons.Icons
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
+import com.example.gymlocker.ui.components.ActiveWorkoutBanner
+import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -74,7 +74,18 @@ fun WorkoutScreen(
     var showBrowseTemplatesSheet by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Workout") }) },
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text("Workout") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
         bottomBar = {
             Column {
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
@@ -85,19 +96,26 @@ fun WorkoutScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
             Button(
                 onClick = {
-                    // Resume hvis i gang, ellers start ny (din ActiveWorkoutScreen håndterer det)
+                    // Resume if in progress, otherwise start new (ActiveWorkoutScreen handles it)
                     navController.navigate("activeWorkout")
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null
+                enabled = activeProfileUserId != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             ) {
                 Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
             }
@@ -117,7 +135,8 @@ fun WorkoutScreen(
                     enabled = activeProfileUserId != null,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Text("Create Template")
@@ -132,7 +151,8 @@ fun WorkoutScreen(
                     enabled = activeProfileUserId != null,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Text("Create Exercise")
@@ -142,9 +162,7 @@ fun WorkoutScreen(
             Spacer(Modifier.height(16.dp))
 
             // Favorite template boxes
-
             val favoriteTemplates = templates.filter { it.isFavorite }.take(3)
-
             val templateSummaries = remember { mutableStateMapOf<Long, String>() }
 
             LaunchedEffect(favoriteTemplates) {
@@ -163,31 +181,8 @@ fun WorkoutScreen(
                         val totalSets = tpl.exercises.sumOf { it.sets.size }
 
                         templateSummaries[t.templateId] =
-                            if (exerciseCount == 0) {
-                                "No exercises"
-                            } else {
-                                "$exerciseCount exercises x $totalSets sets"
-                            }
-
-                        /*
-
-                        // Hent navne + set-count pr. øvelse
-                        val parts = tpl.exercises.mapNotNull { exWithSets ->
-                            val exId = exWithSets.templateExercise.exerciseId
-                            val name = db.exerciseDao().getById(exId)?.name ?: return@mapNotNull null
-                            val setsCount = exWithSets.sets.size
-                            "$name ($setsCount)"
-                        }
-
-                        // Begræns længden (så kortet ikke bliver overloadet)
-                        val maxShown = 3
-                        val summary = if (parts.size <= maxShown) {
-                            parts.joinToString(", ")
-                        } else {
-                            parts.take(maxShown).joinToString(", ") + " +${parts.size - maxShown} more"
-                        }
-
-                        templateSummaries[t.templateId] = if (summary.isBlank()) "No exercises" else summary*/
+                            if (exerciseCount == 0) "No exercises"
+                            else "$exerciseCount exercises x $totalSets sets"
                     }
                 }
             }
@@ -197,13 +192,24 @@ fun WorkoutScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Favorite Templates", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Favorite Templates",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
 
-                TextButton(onClick = { showBrowseTemplatesSheet = true }) {
+                TextButton(
+                    onClick = { showBrowseTemplatesSheet = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Browse templates",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(6.dp))
                     Text("Browse")
@@ -229,54 +235,30 @@ fun WorkoutScreen(
                             .clickable { navController.navigate("templateDetail/${t.templateId}") },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            // Cards/containers should be surface (not surfaceVariant as main background)
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         )
                     ) {
                         Column(Modifier.padding(14.dp)) {
-                            Text(t.name, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                            Text(
+                                text = t.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 2,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             Spacer(Modifier.height(6.dp))
                             val summary = templateSummaries[t.templateId] ?: "Loading..."
 
                             Text(
                                 text = summary,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.outline,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 2
                             )
                         }
                     }
                 }
-
-                /*// Browse
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(96.dp)
-                            .clickable { showBrowseTemplatesSheet = true },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Browse templates",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = "Browse",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-                }*/
             }
         }
 

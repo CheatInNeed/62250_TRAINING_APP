@@ -2,14 +2,15 @@ package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,11 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 
 @Composable
 fun ActiveWorkoutBanner(
@@ -70,7 +67,10 @@ fun ActiveWorkoutBanner(
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
 
@@ -79,7 +79,7 @@ fun ActiveWorkoutBanner(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.primaryContainer)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(vertical = 12.dp, horizontal = 14.dp)
     ) {
         Row(
@@ -92,6 +92,7 @@ fun ActiveWorkoutBanner(
                     .weight(1f)
                     .padding(vertical = 6.dp)
                     .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.primary)
                     .clickable {
                         navController.navigate("activeWorkout") { launchSingleTop = true }
                     }
@@ -100,7 +101,7 @@ fun ActiveWorkoutBanner(
             ) {
                 Icon(
                     imageVector = Icons.Filled.PlayArrow,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     contentDescription = "Resume workout"
                 )
             }
@@ -113,12 +114,14 @@ fun ActiveWorkoutBanner(
                 Text(
                     text = "Active workout in progress",
                     style = MaterialTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = timeText,
                     style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
@@ -128,13 +131,14 @@ fun ActiveWorkoutBanner(
                     .weight(1f)
                     .padding(vertical = 6.dp)
                     .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.error)
                     .clickable { showDiscardDialog = true }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    tint = MaterialTheme.colorScheme.onError,
                     contentDescription = "Discard workout"
                 )
             }
