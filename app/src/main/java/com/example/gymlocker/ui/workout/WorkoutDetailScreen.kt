@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +61,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
@@ -324,6 +326,11 @@ fun WorkoutDetailScreen(
 
                 // 4) Exercise logs — HER er din store fejl: brug workoutDetails, ikke logs
                 items(workoutDetails) { log ->
+                    val headerBackground =
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+                    val rowBackground =
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
+
                     // Exercise title (minimal)
                     Text(
                         text = log.exerciseName,
@@ -336,7 +343,10 @@ fun WorkoutDetailScreen(
 
                     // Column headers (like Active, but without PREVIOUS + ✓)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(headerBackground)
+                            .padding(vertical = 6.dp, horizontal = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -362,14 +372,19 @@ fun WorkoutDetailScreen(
                     Spacer(Modifier.height(4.dp))
 
                     // Set rows (minimal)
-                    log.sets.forEach { set ->
+                    log.sets.forEachIndexed { index, set ->
                         val alpha = if (set.isCompleted) 1f else 0.45f
+
+                        val backgroundColor =
+                            if (index % 2 == 0) rowBackground else Color.Transparent
+
                         val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
                         val wText = formatWeight(shownW, decimals = 0)
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .background(backgroundColor)
                                 .padding(vertical = 6.dp)
                                 .alpha(alpha),
                             verticalAlignment = Alignment.CenterVertically
@@ -377,19 +392,16 @@ fun WorkoutDetailScreen(
                             Text(
                                 text = set.setNumber.toString(),
                                 modifier = Modifier.weight(0.8f),
-                                color = MaterialTheme.colorScheme.onBackground,
                                 textAlign = TextAlign.Start
                             )
                             Text(
                                 text = wText,
                                 modifier = Modifier.weight(1.2f),
-                                color = MaterialTheme.colorScheme.onBackground,
                                 textAlign = TextAlign.Center
                             )
                             Text(
                                 text = set.reps.toString(),
                                 modifier = Modifier.weight(1.0f),
-                                color = MaterialTheme.colorScheme.onBackground,
                                 textAlign = TextAlign.End
                             )
                         }
