@@ -35,7 +35,7 @@ interface WorkoutDao {
         likePattern: String
     ): List<String>
 
-    // Existing (global) summaries (you already have it)
+    /*// Existing (global) summaries (you already have it)
     @Query(
         """
         SELECT 
@@ -49,7 +49,7 @@ interface WorkoutDao {
         ORDER BY w.workoutId DESC
         """
     )
-    fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+    fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>*/
 
     // ✅ NEW: pull workouts from a date-string boundary (works because your date format is lexicographically sortable)
     @Query(
@@ -62,7 +62,7 @@ interface WorkoutDao {
     )
     fun observeWorkoutsFrom(userId: Long, startInclusive: String): Flow<List<Workout>>
 
-    // ✅ NEW: user-filtered summaries (Profile needs this)
+    /*// ✅ NEW: user-filtered summaries (Profile needs this)
     @Query(
         """
         SELECT 
@@ -77,7 +77,7 @@ interface WorkoutDao {
         ORDER BY w.workoutId DESC
         """
     )
-    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>
+    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>*/
 
     // ✅ NEW: total workouts for Profile summary
     @Query("SELECT COUNT(*) FROM workouts WHERE userId = :userId")
@@ -86,12 +86,17 @@ interface WorkoutDao {
     // ✅ NEW: most recent workout (name/date)
     @Query(
         """
-        SELECT workoutId AS workoutId, date AS date, name AS name, 0 AS exerciseCount
-        FROM workouts
-        WHERE userId = :userId
-        ORDER BY workoutId DESC
-        LIMIT 1
-        """
+    SELECT 
+        workoutId AS workoutId, 
+        date AS date, 
+        name AS name, 
+        0 AS exerciseCount,
+        NULL AS exerciseSetSummary
+    FROM workouts
+    WHERE userId = :userId
+    ORDER BY workoutId DESC
+    LIMIT 1
+    """
     )
     suspend fun getMostRecentWorkoutForUser(userId: Long): WorkoutSummary?
 
@@ -100,4 +105,61 @@ interface WorkoutDao {
 
     @Query("SELECT * FROM workouts WHERE workoutId = :workoutId LIMIT 1")
     suspend fun getWorkoutById(workoutId: Long): Workout?
+
+    @Query(
+        """
+    SELECT 
+        w.workoutId AS workoutId,
+        w.date AS date,
+        w.name AS name,
+        COUNT(DISTINCT el.id) AS exerciseCount,
+        GROUP_CONCAT(
+            COALESCE(ps.setCount, 0) || 'x ' || e.name,
+            ', '
+        ) AS exerciseSetSummary
+    FROM workouts w
+    LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
+    LEFT JOIN exercises e ON e.exerciseId = el.exerciseId
+    LEFT JOIN (
+        SELECT 
+            exerciseLogId,
+            COUNT(*) AS setCount
+        FROM performed_set
+        WHERE isCompleted = 1
+        GROUP BY exerciseLogId
+    ) ps ON ps.exerciseLogId = el.id
+    GROUP BY w.workoutId
+    ORDER BY w.workoutId DESC
+    """
+    )
+    fun getWorkoutSummaries(): Flow<List<WorkoutSummary>>
+
+    @Query(
+        """
+    SELECT 
+        w.workoutId AS workoutId,
+        w.date AS date,
+        w.name AS name,
+        COUNT(DISTINCT el.id) AS exerciseCount,
+        GROUP_CONCAT(
+            COALESCE(ps.setCount, 0) || 'x ' || e.name,
+            ', '
+        ) AS exerciseSetSummary
+    FROM workouts w
+    LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
+    LEFT JOIN exercises e ON e.exerciseId = el.exerciseId
+    LEFT JOIN (
+        SELECT 
+            exerciseLogId,
+            COUNT(*) AS setCount
+        FROM performed_set
+        WHERE isCompleted = 1
+        GROUP BY exerciseLogId
+    ) ps ON ps.exerciseLogId = el.id
+    WHERE w.userId = :userId
+    GROUP BY w.workoutId
+    ORDER BY w.workoutId DESC
+    """
+    )
+    fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>
 }

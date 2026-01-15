@@ -18,9 +18,11 @@ import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.flow.firstOrNull
 
 data class WorkoutLogDetail(
     val exerciseName: String,
+    val muscleGroupId: Long,
     val sets: List<PerformedSet>
 )
 
@@ -51,19 +53,21 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
 
             val flows = logs.map { log ->
                 val exerciseFlow = exerciseDao.getAllExercises().map { exercises ->
-                    exercises.find { it.exerciseId == log.exerciseId }?.name ?: "Unknown Exercise"
+                    val ex = exercises.find { it.exerciseId == log.exerciseId }
+                    (ex?.name ?: "Unknown Exercise") to (ex?.muscleGroupId ?: 0L)
                 }
+
                 val setsFlow = performedSetDao.observeSetsForLog(log.id)
 
-                combine(exerciseFlow, setsFlow) { name, sets ->
-                    WorkoutLogDetail(name, sets)
+                combine(exerciseFlow, setsFlow) { (name, mgId), sets ->
+                    WorkoutLogDetail(name, mgId, sets)
                 }
             }
             combine(flows) { it.toList() }
         }
 
     suspend fun createTemplateFromWorkout(workoutId: Long, templateName: String): Long {
-        val profileUserId = activeProfileUserIdFlowOnce()
+        val profileUserId = activeProfileUserIdOnce()
             ?: throw IllegalStateException("No active profile selected")
 
         val logs = exerciseLogDao.getLogsForWorkoutOnce(workoutId)
@@ -107,6 +111,11 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
         }
         return latest
     }
+
+    suspend fun activeProfileUserIdOnce(): Long? {
+        return session.activeProfileUserId.firstOrNull()
+    }
+
 
     companion object {
         fun provideFactory(context: Context): ViewModelProvider.Factory {

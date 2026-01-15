@@ -50,6 +50,9 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.ChevronRight
+
 
 enum class HistoryViewMode { LIST, CALENDAR }
 
@@ -208,72 +211,113 @@ private fun WorkoutHistoryCard(
     onClick: () -> Unit
 ) {
     val timeText = remember(dateTime) {
-        dateTime?.format(DateTimeFormatter.ofPattern("HH:mm")) ?: ""
+        dateTime?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty()
+    }
+
+    // Parse: "5x Bench Press, 3x Tricep Pushdown"
+    val exerciseLines = remember(workout.exerciseSetSummary) {
+        workout.exerciseSetSummary
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
     }
 
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            // Cards should be surface/onSurface (avoid containerHighest for theme consistency)
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
 
-            // Title row
+            // Header: name (left) + time (right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                // Workout name
+                Text(
+                    text = workout.name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+
+                // Time
+                if (timeText.isNotBlank()) {
                     Text(
-                        text = workout.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = timeText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (timeText.isNotBlank()) {
-                        Text(
-                            text = timeText,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
 
-                // Small badge for exercise count
-                AssistChip(
-                    onClick = { /* no-op */ },
-                    label = { Text("${workout.exerciseCount} exercises") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = null
-                        )
-                    }
+                Spacer(Modifier.width(6.dp))
+
+                // Chevron
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // Meta line
-            Text(
-                text = metaLine(workout, dateTime),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (exerciseLines.isEmpty()) {
+                Text(
+                    text = "${workout.exerciseCount} exercises",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                val cutoff = 5
+                exerciseLines.take(cutoff).forEach { line ->
+                    // line expected like "5x Bench Press"
+                    val parsed = parseSetSummaryLine(line) // (count, name)
+                    val count = parsed?.first
+                    val exName = parsed?.second
+
+                    val text = if (count != null && exName != null) {
+                        val unit = if (count == 1) "set" else "sets"
+                        "$count $unit of $exName"
+                    } else {
+                        // fallback hvis format ikke matcher
+                        line
+                    }
+
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+
+                if (exerciseLines.size > cutoff) {
+                    Text(
+                        text = "+${exerciseLines.size - cutoff} more",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
 
-private fun metaLine(workout: WorkoutSummary, dateTime: LocalDateTime?): String {
-    val datePart = dateTime?.toLocalDate()?.let { d ->
-        d.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
-    } ?: "Unknown date"
-
-    return datePart
+private fun parseSetSummaryLine(line: String): Pair<Int, String>? {
+    // Accepts "5x Bench Press" OR "5 x Bench Press"
+    val regex = Regex("""^\s*(\d+)\s*x\s*(.+?)\s*$""")
+    val match = regex.find(line) ?: return null
+    val count = match.groupValues[1].toIntOrNull() ?: return null
+    val name = match.groupValues[2]
+    return count to name
 }
 
 private fun WorkoutSummary.safeLocalDateTime(formatter: DateTimeFormatter): LocalDateTime? {
@@ -507,7 +551,7 @@ fun CalendarGrid(
                             .background(
                                 when {
                                     isSelected -> MaterialTheme.colorScheme.primary
-                                    hasWorkout -> MaterialTheme.colorScheme.primaryContainer
+                                    hasWorkout -> MaterialTheme.colorScheme.surfaceVariant
                                     else -> Color.Transparent
                                 }
                             )
@@ -520,7 +564,7 @@ fun CalendarGrid(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.onPrimary
-                                    hasWorkout -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    hasWorkout -> MaterialTheme.colorScheme.onSurfaceVariant
                                     isToday -> MaterialTheme.colorScheme.primary
                                     else -> MaterialTheme.colorScheme.onBackground
                                 },
