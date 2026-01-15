@@ -1,7 +1,13 @@
 package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -13,7 +19,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlin.math.max
 
 @Composable
 fun MuscleGroupDistributionChart(
@@ -21,7 +26,11 @@ fun MuscleGroupDistributionChart(
     modifier: Modifier = Modifier
 ) {
     if (rows.isEmpty()) {
-        Text("No data in range", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "No data in range",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         return
     }
 
@@ -29,14 +38,15 @@ fun MuscleGroupDistributionChart(
     val totalSets = shown.sumOf { it.completedSets }.coerceAtLeast(1)
     val maxValue = shown.maxOf { it.completedSets }.coerceAtLeast(1)
 
+    // Theme-safe roles
     val barColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
     val labelColor: Color = MaterialTheme.colorScheme.onSurface
-    val subColor: Color = MaterialTheme.colorScheme.outline
+    val subColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(modifier = modifier) {
         shown.forEach { r ->
             val pct = ((r.completedSets * 100f) / totalSets)
-            val pctText = "${pct.toInt()}%"  // simple integer percent (cleaner UI)
+            val pctText = "${pct.toInt()}%" // integer percent
 
             Row(
                 modifier = Modifier

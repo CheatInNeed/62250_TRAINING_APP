@@ -15,7 +15,20 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +74,7 @@ fun WorkoutHistoryScreen(
     var viewMode by remember { mutableStateOf(HistoryViewMode.LIST) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Workout History") },
@@ -70,16 +84,26 @@ fun WorkoutHistoryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        viewMode =
-                            if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR else HistoryViewMode.LIST
-                    }) {
+                    IconButton(
+                        onClick = {
+                            viewMode =
+                                if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR
+                                else HistoryViewMode.LIST
+                        }
+                    ) {
                         Icon(
                             imageVector = if (viewMode == HistoryViewMode.LIST) Icons.Default.DateRange else Icons.AutoMirrored.Filled.List,
-                            contentDescription = if (viewMode == HistoryViewMode.LIST) "Switch to Calendar" else "Switch to List"
+                            contentDescription = if (viewMode == HistoryViewMode.LIST) "Switch to Calendar" else "Switch to List",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
@@ -89,10 +113,19 @@ fun WorkoutHistoryScreen(
             }
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+        ) {
             if (workouts.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No completed workouts yet.", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "No completed workouts yet.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
                 }
             } else {
                 if (viewMode == HistoryViewMode.LIST) {
@@ -123,10 +156,7 @@ fun WorkoutList(
         workouts
             .map { ws -> ws to ws.safeLocalDateTime(formatter) }
             .sortedByDescending { (_, dt) -> dt ?: LocalDateTime.MIN }
-            .groupBy { (_, dt) ->
-                // If parse fails, keep them in "Unknown date"
-                dt?.toLocalDate()
-            }
+            .groupBy { (_, dt) -> dt?.toLocalDate() }
             .toSortedMap(compareByDescending { it }) // newest date section first
     }
 
@@ -135,14 +165,16 @@ fun WorkoutList(
             Text(
                 text = "No completed workouts yet.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.outline
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
         return
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -151,7 +183,7 @@ fun WorkoutList(
                 Text(
                     text = sectionTitleForDate(date),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                 )
             }
@@ -183,7 +215,9 @@ private fun WorkoutHistoryCard(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+            // Cards should be surface/onSurface (avoid containerHighest for theme consistency)
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -197,13 +231,14 @@ private fun WorkoutHistoryCard(
                     Text(
                         text = workout.name,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (timeText.isNotBlank()) {
                         Text(
                             text = timeText,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.outline
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -223,7 +258,7 @@ private fun WorkoutHistoryCard(
 
             Spacer(Modifier.height(10.dp))
 
-            // Meta line (you can extend later with duration, sets, etc.)
+            // Meta line
             Text(
                 text = metaLine(workout, dateTime),
                 style = MaterialTheme.typography.bodyMedium,
@@ -234,8 +269,6 @@ private fun WorkoutHistoryCard(
 }
 
 private fun metaLine(workout: WorkoutSummary, dateTime: LocalDateTime?): String {
-    // Keep this short and skimmable.
-    // If later you add duration/sets, you can append "• 42 min • 18 sets" etc.
     val datePart = dateTime?.toLocalDate()?.let { d ->
         d.format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
     } ?: "Unknown date"
@@ -259,7 +292,6 @@ private fun sectionTitleForDate(date: LocalDate?): String {
         today -> "Today"
         today.minusDays(1) -> "Yesterday"
         else -> {
-            // If within last 7 days: weekday name. Else: full date.
             val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(date, today)
             if (daysAgo in 2..6) {
                 date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
@@ -270,8 +302,7 @@ private fun sectionTitleForDate(date: LocalDate?): String {
     }
 }
 
-
-/* ---- Calendar code unchanged below ---- */
+/* ---- Calendar ---- */
 
 @Composable
 fun WorkoutCalendar(
@@ -293,7 +324,11 @@ fun WorkoutCalendar(
 
     var selectedDate by remember { mutableStateOf<LocalDate?>(LocalDate.now()) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         CalendarHeader(currentMonth = currentMonth, onMonthChange = { currentMonth = it })
 
         CalendarGrid(
@@ -312,7 +347,8 @@ fun WorkoutCalendar(
             Text(
                 text = displayDate.format(DateTimeFormatter.ofPattern("MMMM d, yyyy")),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             if (dayWorkouts.isEmpty()) {
@@ -325,11 +361,15 @@ fun WorkoutCalendar(
                     Text(
                         text = "No workouts on this day.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
                     items(dayWorkouts) { workout ->
                         val time = try {
                             LocalDateTime.parse(workout.date, formatter)
@@ -345,8 +385,19 @@ fun WorkoutCalendar(
                         }
 
                         ListItem(
-                            headlineContent = { Text(line) },
-                            modifier = Modifier.clickable { onWorkoutClick(workout.workoutId) }
+                            headlineContent = {
+                                Text(
+                                    text = line,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            modifier = Modifier
+                                .clickable { onWorkoutClick(workout.workoutId) }
+                                .background(MaterialTheme.colorScheme.surface),
+                            colors = ListItemDefaults.colors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                headlineColor = MaterialTheme.colorScheme.onSurface
+                            )
                         )
                         HorizontalDivider()
                     }
@@ -354,7 +405,10 @@ fun WorkoutCalendar(
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Select a day to see workouts", color = MaterialTheme.colorScheme.outline)
+                Text(
+                    "Select a day to see workouts",
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
     }
@@ -368,20 +422,30 @@ fun CalendarHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
-            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Previous Month")
+            Icon(
+                Icons.Default.KeyboardArrowLeft,
+                contentDescription = "Previous Month",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
         }
         Text(
             text = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}",
             style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
         )
         IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
-            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next Month")
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                contentDescription = "Next Month",
+                tint = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
@@ -397,8 +461,16 @@ fun CalendarGrid(
     val daysInMonth = currentMonth.lengthOfMonth()
     val daysOfWeek = listOf("S", "M", "T", "W", "T", "F", "S")
 
-    Column(modifier = Modifier.padding(horizontal = 8.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        ) {
             daysOfWeek.forEach { day ->
                 Text(
                     text = day,
@@ -406,7 +478,8 @@ fun CalendarGrid(
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.secondary
+                    // Use onBackground for header labels (avoid random secondary)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
         }
@@ -449,7 +522,7 @@ fun CalendarGrid(
                                     isSelected -> MaterialTheme.colorScheme.onPrimary
                                     hasWorkout -> MaterialTheme.colorScheme.onPrimaryContainer
                                     isToday -> MaterialTheme.colorScheme.primary
-                                    else -> MaterialTheme.colorScheme.onSurface
+                                    else -> MaterialTheme.colorScheme.onBackground
                                 },
                                 fontWeight = if (isToday || hasWorkout) FontWeight.Bold else FontWeight.Normal
                             )

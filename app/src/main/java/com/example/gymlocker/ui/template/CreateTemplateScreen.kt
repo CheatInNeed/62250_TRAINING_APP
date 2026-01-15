@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.template
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,18 +17,23 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -79,21 +84,37 @@ fun CreateTemplateScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = { Text("Create Template") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showDiscardDialog = true }) { Text("Discard") }
+                    TextButton(
+                        onClick = { showDiscardDialog = true }
+                    ) {
+                        Text(
+                            "Discard",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
                     Button(
                         onClick = {
@@ -104,11 +125,23 @@ fun CreateTemplateScreen(
                                 templateExercises.isNotEmpty() &&
                                 !isSaving &&
                                 templateNameError == null,
-                        modifier = Modifier.padding(end = 8.dp)
+                        modifier = Modifier.padding(end = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f),
+                            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f)
+                        )
                     ) {
                         Text(if (isSaving) "Saving..." else "Save")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
@@ -121,6 +154,7 @@ fun CreateTemplateScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             Column(
@@ -128,7 +162,11 @@ fun CreateTemplateScreen(
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                Text("Template name", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    "Template name",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(8.dp))
 
                 TextField(
@@ -136,25 +174,72 @@ fun CreateTemplateScreen(
                     onValueChange = viewModel::updateTemplateName,
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g. Push Day") },
+                    placeholder = {
+                        Text(
+                            "e.g. Push Day",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     isError = templateNameError != null || templateName.isBlank(),
                     supportingText = {
-                        when {
-                            templateName.isBlank() -> Text("Please enter a name.")
-                            templateNameError != null -> Text(templateNameError ?: "")
-                            else -> Text("${templateName.length} / $maxLen")
+                        val txt = when {
+                            templateName.isBlank() -> "Please enter a name."
+                            templateNameError != null -> (templateNameError ?: "")
+                            else -> "${templateName.length} / $maxLen"
                         }
-                    }
+                        Text(
+                            txt,
+                            color = if (templateNameError != null || templateName.isBlank())
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+                        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                        errorLabelColor = MaterialTheme.colorScheme.error,
+
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             }
 
             if (templateExercises.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No exercises added yet.")
-                        Text("Start by adding your first exercise.")
+                        Text(
+                            "No exercises added yet.",
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            "Start by adding your first exercise.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { showAddExerciseSheet = true }) { Text("Add Exercise") }
+                        Button(
+                            onClick = { showAddExerciseSheet = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        ) { Text("Add Exercise") }
                     }
                 }
             } else {
@@ -185,7 +270,11 @@ fun CreateTemplateScreen(
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { showAddExerciseSheet = true },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            )
                         ) { Text("Add Exercise") }
                         Spacer(Modifier.height(8.dp))
                     }
@@ -232,94 +321,149 @@ fun TemplateExerciseItem(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
 
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = exercise.exerciseName,
-                style = MaterialTheme.typography.titleMedium
-            )
+        Column(modifier = Modifier.padding(12.dp)) {
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = exercise.exerciseName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Filled.MoreVert, contentDescription = "More")
-                }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            Icons.Filled.MoreVert,
+                            contentDescription = "More",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Delete exercise") },
-                        onClick = {
-                            showMenu = false
-                            showDeleteConfirm = true
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Delete exercise") },
+                            onClick = {
+                                showMenu = false
+                                showDeleteConfirm = true
+                            },
+                            colors = MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.onSurface,
+                                leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                                trailingIconColor = MaterialTheme.colorScheme.onSurface,
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            )
+                        )
+
+                        if (!deleteSetsMode) {
+                            DropdownMenuItem(
+                                text = { Text("Delete sets") },
+                                onClick = {
+                                    showMenu = false
+                                    deleteSetsMode = true
+                                },
+                                colors = MenuDefaults.itemColors(
+                                    textColor = MaterialTheme.colorScheme.onSurface,
+                                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                                    trailingIconColor = MaterialTheme.colorScheme.onSurface,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Done deleting sets") },
+                                onClick = {
+                                    showMenu = false
+                                    deleteSetsMode = false
+                                },
+                                colors = MenuDefaults.itemColors(
+                                    textColor = MaterialTheme.colorScheme.onSurface,
+                                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
+                                    trailingIconColor = MaterialTheme.colorScheme.onSurface,
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
+                            )
                         }
-                    )
-
-                    if (!deleteSetsMode) {
-                        DropdownMenuItem(
-                            text = { Text("Delete sets") },
-                            onClick = {
-                                showMenu = false
-                                deleteSetsMode = true
-                            }
-                        )
-                    } else {
-                        DropdownMenuItem(
-                            text = { Text("Done deleting sets") },
-                            onClick = {
-                                showMenu = false
-                                deleteSetsMode = false
-                            }
-                        )
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "SET",
+                    modifier = Modifier.weight(0.5f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "KG",
+                    modifier = Modifier.weight(0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "REPS",
+                    modifier = Modifier.weight(0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            exercise.sets.forEach { set ->
+                TemplateSetRow(
+                    set = set,
+                    deleteMode = deleteSetsMode,
+                    onDelete = {
+                        onDeleteSet(set.setNumber)
+                        if (exercise.sets.size <= 2) deleteSetsMode = false
+                    },
+                    onWeightChange = { onWeightChange(set.setNumber, it) },
+                    onRepsChange = { onRepsChange(set.setNumber, it) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onAddSet,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) { Text("+ Add Set") }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        androidx.compose.foundation.layout.Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("SET", modifier = Modifier.weight(0.5f))
-            Text("KG", modifier = Modifier.weight(0.7f))
-            Text("REPS", modifier = Modifier.weight(0.7f))
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        exercise.sets.forEach { set ->
-            TemplateSetRow(
-                set = set,
-                deleteMode = deleteSetsMode,
-                onDelete = {
-                    onDeleteSet(set.setNumber)
-                    if (exercise.sets.size <= 2) deleteSetsMode = false
-                },
-                onWeightChange = { onWeightChange(set.setNumber, it) },
-                onRepsChange = { onRepsChange(set.setNumber, it) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = onAddSet,
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("+ Add Set") }
     }
 }
 
@@ -342,10 +486,9 @@ fun TemplateSetRow(
         Text(
             text = set.setNumber.toString(),
             modifier = Modifier.weight(0.5f),
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface
         )
-
-        val alpha = 0.15f
 
         Box(
             modifier = Modifier
@@ -359,14 +502,22 @@ fun TemplateSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
-                    focusedContainerColor = Color.Gray.copy(alpha = alpha),
-                    disabledContainerColor = Color.Gray.copy(alpha = alpha),
-                    errorContainerColor = Color.Gray.copy(alpha = alpha),
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                    disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                    errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -383,21 +534,33 @@ fun TemplateSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Gray.copy(alpha = alpha),
-                    focusedContainerColor = Color.Gray.copy(alpha = alpha),
-                    disabledContainerColor = Color.Gray.copy(alpha = alpha),
-                    errorContainerColor = Color.Gray.copy(alpha = alpha),
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+                    disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                    errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
 
         if (deleteMode) {
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Close, contentDescription = "Delete set")
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = "Delete set",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
     }

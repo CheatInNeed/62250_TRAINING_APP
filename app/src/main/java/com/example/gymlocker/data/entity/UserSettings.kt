@@ -28,6 +28,11 @@ enum class AppTheme {
     RED,
     BLUE,
     GREEN,
-    MATRIX
+    MATRIX,
+    ARCADE,
+    SpongeBob,
+    SpiderMan,
+    Swamp,
+    LockerRoom,
 }
 

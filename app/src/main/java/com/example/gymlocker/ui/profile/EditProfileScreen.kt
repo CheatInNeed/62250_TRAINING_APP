@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,12 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.util.displayWeightFromKg
-import com.example.gymlocker.util.storageKgFromInput
 import com.example.gymlocker.util.formatWeight
+import com.example.gymlocker.util.storageKgFromInput
 import com.example.gymlocker.util.weightUnitLabel
+import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,7 +59,7 @@ fun EditProfileScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
 
-
+    // Display text for weight in the chosen unit (UI)
     val initialWeightText =
         if (activeProfile?.weight == 0) ""
         else formatWeight(displayWeightFromKg(activeProfile!!.weight.toDouble(), unit), decimals = 0)
@@ -66,19 +67,38 @@ fun EditProfileScreen(
     var weight by remember { mutableStateOf(initialWeightText) }
 
     // Load current values into editable fields
-    LaunchedEffect(activeProfile?.userId) {
+    LaunchedEffect(activeProfile?.userId, unit) {
         val p = activeProfile ?: return@LaunchedEffect
         name = p.name
         heightText = if (p.height == 0) "" else p.height.toString()
-        weightText = if (p.weight == 0) "" else p.weight.toString()
+
+        // Keep weight text in current unit
+        weightText =
+            if (p.weight == 0) ""
+            else formatWeight(displayWeightFromKg(p.weight.toDouble(), unit), decimals = 0)
+
+        weight = weightText
         error = null
     }
 
     if (showResetConfirm) {
         AlertDialog(
             onDismissRequest = { showResetConfirm = false },
-            title = { Text("Reset profile?") },
-            text = { Text("This resets name/height/weight. Workouts will NOT be deleted.") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            title = {
+                Text(
+                    text = "Reset profile?",
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "This resets name/height/weight. Workouts will NOT be deleted.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -87,21 +107,37 @@ fun EditProfileScreen(
                             navController.popBackStack()
                         }
                     }
-                ) { Text("Reset") }
+                ) {
+                    Text(
+                        text = "Reset",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showResetConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showResetConfirm = false }) {
+                    Text(
+                        text = "Cancel",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         )
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = { Text("Edit profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             )
@@ -114,9 +150,19 @@ fun EditProfileScreen(
                 .padding(20.dp)
         ) {
             if (activeProfile == null) {
-                Text("No active profile selected.")
+                Text(
+                    text = "No active profile selected.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(12.dp))
-                Button(onClick = { navController.popBackStack() }) { Text("Back") }
+                Button(
+                    onClick = { navController.popBackStack() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text("Back") }
                 return@Column
             }
 
@@ -143,7 +189,11 @@ fun EditProfileScreen(
 
             OutlinedTextField(
                 value = weightText,
-                onValueChange = { weightText = it; error = null },
+                onValueChange = { input ->
+                    weightText = input
+                    weight = input
+                    error = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Weight (${weightUnitLabel(unit)})") },
                 singleLine = true,
@@ -153,13 +203,17 @@ fun EditProfileScreen(
             Spacer(Modifier.height(12.dp))
 
             error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
                 Spacer(Modifier.height(8.dp))
             }
 
             Button(
                 onClick = {
-                    // ✅ numeric validation: do NOT silently treat "abc" as Not set
+                    // numeric validation: do NOT silently treat "abc" as Not set
                     val hRaw = heightText.trim()
                     val wRaw = weightText.trim()
 
@@ -174,6 +228,7 @@ fun EditProfileScreen(
                         error = "Weight must be a number."
                         return@Button
                     }
+
                     val wKg = weight.toDoubleOrNull()
                         ?.let { storageKgFromInput(it, unit).roundToInt() }
                         ?: 0
@@ -186,7 +241,11 @@ fun EditProfileScreen(
                         onSuccess = { navController.popBackStack() }
                     )
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) { Text("Save") }
 
             Spacer(Modifier.height(10.dp))
@@ -194,7 +253,12 @@ fun EditProfileScreen(
             OutlinedButton(
                 onClick = { showResetConfirm = true },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("Reset profile") }
+            ) {
+                Text(
+                    text = "Reset profile",
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

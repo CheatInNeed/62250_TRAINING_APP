@@ -3,7 +3,11 @@ package com.example.gymlocker.ui.activeworkout
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.FractionalThreshold
 import androidx.compose.material.icons.Icons
@@ -14,7 +18,13 @@ import androidx.compose.material.swipeable
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -104,17 +114,22 @@ fun SwipeableSetRow(
         label = "SwipeForegroundAlpha"
     )
 
-    // Directional background color (visual only)
-    // TODO: Change doneColor to transparent to disable green completion color
-    val doneColor = Color(0xFF34C759).copy(alpha = bgMaxAlpha)
+    val DestructiveRed = Color(0xFFD32F2F) // strong, readable red across themes
+
+
+    // Directional background color (visual only) — use theme roles
+    val deleteColor = DestructiveRed
+    val completeColor = MaterialTheme.colorScheme.primary
+
+    // Persistent done background — subtle, theme-safe
+    val doneColor = MaterialTheme.colorScheme.secondary.copy(alpha = bgMaxAlpha)
 
     val bgColor: Color = when {
-        isSwiping && showingDelete -> Color(0xFFD32F2F).copy(alpha = bgAlpha)
-        isSwiping && showingComplete -> Color(0xFF34C759).copy(alpha = bgAlpha)
-        !isSwiping && isDone -> doneColor // persistent done background
+        isSwiping && showingDelete -> deleteColor.copy(alpha = bgAlpha)
+        isSwiping && showingComplete -> completeColor.copy(alpha = bgAlpha)
+        !isSwiping && isDone -> doneColor
         else -> Color.Transparent
     }
-
 
     val swipeableModifier = if (enabled && anchors != null) {
         Modifier.swipeable(
@@ -160,7 +175,7 @@ fun SwipeableSetRow(
                     Icon(
                         imageVector = Icons.Filled.CheckCircle,
                         contentDescription = "Complete",
-                        tint = Color.White
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
@@ -188,7 +203,7 @@ fun SwipeableSetRow(
                         Icon(
                             imageVector = Icons.Filled.Delete,
                             contentDescription = "Delete",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onError
                         )
                     }
                 }

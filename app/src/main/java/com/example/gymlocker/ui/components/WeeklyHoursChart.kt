@@ -1,7 +1,12 @@
 package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -12,10 +17,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.gymlocker.viewmodel.WeekHoursUi
 import java.time.LocalDate
 import java.time.temporal.WeekFields
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 private fun weekNumber(date: LocalDate): Int {
@@ -25,13 +28,17 @@ private fun weekNumber(date: LocalDate): Int {
 @Composable
 fun <T> WeeklyBarChart(
     data: List<T>,
-    weekStartOf: (T) -> java.time.LocalDate,
+    weekStartOf: (T) -> LocalDate,
     valueOf: (T) -> Float,
     modifier: Modifier = Modifier,
     legendPrefix: String = "Week:"
 ) {
     if (data.isEmpty()) {
-        Text("No data", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            text = "No data",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         return
     }
 

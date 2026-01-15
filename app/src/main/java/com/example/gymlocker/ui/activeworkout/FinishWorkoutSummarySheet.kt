@@ -1,13 +1,34 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,11 +69,14 @@ fun FinishWorkoutSummarySheet(
     ModalBottomSheet(
         onDismissRequest = onCancel,
         sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.82f)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             // Main content
             Column(
@@ -68,7 +92,10 @@ fun FinishWorkoutSummarySheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onCancel) {
-                        Text("Resume")
+                        Text(
+                            "Resume",
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
 
@@ -78,28 +105,62 @@ fun FinishWorkoutSummarySheet(
                     value = workoutName,
                     onValueChange = { workoutName = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Workout name") },
+                    label = { Text("Workout name", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     singleLine = true,
                     isError = blank || tooLong,
                     supportingText = {
-                        when {
-                            blank -> Text("Name cannot be empty")
-                            tooLong -> Text("Max $maxNameLength tegn.")
-                            else -> Text("${trimmed.length} / $maxNameLength")
+                        val txt = when {
+                            blank -> "Name cannot be empty"
+                            tooLong -> "Max $maxNameLength tegn."
+                            else -> "${trimmed.length} / $maxNameLength"
                         }
-                    }
+                        Text(
+                            txt,
+                            color = if (blank || tooLong)
+                                MaterialTheme.colorScheme.error
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        errorBorderColor = MaterialTheme.colorScheme.error,
+
+                        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                        errorLabelColor = MaterialTheme.colorScheme.error,
+
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    )
                 )
 
                 Spacer(Modifier.height(16.dp))
 
                 Text(
                     text = "Status",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(6.dp))
 
                 if (unfinishedMeaningfulSetCount > 0) {
-                    Text("You have $unfinishedMeaningfulSetCount unfinished sets.")
+                    Text(
+                        "You have $unfinishedMeaningfulSetCount unfinished sets.",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     Spacer(Modifier.height(8.dp))
 
                     Row(
@@ -108,20 +169,30 @@ fun FinishWorkoutSummarySheet(
                     ) {
                         Checkbox(
                             checked = markUnfinishedAsDone,
-                            onCheckedChange = { markUnfinishedAsDone = it }
+                            onCheckedChange = {
+                                markUnfinishedAsDone = it
+                                if (it) onMarkUnfinishedAsDone()
+                            }
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Mark all sets as done")
+                        Text(
+                            "Mark all sets as done",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 } else {
-                    Text("No unfinished sets.")
+                    Text(
+                        "No unfinished sets.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))
 
                 Text(
                     text = "Duration",
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(Modifier.height(6.dp))
 
@@ -160,7 +231,8 @@ fun FinishWorkoutSummarySheet(
                 ) {
                     Text(
                         text = "✅",
-                        style = MaterialTheme.typography.displayLarge
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
