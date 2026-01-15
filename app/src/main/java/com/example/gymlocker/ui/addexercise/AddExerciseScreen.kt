@@ -26,6 +26,12 @@ import androidx.compose.material.icons.filled.Rowing
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.SportsGymnastics
 import androidx.compose.material.icons.filled.SportsMartialArts
+import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Rowing
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -83,6 +89,10 @@ fun AddExerciseSheet(
     val allMuscleGroups by db.muscleGroupDao()
         .getAllMuscleGroups()
         .collectAsState(initial = emptyList())
+
+    val muscleGroupNameById = remember(allMuscleGroups) {
+        allMuscleGroups.associate { it.muscleGroupId to it.name }
+    }
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -249,6 +259,7 @@ fun AddExerciseSheet(
 
                         items(recentExercises, key = { it.exerciseId }) { exercise ->
                             val isSelected = selectedExercises.contains(exercise.exerciseId)
+
                             ExerciseListItem(
                                 exercise = exercise,
                                 selected = isSelected,
@@ -258,7 +269,8 @@ fun AddExerciseSheet(
                                     } else {
                                         selectedExercises + exercise.exerciseId
                                     }
-                                }
+                                },
+                                muscleGroupNameById = muscleGroupNameById
                             )
                         }
 
@@ -269,9 +281,10 @@ fun AddExerciseSheet(
                         }
                     }
 
-                    // normal liste under
+                    // normal liste under (ALTID)
                     items(filtered, key = { it.exerciseId }) { exercise ->
                         val isSelected = selectedExercises.contains(exercise.exerciseId)
+
                         ExerciseListItem(
                             exercise = exercise,
                             selected = isSelected,
@@ -281,7 +294,8 @@ fun AddExerciseSheet(
                                 } else {
                                     selectedExercises + exercise.exerciseId
                                 }
-                            }
+                            },
+                            muscleGroupNameById = muscleGroupNameById
                         )
                     }
                 }
@@ -329,7 +343,8 @@ fun AddExerciseSheet(
 fun ExerciseListItem(
     exercise: Exercises,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    muscleGroupNameById: Map<Long, String>
 ) {
     // “hele rækken bliver vores lyse themefarve”
     // Brug primary med lav alpha = tydelig highlight uden at ødelægge tekst-contrast.
@@ -337,7 +352,8 @@ fun ExerciseListItem(
     else MaterialTheme.colorScheme.surface
 
     val content = MaterialTheme.colorScheme.onSurface
-    val (icon, iconDesc) = iconForMuscleGroup(exercise.muscleGroupId)
+    val mgName = muscleGroupNameById[exercise.muscleGroupId] ?: "Other"
+    val (icon, iconDesc) = iconForMuscleGroupName(mgName)
 
     Card(
         modifier = Modifier
@@ -373,15 +389,13 @@ fun ExerciseListItem(
  * Bedre ikon visning (ikke samme ikon).
  * (Deterministisk mapping via muscleGroupId — kan senere mappes via mg.name)
  */
-private fun iconForMuscleGroup(muscleGroupId: Long): Pair<ImageVector, String> {
-    return when ((muscleGroupId % 8).toInt()) {
-        0 -> Icons.Filled.FitnessCenter to "Strength"
-        1 -> Icons.Filled.DirectionsRun to "Legs/Cardio"
-        2 -> Icons.Filled.SelfImprovement to "Core/Mobility"
-        3 -> Icons.Filled.SportsMartialArts to "Arms"
-        4 -> Icons.Filled.SportsGymnastics to "Bodyweight"
-        5 -> Icons.Filled.Rowing to "Back"
-        6 -> Icons.Filled.Bolt to "Power"
-        else -> Icons.Filled.FitnessCenter to "Training"
+private fun iconForMuscleGroupName(name: String): Pair<ImageVector, String> {
+    return when (name.trim().lowercase()) {
+        "chest" -> Icons.Filled.Shield to "Chest"
+        "legs" -> Icons.Filled.DirectionsWalk to "Legs"
+        "back" -> Icons.Filled.Rowing to "Back"
+        "shoulders" -> Icons.Filled.AccessibilityNew to "Shoulders"
+        "arms" -> Icons.Filled.FitnessCenter to "Arms"
+        else -> Icons.Filled.HelpOutline to name
     }
 }
