@@ -307,12 +307,6 @@ fun WorkoutDetailScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "Sets per muscle group (this workout)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
 
                             Spacer(Modifier.height(12.dp))
 
