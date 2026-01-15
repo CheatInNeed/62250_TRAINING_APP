@@ -309,10 +309,10 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     // --- Exercise handling ---
 
     fun addExercise(exercise: Exercises) {
-
         val existing = _activeExercises.value
         if (existing.any { it.exerciseId == exercise.exerciseId }) return
 
+        // UI: tilføj øvelsen med et tomt set med det samme
         _activeExercises.value = existing + ActiveExerciseState(
             exerciseId = exercise.exerciseId,
             exerciseName = exercise.name,
@@ -321,16 +321,23 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         )
 
         viewModelScope.launch {
-            val latestWorkoutId = performedSetDao.getLatestWorkoutIdForExerciseExcludingWorkout(
-                exerciseId = exercise.exerciseId,
-                excludeWorkoutId = currentWorkoutId
-            ) ?: return@launch
+            val userId = requireActiveProfileUserIdOrNull() ?: return@launch
+
+            val workoutId = ensureWorkoutExists() ?: return@launch
+
+            exerciseLogDao.getOrCreateLogId(workoutId, exercise.exerciseId)
+
+            val latestWorkoutId =
+                performedSetDao.getLatestWorkoutIdForExerciseExcludingWorkoutForUser(
+                    userId = userId,
+                    exerciseId = exercise.exerciseId,
+                    excludeWorkoutId = workoutId
+                ) ?: return@launch
 
             val previousSets = performedSetDao.getPerformedSetsForExerciseInWorkout(
                 workoutId = latestWorkoutId,
                 exerciseId = exercise.exerciseId
             )
-
             if (previousSets.isEmpty()) return@launch
 
             val unit = currentWeightUnit
@@ -351,11 +358,6 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
                 if (ex.exerciseId != exercise.exerciseId) ex
                 else ex.copy(sets = clonedSets)
             }
-        }
-
-        viewModelScope.launch {
-            val workoutId = ensureWorkoutExists() ?: return@launch
-            exerciseLogDao.getOrCreateLogId(workoutId, exercise.exerciseId)
         }
     }
 
@@ -387,7 +389,10 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
             .maxOf { it.setNumber }
 
         viewModelScope.launch {
-            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkout(
+            val userId = requireActiveProfileUserIdOrNull() ?: return@launch
+
+            val latest = performedSetDao.getLatestSetForExerciseAndNumberExcludingWorkoutForUser(
+                userId = userId,
                 exerciseId = exerciseId,
                 setNumber = newSetNumber,
                 excludeWorkoutId = currentWorkoutId
