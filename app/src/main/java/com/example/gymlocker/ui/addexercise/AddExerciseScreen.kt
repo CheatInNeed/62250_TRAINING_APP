@@ -1,6 +1,5 @@
 package com.example.gymlocker.ui.addexercise
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,25 +11,44 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Rowing
+import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.SportsGymnastics
+import androidx.compose.material.icons.filled.SportsMartialArts
+import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Rowing
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,9 +56,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.Exercises
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class ExerciseFilterMode { BY_NAME, BY_MUSCLE_GROUP }
 
@@ -55,20 +78,70 @@ fun AddExerciseSheet(
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
+    val session = remember { SessionManager(context) }
+
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
 
     val allExercises by db.exerciseDao()
         .getAllExercises()
         .collectAsState(initial = emptyList())
 
-    var searchQuery by remember { mutableStateOf("") }
-
-    var filterMode by remember { mutableStateOf(ExerciseFilterMode.BY_NAME) }
-    var selectedMuscleGroupId by remember { mutableStateOf<Long?>(null) } // null = "All"
-    var showMuscleGroupMenu by remember { mutableStateOf(false) }
-
     val allMuscleGroups by db.muscleGroupDao()
         .getAllMuscleGroups()
         .collectAsState(initial = emptyList())
+
+    val muscleGroupNameById = remember(allMuscleGroups) {
+        allMuscleGroups.associate { it.muscleGroupId to it.name }
+    }
+
+    var searchQuery by remember { mutableStateOf("") }
+
+    var filterMode by remember { mutableStateOf(ExerciseFilterMode.BY_NAME) }
+
+    // multi-select filter
+    var selectedMuscleGroupIds by remember { mutableStateOf(setOf<Long>()) }
+
+    // recent
+    var recentExercises by remember { mutableStateOf<List<Exercises>>(emptyList()) }
+
+    // Hent recent når vi har userId + når exercises-listen er loaded/ændrer sig
+    LaunchedEffect(activeProfileUserId, allExercises) {
+        val uid = activeProfileUserId
+        if (uid == null || allExercises.isEmpty()) {
+            recentExercises = emptyList()
+            return@LaunchedEffect
+        }
+
+        recentExercises = withContext(Dispatchers.IO) {
+            val ids = db.performedSetDao().getRecentExerciseIdsForUser(uid, limit = 5)
+            // bevar rækkefølgen fra ids
+            ids.mapNotNull { id -> allExercises.firstOrNull { it.exerciseId == id } }
+        }
+    }
+
+    val recentIds = remember(recentExercises) { recentExercises.map { it.exerciseId }.toSet() }
+
+    val filtered = remember(allExercises, searchQuery, filterMode, selectedMuscleGroupIds, recentIds) {
+        allExercises
+            .filter { ex ->
+                searchQuery.isBlank() || ex.name.contains(searchQuery, ignoreCase = true)
+            }
+            .filter { ex ->
+                if (filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP) {
+                    selectedMuscleGroupIds.isEmpty() || ex.muscleGroupId in selectedMuscleGroupIds
+                } else true
+            }
+            // fjern duplicates fra normal-listen
+            .filterNot { it.exerciseId in recentIds }
+    }
+
+    // bottom button: altid synlig
+    val bottomEnabled = selectedExercises.isNotEmpty()
+    val bottomText = when {
+        selectedExercises.isEmpty() -> "Select exercises"
+        selectedExercises.size == 1 -> "Add Exercise"
+        else -> "Add Exercises"
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -77,6 +150,7 @@ fun AddExerciseSheet(
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Box(modifier = Modifier.fillMaxHeight()) {
+
             Column(
                 modifier = Modifier
                     .padding(16.dp)
@@ -89,7 +163,7 @@ fun AddExerciseSheet(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Sort by musclegroup
+                // Filter mode chips
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -98,66 +172,53 @@ fun AddExerciseSheet(
                         selected = filterMode == ExerciseFilterMode.BY_NAME,
                         onClick = {
                             filterMode = ExerciseFilterMode.BY_NAME
-                            selectedMuscleGroupId = null
-                            showMuscleGroupMenu = false
+                            selectedMuscleGroupIds = emptySet()
                         },
                         label = { Text("By name") }
                     )
 
-                    Box {
-                        FilterChip(
-                            selected = filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP,
-                            onClick = {
-                                filterMode = ExerciseFilterMode.BY_MUSCLE_GROUP
-                                showMuscleGroupMenu = true
-                            },
-                            label = {
-                                val selectedName = allMuscleGroups
-                                    .firstOrNull { it.muscleGroupId == selectedMuscleGroupId }
-                                    ?.name
+                    FilterChip(
+                        selected = filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP,
+                        onClick = { filterMode = ExerciseFilterMode.BY_MUSCLE_GROUP },
+                        label = {
+                            if (selectedMuscleGroupIds.isEmpty()) Text("By muscle group")
+                            else Text("Muscles: ${selectedMuscleGroupIds.size}")
+                        },
+                        leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null) }
+                    )
+                }
 
-                                Text(selectedName?.let { "Muscle: $it" } ?: "By muscle group")
-                            }
-                        )
+                // multi-select muscle group filter (chips)
+                if (filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP) {
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                        DropdownMenu(
-                            expanded = showMuscleGroupMenu,
-                            onDismissRequest = { showMuscleGroupMenu = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("All muscle groups") },
-                                onClick = {
-                                    selectedMuscleGroupId = null
-                                    showMuscleGroupMenu = false
-                                },
-                                colors = MenuDefaults.itemColors(
-                                    textColor = MaterialTheme.colorScheme.onSurface,
-                                    leadingIconColor = MaterialTheme.colorScheme.onSurface,
-                                    trailingIconColor = MaterialTheme.colorScheme.onSurface,
-                                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                                    disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            FilterChip(
+                                selected = false,
+                                onClick = { selectedMuscleGroupIds = emptySet() },
+                                label = { Text("Clear") },
+                                leadingIcon = { Icon(Icons.Filled.Clear, contentDescription = null) }
                             )
+                        }
 
-                            allMuscleGroups.forEach { mg ->
-                                DropdownMenuItem(
-                                    text = { Text(mg.name) },
-                                    onClick = {
-                                        selectedMuscleGroupId = mg.muscleGroupId
-                                        showMuscleGroupMenu = false
-                                    },
-                                    colors = MenuDefaults.itemColors(
-                                        textColor = MaterialTheme.colorScheme.onSurface,
-                                        leadingIconColor = MaterialTheme.colorScheme.onSurface,
-                                        trailingIconColor = MaterialTheme.colorScheme.onSurface,
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                        items(allMuscleGroups) { mg ->
+                            val selected = mg.muscleGroupId in selectedMuscleGroupIds
+                            FilterChip(
+                                selected = selected,
+                                onClick = {
+                                    selectedMuscleGroupIds =
+                                        if (selected) selectedMuscleGroupIds - mg.muscleGroupId
+                                        else selectedMuscleGroupIds + mg.muscleGroupId
+                                },
+                                label = {
+                                    Text(
+                                        mg.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
@@ -168,54 +229,60 @@ fun AddExerciseSheet(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            "Search for an exercise",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    },
+                    placeholder = { Text("Search for an exercise") },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                        errorTextColor = MaterialTheme.colorScheme.onSurface,
-
                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                        errorIndicatorColor = MaterialTheme.colorScheme.error,
-
-                        cursorColor = MaterialTheme.colorScheme.primary
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val filtered = allExercises
-                    // 1) altid: search på navn (hvis der er noget i searchQuery)
-                    .filter { ex ->
-                        searchQuery.isBlank() || ex.name.contains(searchQuery, ignoreCase = true)
-                    }
-                    // 2) hvis muscle-mode: filtrér også på valgt muskelgruppe
-                    .filter { ex ->
-                        if (filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP) {
-                            selectedMuscleGroupId == null || ex.muscleGroupId == selectedMuscleGroupId
-                        } else {
-                            true
-                        }
-                    }
-
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 80.dp) // space til knappen
+                        .padding(bottom = 96.dp) // plads til bottom button
                 ) {
-                    items(filtered) { exercise ->
+
+                    // RECENT først
+                    if (recentExercises.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Recent",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        items(recentExercises, key = { it.exerciseId }) { exercise ->
+                            val isSelected = selectedExercises.contains(exercise.exerciseId)
+
+                            ExerciseListItem(
+                                exercise = exercise,
+                                selected = isSelected,
+                                onClick = {
+                                    selectedExercises = if (isSelected) {
+                                        selectedExercises - exercise.exerciseId
+                                    } else {
+                                        selectedExercises + exercise.exerciseId
+                                    }
+                                },
+                                muscleGroupNameById = muscleGroupNameById
+                            )
+                        }
+
+                        item {
+                            Spacer(Modifier.height(10.dp))
+                            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(Modifier.height(10.dp))
+                        }
+                    }
+
+                    // normal liste under (ALTID)
+                    items(filtered, key = { it.exerciseId }) { exercise ->
                         val isSelected = selectedExercises.contains(exercise.exerciseId)
 
                         ExerciseListItem(
@@ -227,45 +294,45 @@ fun AddExerciseSheet(
                                 } else {
                                     selectedExercises + exercise.exerciseId
                                 }
-                            }
+                            },
+                            muscleGroupNameById = muscleGroupNameById
                         )
                     }
                 }
             }
 
-            if (selectedExercises.isNotEmpty()) {
-                Box(
+            // Bottom button altid synlig (disabled hvis none selected)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(
+                        bottom = 32.dp,
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp
+                    ),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Button(
+                    onClick = {
+                        val selected = allExercises.filter { it.exerciseId in selectedExercises }
+                        selected.forEach { onExerciseSelected(it) }
+                        onDismiss()
+                    },
+                    enabled = bottomEnabled,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(
-                            bottom = 32.dp,
-                            start = 16.dp,
-                            end = 16.dp
-                        )
-                        .align(Alignment.BottomCenter),
-                    contentAlignment = Alignment.BottomCenter
+                        .height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 ) {
-                    Button(
-                        onClick = {
-                            val selected = allExercises.filter {
-                                selectedExercises.contains(it.exerciseId)
-                            }
-                            selected.forEach { onExerciseSelected(it) }
-                            onDismiss()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(28.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f),
-                            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.38f)
-                        )
-                    ) {
-                        Text("Add exercise(s)")
-                    }
+                    Text(bottomText)
                 }
             }
         }
@@ -276,10 +343,17 @@ fun AddExerciseSheet(
 fun ExerciseListItem(
     exercise: Exercises,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    muscleGroupNameById: Map<Long, String>
 ) {
-    val container = if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surface
-    val content = if (selected) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface
+    // “hele rækken bliver vores lyse themefarve”
+    // Brug primary med lav alpha = tydelig highlight uden at ødelægge tekst-contrast.
+    val container = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+    else MaterialTheme.colorScheme.surface
+
+    val content = MaterialTheme.colorScheme.onSurface
+    val mgName = muscleGroupNameById[exercise.muscleGroupId] ?: "Other"
+    val (icon, iconDesc) = iconForMuscleGroupName(mgName)
 
     Card(
         modifier = Modifier
@@ -291,18 +365,37 @@ fun ExerciseListItem(
             contentColor = content
         )
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = iconDesc,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.width(12.dp))
             Text(
-                text = if (selected) "✔" else "💪",
-                modifier = Modifier.padding(end = 16.dp),
+                text = exercise.name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 color = content
             )
-            Column {
-                Text(
-                    text = exercise.name,
-                    color = content
-                )
-            }
         }
+    }
+}
+
+/**
+ * Bedre ikon visning (ikke samme ikon).
+ * (Deterministisk mapping via muscleGroupId — kan senere mappes via mg.name)
+ */
+private fun iconForMuscleGroupName(name: String): Pair<ImageVector, String> {
+    return when (name.trim().lowercase()) {
+        "chest" -> Icons.Filled.Shield to "Chest"
+        "legs" -> Icons.Filled.DirectionsWalk to "Legs"
+        "back" -> Icons.Filled.Rowing to "Back"
+        "shoulders" -> Icons.Filled.AccessibilityNew to "Shoulders"
+        "arms" -> Icons.Filled.FitnessCenter to "Arms"
+        else -> Icons.Filled.HelpOutline to name
     }
 }
