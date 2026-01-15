@@ -363,4 +363,28 @@ interface PerformedSetDao {
     )
     suspend fun getRecentExerciseIdsForUser(userId: Long, limit: Int = 5): List<Long>
 
+    @Query(
+        """
+    SELECT COUNT(*) FROM (
+        SELECT el.exerciseId
+        FROM exercise_log el
+        JOIN performed_set ps ON ps.exerciseLogId = el.id
+        JOIN workouts w ON w.workoutId = el.workoutId
+        WHERE w.workoutId = :workoutId
+          AND w.userId = :userId
+          AND ps.isCompleted = 1
+        GROUP BY el.exerciseId
+        HAVING MAX(ps.weight) >= (
+            SELECT MAX(ps2.weight)
+            FROM performed_set ps2
+            JOIN exercise_log el2 ON el2.id = ps2.exerciseLogId
+            JOIN workouts w2 ON w2.workoutId = el2.workoutId
+            WHERE w2.userId = :userId
+              AND el2.exerciseId = el.exerciseId
+              AND ps2.isCompleted = 1
+        )
+    )
+    """
+    )
+    suspend fun countExercisePRsInWorkout(userId: Long, workoutId: Long): Int
 }
