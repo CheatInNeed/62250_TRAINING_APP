@@ -387,4 +387,22 @@ interface PerformedSetDao {
     """
     )
     suspend fun countExercisePRsInWorkout(userId: Long, workoutId: Long): Int
+
+    @Query(
+        """
+    SELECT 
+        mg.name AS muscleGroupName,
+        COUNT(ps.sid) AS completedSets
+    FROM performed_set ps
+    JOIN exercise_log el ON el.id = ps.exerciseLogId
+    JOIN workouts w ON w.workoutId = el.workoutId
+    JOIN exercises e ON e.exerciseId = el.exerciseId
+    JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+    WHERE w.workoutId = :workoutId
+      AND ps.isCompleted = 1
+    GROUP BY mg.muscleGroupId, mg.name
+    ORDER BY completedSets DESC
+    """
+    )
+    fun observeMuscleGroupDistributionForWorkout(workoutId: Long): Flow<List<MuscleGroupDistributionRow>>
 }

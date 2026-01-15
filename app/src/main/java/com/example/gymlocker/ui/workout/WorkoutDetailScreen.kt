@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -54,9 +55,12 @@ import com.example.gymlocker.data.database.AppDatabase
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
 
@@ -76,6 +80,10 @@ fun WorkoutDetailScreen(
     val workout by produceState<com.example.gymlocker.data.entity.Workout?>(initialValue = null, workoutId) {
         value = db.workoutDao().getWorkoutById(workoutId)
     }
+
+    val splitRows by db.performedSetDao()
+        .observeMuscleGroupDistributionForWorkout(workoutId)
+        .collectAsState(initial = emptyList())
 
     val totalVolumeKg = remember(workoutDetails) {
         workoutDetails.sumOf { log ->
@@ -236,59 +244,103 @@ fun WorkoutDetailScreen(
                 )
             }
         } else {
+
+            val durationSeconds = workout?.time ?: 0L
+            val durationText = remember(durationSeconds) { formatDuration(durationSeconds) }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp)
             ) {
+                // 1) Workout name
                 item {
-                    val durationSeconds = workout?.time ?: 0L
-                    val durationText = remember(durationSeconds) { formatDuration(durationSeconds) }
+                    Text(
+                        text = workout?.name ?: "Workout",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
 
+                // 2) Stats row
+                item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Brug dine eksisterende icons (Timer/Equalizer/EmojiEvents)
                             TopStat(icon = Icons.Default.Timer, label = "Duration", value = durationText)
-                            TopStat(icon = Icons.Default.Equalizer, label = "Volume", value = "${totalVolumeKg.toInt()} kg")
+                            TopStat(
+                                icon = Icons.Default.Equalizer,
+                                label = "Volume",
+                                value = "${totalVolumeKg.toInt()} ${weightUnitLabel(unit)}"
+                            )
                             TopStat(icon = Icons.Default.EmojiEvents, label = "PRs", value = prCount.toString())
                         }
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(14.dp))
                 }
+
+                // 3) Split section
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Split",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "Sets per muscle group (this workout)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Spacer(Modifier.height(12.dp))
+
+                            MuscleGroupDistributionChart(
+                                rows = splitRows,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // 4) Exercise logs — HER er din store fejl: brug workoutDetails, ikke logs
                 items(workoutDetails) { log ->
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
                                 text = log.exerciseName,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
 
-                            // Header row (Set | Kg | Reps)
+                            Spacer(Modifier.height(10.dp))
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -296,14 +348,14 @@ fun WorkoutDetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text("Set", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Kg", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(weightUnitLabel(unit), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("Reps", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
 
                             log.sets.forEach { set ->
                                 val alpha = if (set.isCompleted) 1f else 0.45f
                                 val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
-                                val wText = formatWeight(shownW, decimals = 0) // tal uden unit i tabellen
+                                val wText = formatWeight(shownW, decimals = 0)
 
                                 Row(
                                     modifier = Modifier
@@ -319,6 +371,8 @@ fun WorkoutDetailScreen(
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(12.dp))
                 }
             }
         }
