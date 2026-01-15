@@ -54,6 +54,7 @@ import com.example.gymlocker.data.database.AppDatabase
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -120,32 +121,35 @@ fun WorkoutDetailScreen(
                     singleLine = true,
                     isError = nameErrorText != null,
                     supportingText = {
-                        if (nameErrorText != null) {
-                            Text(
-                                text = nameErrorText,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        } else {
-                            Text(
-                                text = "${templateName.length} / $MAX_TEMPLATE_NAME_LENGTH",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        if (nameErrorText != null) Text(nameErrorText)
+                        else Text("${templateName.length} / $MAX_TEMPLATE_NAME_LENGTH")
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
                         unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                        disabledIndicatorColor = MaterialTheme.colorScheme.outline,
+                        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                        errorIndicatorColor = MaterialTheme.colorScheme.error,
+
                         cursorColor = MaterialTheme.colorScheme.primary,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+                        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        errorLabelColor = MaterialTheme.colorScheme.error,
+
+                        focusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedSupportingTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        errorSupportingTextColor = MaterialTheme.colorScheme.error
                     )
                 )
             },
@@ -187,17 +191,12 @@ fun WorkoutDetailScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = { Text("Workout Details") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -207,7 +206,13 @@ fun WorkoutDetailScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
@@ -326,11 +331,28 @@ private fun TopStat(
     label: String,
     value: String
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(Modifier.height(4.dp))
-        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 

@@ -512,7 +512,7 @@ fun CalendarGrid(
                             .background(
                                 when {
                                     isSelected -> MaterialTheme.colorScheme.primary
-                                    hasWorkout -> MaterialTheme.colorScheme.primaryContainer
+                                    hasWorkout -> MaterialTheme.colorScheme.surfaceVariant
                                     else -> Color.Transparent
                                 }
                             )
@@ -525,7 +525,7 @@ fun CalendarGrid(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = when {
                                     isSelected -> MaterialTheme.colorScheme.onPrimary
-                                    hasWorkout -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    hasWorkout -> MaterialTheme.colorScheme.onSurfaceVariant
                                     isToday -> MaterialTheme.colorScheme.primary
                                     else -> MaterialTheme.colorScheme.onBackground
                                 },
