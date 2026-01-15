@@ -110,7 +110,6 @@ fun SettingsScreen(
         AppTheme.SpiderMan to "Spider-Man™",
         AppTheme.MATRIX to "Welcome to the Matrix™",
         AppTheme.Swamp to "Swamp",
-        AppTheme.LockerRoom to "Locker Room"
     )
 
     var selectedTheme by remember(currentSettings.userId, currentSettings.appTheme) {

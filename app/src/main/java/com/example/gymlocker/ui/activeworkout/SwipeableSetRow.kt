@@ -119,7 +119,7 @@ fun SwipeableSetRow(
 
     // Directional background color (visual only) — use theme roles
     val deleteColor = DestructiveRed
-    val completeColor = Color(0xFF2ECC71) // forced green
+    val completeColor = MaterialTheme.colorScheme.secondary
 
     // Persistent done background — subtle, theme-safe
     val doneColor = MaterialTheme.colorScheme.secondary.copy(alpha = bgMaxAlpha)
