@@ -403,6 +403,7 @@ private val MatrixDark = darkColorScheme(
 
     outline = Color(0xFF00FF41)
 )
+
 // ============================================================
 // SWAMP THEME — LIGHT
 // Deep Ancient Swamp (misty daylight)
@@ -429,6 +430,7 @@ val SwampLightColors = lightColorScheme(
 
     outline = Color(0xFF6F8277)
 )
+
 // ============================================================
 // SWAMP THEME — DARK
 // Deep Ancient Swamp (night / peat + bioluminescence)
@@ -455,6 +457,7 @@ val SwampDarkColors = darkColorScheme(
 
     outline = Color(0xFF496357)
 )
+
 val LockerRoomLightColors = lightColorScheme(
     primary = Color(0xFF1E5AAE),          // locker blue
     onPrimary = Color(0xFFFFFFFF),
@@ -475,7 +478,9 @@ val LockerRoomLightColors = lightColorScheme(
     onSurfaceVariant = Color(0xFF2A3D59),
 
     outline = Color(0xFF8AA4C7)
-)// ============================================================
+)
+
+// ============================================================
 // LOCKER ROOM THEME — DARK
 // High School Gym Locker (night gym + cool blue highlights)
 // ============================================================
@@ -548,7 +553,8 @@ fun GymLockerTheme(
         }
     }
 
-    val colorScheme = when (settings.appTheme) {
+    // 1) Pick the base scheme (as you already did)
+    val baseScheme = when (settings.appTheme) {
         AppTheme.DEFAULT -> when {
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 val context = LocalContext.current
@@ -565,12 +571,19 @@ fun GymLockerTheme(
         AppTheme.SpiderMan -> if (effectiveDarkTheme) SpiderManDark else SpiderManLight
         AppTheme.Swamp -> if (effectiveDarkTheme) SwampDarkColors else SwampLightColors
         AppTheme.LockerRoom -> if (effectiveDarkTheme) LockerRoomDarkColors else LockerRoomLightColors
-
         AppTheme.MATRIX -> MatrixDark
     }
 
+    // 2) Global safety net: if surface == background, promote surfaceVariant to surface
+    val scheme = baseScheme.copy(
+        background = baseScheme.background,
+        surface = if (baseScheme.surface == baseScheme.background)
+            baseScheme.surfaceVariant
+        else baseScheme.surface
+    )
+
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = scheme,
         typography = Typography,
         shapes = shapes,
         content = content
