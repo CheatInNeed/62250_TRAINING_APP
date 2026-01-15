@@ -75,7 +75,7 @@ fun FinishWorkoutSummarySheet(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.82f)
+                .fillMaxHeight(0.6f)
                 .background(MaterialTheme.colorScheme.surface)
         ) {
             // Main content
@@ -85,6 +85,16 @@ fun FinishWorkoutSummarySheet(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.Top
             ) {
+
+                Text(
+                    text = "Workout Summary",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+
+                Spacer(Modifier.height(8.dp))
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
