@@ -114,8 +114,11 @@ fun SwipeableSetRow(
         label = "SwipeForegroundAlpha"
     )
 
+    val DestructiveRed = Color(0xFFD32F2F) // strong, readable red across themes
+
+
     // Directional background color (visual only) — use theme roles
-    val deleteColor = MaterialTheme.colorScheme.error
+    val deleteColor = DestructiveRed
     val completeColor = MaterialTheme.colorScheme.primary
 
     // Persistent done background — subtle, theme-safe
