@@ -76,12 +76,5 @@ This document tracks known issues, technical debt, and planned improvements for 
 
 
 
-UI
-- Card backs not visible in default theme
-- segments in browse templates not visible
-- Red theme light background and card back to similar
-- 
-
-
 
 

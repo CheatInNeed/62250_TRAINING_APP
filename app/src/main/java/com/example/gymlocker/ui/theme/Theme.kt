@@ -118,7 +118,7 @@ private val RedLight = lightCompactScheme(
     primary = Color(0xFFB3261E),
     onPrimary = Color(0xFFFFFFFF),
 
-    secondary = Color(0xFF7D5260),
+    secondary = Color(0xFFB07F91),
     onSecondary = Color(0xFFFFFFFF),
 
     tertiary = Color(0xFFFFDAD6),          // accent container
@@ -253,7 +253,7 @@ private val ArcadeLight = lightCompactScheme(
     primary = Color(0xFFFF00E5),
     onPrimary = Color(0xFF000000),
 
-    secondary = Color(0xFF002AFF),
+    secondary = Color(0xFF4DFAFF),
     onSecondary = Color(0xFFFFFFFF),
 
     tertiary = Color(0xFFF7F2FF),          // accent container
@@ -403,6 +403,7 @@ private val MatrixDark = darkColorScheme(
 
     outline = Color(0xFF00FF41)
 )
+
 // ============================================================
 // SWAMP THEME — LIGHT
 // Deep Ancient Swamp (misty daylight)
@@ -429,6 +430,7 @@ val SwampLightColors = lightColorScheme(
 
     outline = Color(0xFF6F8277)
 )
+
 // ============================================================
 // SWAMP THEME — DARK
 // Deep Ancient Swamp (night / peat + bioluminescence)
@@ -454,52 +456,6 @@ val SwampDarkColors = darkColorScheme(
     onSurfaceVariant = Color(0xFFBFD3C6),
 
     outline = Color(0xFF496357)
-)
-val LockerRoomLightColors = lightColorScheme(
-    primary = Color(0xFF1E5AAE),          // locker blue
-    onPrimary = Color(0xFFFFFFFF),
-
-    secondary = Color(0xFFC62828),        // varsity red
-    onSecondary = Color(0xFFFFFFFF),
-
-    tertiary = Color(0xFFFFFFFF),         // clean label white accent
-    onTertiary = Color(0xFF0E1A2B),
-
-    background = Color(0xFFF6F8FC),       // bright hallway wall
-    onBackground = Color(0xFF0E1A2B),
-
-    surface = Color(0xFFFFFFFF),          // cards = clean paper/paint
-    onSurface = Color(0xFF0E1A2B),
-
-    surfaceVariant = Color(0xFFE7EEF9),   // locker paint tint (inputs/chips base)
-    onSurfaceVariant = Color(0xFF2A3D59),
-
-    outline = Color(0xFF8AA4C7)
-)// ============================================================
-// LOCKER ROOM THEME — DARK
-// High School Gym Locker (night gym + cool blue highlights)
-// ============================================================
-
-val LockerRoomDarkColors = darkColorScheme(
-    primary = Color(0xFF66A7FF),          // bright locker blue highlight
-    onPrimary = Color(0xFF061326),
-
-    secondary = Color(0xFFFF6B6B),        // softened varsity red for dark mode
-    onSecondary = Color(0xFF2A0000),
-
-    tertiary = Color(0xFFF2F5FA),         // clean label white
-    onTertiary = Color(0xFF07101D),
-
-    background = Color(0xFF070E18),       // gym lights off
-    onBackground = Color(0xFFEAF1FF),
-
-    surface = Color(0xFF0E1A2B),          // dark locker metal
-    onSurface = Color(0xFFEAF1FF),
-
-    surfaceVariant = Color(0xFF172947),   // input/chip base
-    onSurfaceVariant = Color(0xFFC7D7F2),
-
-    outline = Color(0xFF3F5F8B)
 )
 
 // ---------- Shapes ----------
@@ -548,7 +504,8 @@ fun GymLockerTheme(
         }
     }
 
-    val colorScheme = when (settings.appTheme) {
+    // 1) Pick the base scheme (as you already did)
+    val baseScheme = when (settings.appTheme) {
         AppTheme.DEFAULT -> when {
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 val context = LocalContext.current
@@ -564,13 +521,19 @@ fun GymLockerTheme(
         AppTheme.SpongeBob -> if (effectiveDarkTheme) SpongeBobDark else SpongeBobLight
         AppTheme.SpiderMan -> if (effectiveDarkTheme) SpiderManDark else SpiderManLight
         AppTheme.Swamp -> if (effectiveDarkTheme) SwampDarkColors else SwampLightColors
-        AppTheme.LockerRoom -> if (effectiveDarkTheme) LockerRoomDarkColors else LockerRoomLightColors
-
         AppTheme.MATRIX -> MatrixDark
     }
 
+    // 2) Global safety net: if surface == background, promote surfaceVariant to surface
+    val scheme = baseScheme.copy(
+        background = baseScheme.background,
+        surface = if (baseScheme.surface == baseScheme.background)
+            baseScheme.surfaceVariant
+        else baseScheme.surface
+    )
+
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = scheme,
         typography = Typography,
         shapes = shapes,
         content = content
