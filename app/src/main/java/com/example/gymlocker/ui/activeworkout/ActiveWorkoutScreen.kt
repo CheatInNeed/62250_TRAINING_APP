@@ -1146,27 +1146,27 @@ fun ExerciseSetRow(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    // Inputs live on surfaceVariant, not hardcoded Gray
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    unfocusedContainerColor =
+                        if (selectedField == FieldType.WEIGHT) selectedBorderColor.copy(alpha = selectedAlpha)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+
+                    focusedContainerColor =
+                        if (selectedField == FieldType.WEIGHT) selectedBorderColor.copy(alpha = selectedAlpha)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-                    unfocusedContainerColor = if (selectedField == FieldType.WEIGHT)
-                        selectedBorderColor.copy(alpha = selectedAlpha)
-                    else Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = if (selectedField == FieldType.WEIGHT)
-                        selectedBorderColor.copy(alpha = selectedAlpha)
-                    else Color.Gray.copy(alpha = alphaContainer),
-                    disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
+
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = if (isWeightPrefilled) prefillAlpha else normalAlpha
                     ),
                     focusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = normalAlpha),
+
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
+
                     cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
@@ -1189,40 +1189,43 @@ fun ExerciseSetRow(
         ) {
             TextField(
                 value = if (set.reps == 0) "" else set.reps.toString(),
-                onValueChange = onRepsChange,
+                onValueChange = { newText ->
+                    if (newText.isEmpty() || newText.all { it.isDigit() }) {
+                        onRepsChange(newText)
+                    }
+                },
                 readOnly = isNumpadVisible,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(.9f),
                 placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
-                placeholder = { Text("–") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    unfocusedContainerColor =
+                        if (selectedField == FieldType.REPS) selectedBorderColor.copy(alpha = selectedAlpha)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+
+                    focusedContainerColor =
+                        if (selectedField == FieldType.REPS) selectedBorderColor.copy(alpha = selectedAlpha)
+                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-                    unfocusedContainerColor = if (selectedField == FieldType.REPS)
-                        selectedBorderColor.copy(alpha = selectedAlpha)
-                    else Color.Gray.copy(alpha = alphaContainer),
-                    focusedContainerColor = if (selectedField == FieldType.REPS)
-                        selectedBorderColor.copy(alpha = selectedAlpha)
-                    else Color.Gray.copy(alpha = alphaContainer),
-                    disabledContainerColor = Color.Gray.copy(alpha = alphaContainer),
-                    errorContainerColor = Color.Gray.copy(alpha = alphaContainer),
+
                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(
                         alpha = if (isRepsPrefilled) prefillAlpha else normalAlpha
                     ),
                     focusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = normalAlpha),
+
                     unfocusedIndicatorColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
+
                     cursorColor = MaterialTheme.colorScheme.primary
                 )
             )
+
         }
 
         // Checkbox with selection highlight
