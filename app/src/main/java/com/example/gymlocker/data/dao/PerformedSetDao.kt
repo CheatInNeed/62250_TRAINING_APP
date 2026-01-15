@@ -347,4 +347,20 @@ interface PerformedSetDao {
         """
     )
     suspend fun getWorkoutIdsForExercise(userId: Long, exerciseId: Long): List<Long>
+
+    @Query(
+        """
+    SELECT el.exerciseId
+    FROM workouts w
+    JOIN exercise_log el ON el.workoutId = w.workoutId
+    JOIN performed_set ps ON ps.exerciseLogId = el.id
+    WHERE w.userId = :userId
+      AND ps.isCompleted = 1
+    GROUP BY el.exerciseId
+    ORDER BY MAX(w.date) DESC
+    LIMIT :limit
+    """
+    )
+    suspend fun getRecentExerciseIdsForUser(userId: Long, limit: Int = 5): List<Long>
+
 }
