@@ -86,12 +86,17 @@ interface WorkoutDao {
     // ✅ NEW: most recent workout (name/date)
     @Query(
         """
-        SELECT workoutId AS workoutId, date AS date, name AS name, 0 AS exerciseCount
-        FROM workouts
-        WHERE userId = :userId
-        ORDER BY workoutId DESC
-        LIMIT 1
-        """
+    SELECT 
+        workoutId AS workoutId, 
+        date AS date, 
+        name AS name, 
+        0 AS exerciseCount,
+        NULL AS exerciseSetSummary
+    FROM workouts
+    WHERE userId = :userId
+    ORDER BY workoutId DESC
+    LIMIT 1
+    """
     )
     suspend fun getMostRecentWorkoutForUser(userId: Long): WorkoutSummary?
 
@@ -108,11 +113,21 @@ interface WorkoutDao {
         w.date AS date,
         w.name AS name,
         COUNT(DISTINCT el.id) AS exerciseCount,
-        GROUP_CONCAT(DISTINCT mg.name) AS muscleGroupsCsv
+        GROUP_CONCAT(
+            COALESCE(ps.setCount, 0) || 'x ' || e.name,
+            ', '
+        ) AS exerciseSetSummary
     FROM workouts w
     LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
     LEFT JOIN exercises e ON e.exerciseId = el.exerciseId
-    LEFT JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+    LEFT JOIN (
+        SELECT 
+            exerciseLogId,
+            COUNT(*) AS setCount
+        FROM performed_set
+        WHERE isCompleted = 1
+        GROUP BY exerciseLogId
+    ) ps ON ps.exerciseLogId = el.id
     GROUP BY w.workoutId
     ORDER BY w.workoutId DESC
     """
@@ -126,11 +141,21 @@ interface WorkoutDao {
         w.date AS date,
         w.name AS name,
         COUNT(DISTINCT el.id) AS exerciseCount,
-        GROUP_CONCAT(DISTINCT mg.name) AS muscleGroupsCsv
+        GROUP_CONCAT(
+            COALESCE(ps.setCount, 0) || 'x ' || e.name,
+            ', '
+        ) AS exerciseSetSummary
     FROM workouts w
     LEFT JOIN exercise_log el ON el.workoutId = w.workoutId
     LEFT JOIN exercises e ON e.exerciseId = el.exerciseId
-    LEFT JOIN muscle_groups mg ON mg.muscleGroupId = e.muscleGroupId
+    LEFT JOIN (
+        SELECT 
+            exerciseLogId,
+            COUNT(*) AS setCount
+        FROM performed_set
+        WHERE isCompleted = 1
+        GROUP BY exerciseLogId
+    ) ps ON ps.exerciseLogId = el.id
     WHERE w.userId = :userId
     GROUP BY w.workoutId
     ORDER BY w.workoutId DESC

@@ -5,5 +5,5 @@ data class WorkoutSummary(
     val date: String,
     val name: String,
     val exerciseCount: Int,
-    val muscleGroupsCsv: String?
+    val exerciseSetSummary: String?
 )
