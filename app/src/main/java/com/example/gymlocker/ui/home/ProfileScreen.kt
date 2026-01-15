@@ -473,6 +473,12 @@ fun ProfileScreen(
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) { Text("Edit profile") }
+
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { navController.navigate("profileStats") },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("View Statistics") }
                     }
                 }
             }

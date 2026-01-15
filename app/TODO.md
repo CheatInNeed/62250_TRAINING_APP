@@ -37,7 +37,7 @@ This document tracks known issues, technical debt, and planned improvements for 
 - [x] On set complete swipe the color blinks when releasing the swipe
 - [x] Active workout doesn't autofill sets when db built on launch
 - [x] grey text for auto filled weight and reps not working
-- [ ]
+- [ ] Need uniformity on text/number size from templates to (active)workouts
 - [ ]
 - [ ]
 ---
