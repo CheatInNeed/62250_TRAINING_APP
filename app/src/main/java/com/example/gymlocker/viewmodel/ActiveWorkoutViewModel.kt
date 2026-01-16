@@ -832,6 +832,84 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun startWorkoutFromWorkout(
+        sourceWorkoutId: Long,
+        userId: Long,
+        date: String,
+        nameOverride: String? = null
+    ) {
+        if (_isWorkoutInProgress.value || currentWorkoutId != null) return
+
+        viewModelScope.launch {
+            val effectiveUserId =
+                if (userId > 0) userId else (requireActiveProfileUserIdOrNull() ?: return@launch)
+
+            // Load the original workout name (optional)
+            val sourceWorkout = workoutDao.getWorkoutById(sourceWorkoutId) // if you don't have it, skip this line
+            val baseName = nameOverride ?: sourceWorkout?.name ?: "Workout"
+            val newName = makeUniqueWorkoutName(effectiveUserId, baseName)
+
+            // Create new workout
+            val newWorkoutId = workoutDao.insert(
+                Workout(
+                    date = date,
+                    name = newName,
+                    userId = effectiveUserId
+                )
+            )
+
+            currentWorkoutId = newWorkoutId
+            _activeExercises.value = emptyList()
+            _elapsedTime.value = 0L
+
+            _isWorkoutInProgress.value = true
+            startTimer()
+
+            // Copy logs + sets from source workout
+            val logs = exerciseLogDao.getLogsForWorkoutOnce(sourceWorkoutId)
+
+            for (log in logs) {
+                val exerciseId = log.exerciseId
+
+                val ex = exerciseDao.getById(exerciseId)
+                val exName = ex?.name ?: "Exercise #$exerciseId"
+                val muscleGroupId = ex?.muscleGroupId ?: 0L
+
+                val sets = performedSetDao.getSetsForLogOnce(log.id)
+
+                val uiSets = sets.map { s ->
+                    ExerciseSetState(
+                        setNumber = s.setNumber,
+                        weight = s.weight.toInt(),
+                        reps = s.reps,
+                        isDone = false
+                    )
+                }
+
+                _activeExercises.value = _activeExercises.value + ActiveExerciseState(
+                    exerciseId = exerciseId,
+                    exerciseName = exName,
+                    muscleGroupId = muscleGroupId,
+                    sets = uiSets
+                )
+
+                val newLogId = exerciseLogDao.getOrCreateLogId(newWorkoutId, exerciseId)
+
+                for (s in sets) {
+                    performedSetDao.insert(
+                        PerformedSet(
+                            exerciseLogId = newLogId,
+                            setNumber = s.setNumber,
+                            weight = s.weight,
+                            reps = s.reps,
+                            isCompleted = false
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     private fun formatPrevious(weightKg: Float, reps: Int, unit: WeightUnit): String {
         val shown = displayWeightFromKg(weightKg.toDouble(), unit)
         return "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)} x $reps"

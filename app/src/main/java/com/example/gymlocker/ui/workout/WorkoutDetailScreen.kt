@@ -68,6 +68,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.MuscleGroupDistributionPieChart
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
@@ -108,6 +112,9 @@ fun WorkoutDetailScreen(
     var templateName by remember { mutableStateOf("") }
     var isCreatingTemplate by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val settings = LocalUserSettings.current
     val unit = settings.weightUnit
@@ -205,6 +212,26 @@ fun WorkoutDetailScreen(
         )
     }
 
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete workout?") },
+            text = { Text("This will delete the workout and all its sets/logs. This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        viewModel.deleteWorkout(workoutId)
+                        navController.popBackStack()
+                    }
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -216,10 +243,54 @@ fun WorkoutDetailScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showCreateTemplateDialog = true }) {
-                        Text(
-                            text = "Save as Template",
-                            color = MaterialTheme.colorScheme.primary
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    }
+
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Save as Template") },
+                            onClick = {
+                                menuExpanded = false
+                                showCreateTemplateDialog = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Use Workout") },
+                            onClick = {
+                                menuExpanded = false
+                                coroutineScope.launch {
+                                    val userId = viewModel.activeProfileUserIdOnce() ?: return@launch
+
+                                    val date = java.text.SimpleDateFormat(
+                                        "yyyy-MM-dd HH:mm:ss.SSS",
+                                        java.util.Locale.getDefault()
+                                    ).format(java.util.Date())
+
+                                    activeWorkoutViewModel.startWorkoutFromWorkout(
+                                        sourceWorkoutId = workoutId,
+                                        userId = userId,
+                                        date = date,
+                                        nameOverride = workout?.name // val workout du allerede loader i screen
+                                    )
+
+                                    navController.navigate("activeWorkout")
+                                }
+                            }
+                        )
+
+                        HorizontalDivider()
+
+                        DropdownMenuItem(
+                            text = { Text("Delete workout") },
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteConfirm = true
+                            }
                         )
                     }
                 },
