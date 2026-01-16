@@ -76,6 +76,9 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
@@ -120,8 +123,10 @@ fun WorkoutDetailScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    val snackbarHostState = remember { SnackbarHostState() }
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
+
+    var showDiscardToStartDialog by remember { mutableStateOf(false) }
+    var pendingStartAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val settings = LocalUserSettings.current
     val unit = settings.weightUnit
@@ -239,17 +244,40 @@ fun WorkoutDetailScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionColor = MaterialTheme.colorScheme.onPrimary
-                )
+    if (showDiscardToStartDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDiscardToStartDialog = false
+                pendingStartAction = null
+            },
+            title = { Text("Discard current workout?") },
+            text = { Text("You have an active workout. Discard it and start the new one?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Reset sker med det samme, så vi kan starte ny bagefter
+                        activeWorkoutViewModel.discardWorkout()
+
+                        val action = pendingStartAction
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+
+                        action?.invoke()
+                    }
+                ) { Text("Discard & start") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+                    }
+                ) { Text("Cancel") }
             }
-        },
+        )
+    }
+
+    Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
@@ -281,21 +309,14 @@ fun WorkoutDetailScreen(
                             onClick = {
                                 menuExpanded = false
 
-                                if (isWorkoutInProgress) {
+                                val startCopy: () -> Unit = {
                                     coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Finish current workout first")
-                                    }
-                                    return@DropdownMenuItem
-                                }
-
-                                coroutineScope.launch {
-                                    try {
                                         val userId = viewModel.activeProfileUserIdOnce() ?: return@launch
 
-                                        val date = java.text.SimpleDateFormat(
+                                        val date = SimpleDateFormat(
                                             "yyyy-MM-dd HH:mm:ss.SSS",
-                                            java.util.Locale.getDefault()
-                                        ).format(java.util.Date())
+                                            Locale.getDefault()
+                                        ).format(Date())
 
                                         activeWorkoutViewModel.startWorkoutFromWorkout(
                                             sourceWorkoutId = workoutId,
@@ -305,10 +326,16 @@ fun WorkoutDetailScreen(
                                         )
 
                                         navController.navigate("activeWorkout") { launchSingleTop = true }
-                                    } catch (t: Throwable) {
-                                        snackbarHostState.showSnackbar("Couldn’t copy workout")
                                     }
                                 }
+
+                                if (isWorkoutInProgress) {
+                                    pendingStartAction = startCopy
+                                    showDiscardToStartDialog = true
+                                    return@DropdownMenuItem
+                                }
+
+                                startCopy()
                             }
                         )
 

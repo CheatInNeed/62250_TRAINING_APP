@@ -77,9 +77,10 @@ fun TemplateDetailScreen(
     val showDeleteConfirm = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    //snackbar
-    val snackbarHostState = remember { SnackbarHostState() }
+    // starting workout when one is already active
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
+    var showDiscardToStartDialog by remember { mutableStateOf(false) }
+    var pendingStartAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     fun reloadTemplate() {
         scope.launch {
@@ -139,19 +140,42 @@ fun TemplateDetailScreen(
         )
     }
 
+    if (showDiscardToStartDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDiscardToStartDialog = false
+                pendingStartAction = null
+            },
+            title = { Text("Discard current workout?") },
+            text = { Text("You have an active workout. Discard it and start the new one?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Reset sker med det samme, så vi kan starte ny bagefter
+                        activeWorkoutViewModel.discardWorkout()
+
+                        val action = pendingStartAction
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+
+                        action?.invoke()
+                    }
+                ) { Text("Discard & start") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+                    }
+                ) { Text("Cancel") }
+            }
+        )
+    }
+
     val template = templateState.value
 
     Scaffold(
-        snackbarHost = {
-            SnackbarHost(snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-        },
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
@@ -220,23 +244,15 @@ fun TemplateDetailScreen(
                     IconButton(
                         enabled = activeProfileUserId != null,
                         onClick = {
-                            if (isWorkoutInProgress) {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar("Finish current workout first")
-                                }
-                                return@IconButton
-                            }
-
                             val profileId = activeProfileUserId ?: return@IconButton
 
                             val dateString =
-                                SimpleDateFormat(
-                                    "yyyy-MM-dd HH:mm:ss.SSS",
-                                    Locale.getDefault()
-                                ).format(Date())
+                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
+                                    .format(Date())
 
-                            scope.launch {
-                                try {
+                            // Det vi vil gøre, hvis vi må starte
+                            val startTemplate: () -> Unit = {
+                                scope.launch {
                                     activeWorkoutViewModel.startWorkoutFromTemplate(
                                         templateId = templateId,
                                         userId = profileId,
@@ -246,10 +262,16 @@ fun TemplateDetailScreen(
                                     navController.navigate("activeWorkout") {
                                         launchSingleTop = true
                                     }
-                                } catch (t: Throwable) {
-                                    snackbarHostState.showSnackbar("Couldn’t start template")
                                 }
                             }
+
+                            if (isWorkoutInProgress) {
+                                pendingStartAction = startTemplate
+                                showDiscardToStartDialog = true
+                                return@IconButton
+                            }
+
+                            startTemplate()
                         }
                     ) {
                         Icon(
