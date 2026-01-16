@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import com.example.gymlocker.viewmodel.ProfileWorkoutSummaryUi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,6 +105,8 @@ fun ProfileScreen(
     val profiles by profileViewModel.profiles.collectAsState()
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
     val activeProfile by profileViewModel.activeProfile.collectAsState()
+    val workoutSummary by profileViewModel.workoutSummary.collectAsState()
+
 
     // Active profile photo uri (stored in SessionManager/DataStore)
     val photoUriString by profileViewModel.activeProfilePhotoUri.collectAsState()
@@ -561,119 +564,19 @@ fun ProfileScreen(
                 }
             }
 
-            Text(
-                text = "Choose a profile",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
             if (profiles.isEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = true)
-                ) {
-                    Text(
-                        text = "No profiles yet.\nCreate one to get started.",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = { navController.navigate("createProfile") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) { Text("Create Profile") }
-
-                    Spacer(Modifier.height(20.dp))
-
-
-                }
+                NoProfilesCard(
+                    onCreateProfileClick = { navController.navigate("createProfile") }
+                )
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = true),
-                    contentPadding = PaddingValues(bottom = 8.dp)
-                ) {
-                    items(profiles, key = { it.userId }) { p ->
-                        val isActive = p.userId == activeProfileUserId
-                        val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
-
-                        val settings = LocalUserSettings.current
-                        val unit = settings.weightUnit
-                        val weightText =
-                            if (p.weight == 0) "Not set"
-                            else {
-                                val shown = displayWeightFromKg(p.weight.toDouble(), unit)
-                                "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
-                            }
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .clickable { profileViewModel.setActiveProfile(p.userId) },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = if (isActive) "✅ ${p.name}" else p.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Height: $heightText  |  Weight: $weightText",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                Spacer(Modifier.height(8.dp))
-
-                                Row(modifier = Modifier.fillMaxWidth()) {
-                                    Spacer(Modifier.weight(1f))
-                                    TextButton(
-                                        onClick = {
-                                            deleteTargetUserId = p.userId
-                                            deleteTargetName = p.name
-                                        }
-                                    ) {
-                                        Text(
-                                            text = "Delete",
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { navController.navigate("createProfile") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) { Text("Create another profile") }
-
-                        Spacer(Modifier.height(20.dp))
-
-
-                    }
-                }
+                ProfileStatsOverviewCard(
+                    summary = workoutSummary,
+                    onClick = { navController.navigate("profileStats") }
+                )
             }
+
         }
     }
 }
@@ -722,3 +625,110 @@ private fun ProfileAvatar(
         }
     }
 }
+@Composable
+private fun NoProfilesCard(
+    onCreateProfileClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "No profiles yet",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Create a profile to start tracking your workouts.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onCreateProfileClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text("Create Profile")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileStatsOverviewCard(
+    summary: ProfileWorkoutSummaryUi,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Stats overview",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text(
+                        text = "Total workouts",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = summary.totalWorkouts.toString(),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "Last workout",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = summary.mostRecentName ?: "None yet",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                text = "Tap to see detailed statistics",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
