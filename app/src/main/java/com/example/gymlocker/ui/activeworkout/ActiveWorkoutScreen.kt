@@ -243,7 +243,6 @@ fun ActiveWorkoutScreen(
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,
-        onMarkUnfinishedAsDone = { viewModel.markAllUnfinishedMeaningfulSetsDone() },
         onSave = { name, markUnfinishedAsDone ->
             if (markUnfinishedAsDone) {
                 viewModel.markAllUnfinishedMeaningfulSetsDone()
@@ -251,6 +250,7 @@ fun ActiveWorkoutScreen(
             viewModel.finishWorkoutWithName(name)
         },
     )
+
 
     // UI state to open/close rest-timer bar
     var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
