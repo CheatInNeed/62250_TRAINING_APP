@@ -97,7 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
                 // ✅ Seed immediately after build (NO callback, NO INSTANCE race).
                 if (DEBUG_WIPE_DB && debugSeedJob == null) {
                     debugSeedJob = CoroutineScope(Dispatchers.IO).launch {
-                        instance.debugSeedEverything()
+                        instance.debugSeedEverything(context.applicationContext)
                     }
                 }
 
@@ -137,14 +137,14 @@ abstract class AppDatabase : RoomDatabase() {
      * - dummy templates
      * - workouts spread across every week in last ~3 months with performed sets
      */
-    private suspend fun debugSeedEverything() {
+    private suspend fun debugSeedEverything(appContext: Context) {
         // Extra safety: if someone accidentally calls this, do nothing unless toggle is true.
         if (!DEBUG_WIPE_DB) return
 
         seedTestLoginAndProfile()
-        seedMuscleGroupsAndExercisesIfEmpty()
+        seedMuscleGroupsAndExercisesIfEmpty(appContext)
         seedDummyTemplates(userId = 1L)
-        seedWorkoutsEveryWeekLast3Months(userId = 1L)
+        //seedWorkoutsEveryWeekLast3Months(userId = 1L)
     }
 
     /**
@@ -186,27 +186,19 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 
-    private suspend fun seedMuscleGroupsAndExercisesIfEmpty() {
+    private suspend fun seedMuscleGroupsAndExercisesIfEmpty(appContext: Context) {
         val exerciseDao = exerciseDao()
-        val muscleGroupDao = muscleGroupDao()
 
         val exercisesCount = runCatching { exerciseDao.countExercises() }.getOrNull() ?: 0
         if (exercisesCount > 0) return
 
         try {
-            val chestId = muscleGroupDao.insert(MuscleGroup(name = "Chest"))
-            val legsId = muscleGroupDao.insert(MuscleGroup(name = "Legs"))
-            val backId = muscleGroupDao.insert(MuscleGroup(name = "Back"))
-            val shouldersId = muscleGroupDao.insert(MuscleGroup(name = "Shoulders"))
-            val armsId = muscleGroupDao.insert(MuscleGroup(name = "Arms"))
-
-            exerciseDao.insert(Exercises(name = "Bench Press", startWeight = 0, startReps = 0, isRecent = true, muscleGroupId = chestId))
-            exerciseDao.insert(Exercises(name = "Squat", startWeight = 0, startReps = 0, isRecent = true, muscleGroupId = legsId))
-            exerciseDao.insert(Exercises(name = "Deadlift", startWeight = 0, startReps = 0, isRecent = false, muscleGroupId = backId))
-            exerciseDao.insert(Exercises(name = "Overhead Press", startWeight = 0, startReps = 0, isRecent = false, muscleGroupId = shouldersId))
-            exerciseDao.insert(Exercises(name = "Barbell Row", startWeight = 0, startReps = 0, isRecent = false, muscleGroupId = backId))
-            exerciseDao.insert(Exercises(name = "Pull-up", startWeight = 0, startReps = 0, isRecent = false, muscleGroupId = backId))
-            exerciseDao.insert(Exercises(name = "Bicep Curl", startWeight = 0, startReps = 0, isRecent = false, muscleGroupId = armsId))
+            // Importér fra res/raw/exercises_seed.csv
+            com.example.gymlocker.data.import.ExerciseCsvImporter.importFromRawResource(
+                context = appContext,
+                db = this,
+                rawResId = com.example.gymlocker.R.raw.exercises_seed
+            )
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -277,14 +269,26 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             )
 
+            // PUSH (Chest/Shoulders/Arms-triceps)
             addExerciseWithSets(pushId, "Bench Press", listOf(60f to 10, 70f to 8, 75f to 6))
+            addExerciseWithSets(pushId, "Incline Dumbbell Press", listOf(24f to 12, 28f to 10, 30f to 8))
             addExerciseWithSets(pushId, "Overhead Press", listOf(30f to 10, 35f to 8, 40f to 6))
-            addExerciseWithSets(pushId, "Bicep Curl", listOf(12f to 12, 14f to 10, 16f to 8))
+            addExerciseWithSets(pushId, "Lateral Raise", listOf(8f to 15, 10f to 12, 12f to 10))
+            addExerciseWithSets(pushId, "Triceps Pushdown", listOf(25f to 12, 30f to 10, 35f to 8))
 
+            // PULL (Back + optional biceps)
             addExerciseWithSets(pullId, "Barbell Row", listOf(50f to 10, 60f to 8, 65f to 6))
-            addExerciseWithSets(pullId, "Pull-up", listOf(0f to 8, 0f to 8, 0f to 6))
+            addExerciseWithSets(pullId, "Pull-Up", listOf(0f to 8, 0f to 8, 0f to 6))
+            addExerciseWithSets(pullId, "Lat Pulldown", listOf(45f to 12, 55f to 10, 60f to 8))
+            addExerciseWithSets(pullId, "Seated Cable Row", listOf(40f to 12, 50f to 10, 55f to 8))
+            addExerciseWithSets(pullId, "Face Pull", listOf(20f to 15, 25f to 12, 30f to 10))
 
+            // LEGS
             addExerciseWithSets(legsId, "Squat", listOf(80f to 10, 90f to 8, 100f to 6))
+            addExerciseWithSets(legsId, "Romanian Deadlift", listOf(60f to 10, 70f to 8, 80f to 6))
+            addExerciseWithSets(legsId, "Leg Press", listOf(120f to 12, 140f to 10, 160f to 8))
+            addExerciseWithSets(legsId, "Leg Extension", listOf(35f to 15, 45f to 12, 55f to 10))
+            addExerciseWithSets(legsId, "Standing Calf Raise", listOf(40f to 15, 50f to 12, 60f to 10))
         } catch (e: Exception) {
             e.printStackTrace()
         }

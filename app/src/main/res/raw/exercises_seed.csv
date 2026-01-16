@@ -1,0 +1,51 @@
+name;muscle_group;start_weight;start_reps;is_recent
+Bench Press;Chest;0;0;false
+Incline Dumbbell Press;Chest;0;0;false
+Decline Bench Press;Chest;0;0;false
+Dumbbell Flyes;Chest;0;0;false
+Cable Chest Fly;Chest;0;0;false
+Push-Up;Chest;0;0;false
+Chest Dips;Chest;0;0;false
+Machine Chest Press;Chest;0;0;false
+Landmine Press;Chest;0;0;false
+Pull-Up;Back;0;0;false
+Chin-Up;Back;0;0;false
+Lat Pulldown;Back;0;0;false
+Barbell Row;Back;0;0;false
+One-Arm Dumbbell Row;Back;0;0;false
+Seated Cable Row;Back;0;0;false
+Chest-Supported Row;Back;0;0;false
+Face Pull;Back;0;0;false
+Straight-Arm Pulldown;Back;0;0;false
+Back Extension;Back;0;0;false
+Deadlift;Back;0;0;false
+Squat;Legs;0;0;false
+Front Squat;Legs;0;0;false
+Leg Press;Legs;0;0;false
+Bulgarian Split Squat;Legs;0;0;false
+Walking Lunge;Legs;0;0;false
+Romanian Deadlift;Legs;0;0;false
+Hip Thrust;Legs;0;0;false
+Leg Extension;Legs;0;0;false
+Leg Curl;Legs;0;0;false
+Standing Calf Raise;Legs;0;0;false
+Seated Calf Raise;Legs;0;0;false
+Overhead Press;Shoulders;0;0;false
+Dumbbell Shoulder Press;Shoulders;0;0;false
+Arnold Press;Shoulders;0;0;false
+Lateral Raise;Shoulders;0;0;false
+Front Raise;Shoulders;0;0;false
+Rear Delt Fly;Shoulders;0;0;false
+Upright Row;Shoulders;0;0;false
+Shrug;Shoulders;0;0;false
+Barbell Curl;Arms;0;0;false
+Dumbbell Curl;Arms;0;0;false
+Hammer Curl;Arms;0;0;false
+Preacher Curl;Arms;0;0;false
+Triceps Pushdown;Arms;0;0;false
+Skull Crushers;Arms;0;0;false
+Overhead Triceps Extension;Arms;0;0;false
+Close-Grip Bench Press;Arms;0;0;false
+Plank;Core;0;0;false
+Hanging Leg Raise;Core;0;0;false
+Cable Crunch;Core;0;0;false
