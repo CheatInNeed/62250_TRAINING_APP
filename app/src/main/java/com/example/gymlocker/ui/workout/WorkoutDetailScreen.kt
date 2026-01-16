@@ -325,9 +325,9 @@ fun WorkoutDetailScreen(
                 // 4) Exercise logs — HER er din store fejl: brug workoutDetails, ikke logs
                 items(workoutDetails) { log ->
                     val headerBackground =
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
                     val rowBackground =
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
 
                     // Exercise title (minimal)
                     Text(
