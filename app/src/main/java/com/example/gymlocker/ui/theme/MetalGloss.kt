@@ -61,7 +61,7 @@ fun Modifier.metalGloss(
                     1.00f to Color.Black.copy(alpha = (diagonalShadowAlpha * 0.75f).coerceIn(0f, 1f))
                 ),
                 start = Offset(0f, 0f),
-                end = Offset(w, h)
+                end = Offset(w, h * 1.8f)
             )
 
 
@@ -74,8 +74,8 @@ fun Modifier.metalGloss(
                     0.60f to tint.copy(alpha = (0.10f * s).coerceIn(0f, 1f)),
                     1.00f to Color.Transparent
                 ),
-                start = Offset(-0.15f * w, 0.10f * h),
-                end = Offset(1.10f * w, 0.90f * h)
+                start = Offset(-0.18f * w, 0.05f * h),
+                end = Offset(1.12f * w, 1.35f * h)
             )
 
             onDrawWithContent {
