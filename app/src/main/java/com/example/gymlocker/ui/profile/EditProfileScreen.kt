@@ -259,6 +259,16 @@ fun EditProfileScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+
+            Spacer(Modifier.height(10.dp))
+
+            TextButton(
+                onClick = { navController.navigate("createProfile") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Create new profile")
+            }
+
         }
     }
 }
