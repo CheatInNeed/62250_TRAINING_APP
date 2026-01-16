@@ -48,7 +48,6 @@ fun FinishWorkoutSummarySheet(
     maxNameLength: Int,
 
     // Actions
-    onMarkUnfinishedAsDone: () -> Unit,
     onSave: (workoutName: String, markUnfinishedAsDone: Boolean) -> Unit,
 ) {
     if (!visible) return
@@ -179,9 +178,9 @@ fun FinishWorkoutSummarySheet(
                     ) {
                         Checkbox(
                             checked = markUnfinishedAsDone,
-                            onCheckedChange = {
-                                markUnfinishedAsDone = it
-                                if (it) onMarkUnfinishedAsDone()
+                            onCheckedChange = { checked ->
+                                // Just remember the choice; actual marking happens on finish
+                                markUnfinishedAsDone = checked
                             }
                         )
                         Spacer(Modifier.width(8.dp))
