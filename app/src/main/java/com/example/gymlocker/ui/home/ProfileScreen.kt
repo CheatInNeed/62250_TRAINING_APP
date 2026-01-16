@@ -10,6 +10,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -356,32 +360,105 @@ fun ProfileScreen(
             }
         )
     }
+    var isProfilePickerOpen by remember { mutableStateOf(false) }
+    var isAvatarMenuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            contentDescription = "Back"
                         )
                     }
                 },
+                title = {
+                    Box {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable { if (profiles.isNotEmpty()) isProfilePickerOpen = true }
+                        ) {
+                            Text(
+                                text = activeProfile?.name ?: "Select profile",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Icon(
+                                imageVector = if (isProfilePickerOpen) {
+                                    Icons.Filled.ArrowDropUp
+                                } else {
+                                    Icons.Filled.ArrowDropDown
+                                },
+                                contentDescription = "Select profile",
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isProfilePickerOpen,
+                            onDismissRequest = { isProfilePickerOpen = false }
+                        ) {
+                            profiles.forEach { profile ->
+                                DropdownMenuItem(
+                                    text = { Text(profile.name) },
+                                    onClick = {
+                                        profileViewModel.setActiveProfile(profile.userId)
+                                        isProfilePickerOpen = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                },
                 actions = {
+                    // Avatar icon + dropdown
+                    Box {
+                        IconButton(onClick = { isAvatarMenuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = "Profile menu"
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isAvatarMenuOpen,
+                            onDismissRequest = { isAvatarMenuOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit profile") },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    navController.navigate("editProfile")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Log out") },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    authViewModel.logout()
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // Existing settings cog
                     IconButton(onClick = { navController.navigate("settings") }) {
                         Icon(
                             imageVector = Icons.Filled.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            contentDescription = "Settings"
                         )
                     }
                 }
             )
+
+
         },
         bottomBar = {
             Column {
@@ -516,20 +593,7 @@ fun ProfileScreen(
 
                     Spacer(Modifier.height(20.dp))
 
-                    TextButton(
-                        onClick = {
-                            authViewModel.logout()
-                            navController.navigate("login") {
-                                popUpTo("home") { inclusive = true }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Log out",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+
                 }
             } else {
                 LazyColumn(
@@ -606,20 +670,7 @@ fun ProfileScreen(
 
                         Spacer(Modifier.height(20.dp))
 
-                        TextButton(
-                            onClick = {
-                                authViewModel.logout()
-                                navController.navigate("login") {
-                                    popUpTo("home") { inclusive = true }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Log out",
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+
                     }
                 }
             }
