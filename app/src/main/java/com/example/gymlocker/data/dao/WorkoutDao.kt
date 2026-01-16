@@ -162,4 +162,7 @@ interface WorkoutDao {
     """
     )
     fun getWorkoutSummariesForUser(userId: Long): Flow<List<WorkoutSummary>>
+
+    @Query("SELECT COUNT(*) FROM workouts WHERE userId = :userId AND name = :name")
+    suspend fun countByName(userId: Long, name: String): Int
 }

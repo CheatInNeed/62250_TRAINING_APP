@@ -10,11 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,11 +63,24 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.MuscleGroupDistributionPieChart
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
@@ -106,6 +121,14 @@ fun WorkoutDetailScreen(
     var templateName by remember { mutableStateOf("") }
     var isCreatingTemplate by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
+
+    var showDiscardToStartDialog by remember { mutableStateOf(false) }
+    var pendingStartAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     val settings = LocalUserSettings.current
     val unit = settings.weightUnit
@@ -203,6 +226,59 @@ fun WorkoutDetailScreen(
         )
     }
 
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete workout?") },
+            text = { Text("This will delete the workout and all its sets/logs. This cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirm = false
+                        viewModel.deleteWorkout(workoutId)
+                        navController.popBackStack()
+                    }
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showDiscardToStartDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDiscardToStartDialog = false
+                pendingStartAction = null
+            },
+            title = { Text("Discard current workout?") },
+            text = { Text("You have an active workout. Discard it and start the new one?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Reset sker med det samme, så vi kan starte ny bagefter
+                        activeWorkoutViewModel.discardWorkout()
+
+                        val action = pendingStartAction
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+
+                        action?.invoke()
+                    }
+                ) { Text("Discard & start") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+                    }
+                ) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -214,10 +290,78 @@ fun WorkoutDetailScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { showCreateTemplateDialog = true }) {
-                        Text(
-                            text = "Save as Template",
-                            color = MaterialTheme.colorScheme.primary
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    }
+
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Save as Template") },
+                            onClick = {
+                                menuExpanded = false
+                                showCreateTemplateDialog = true
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Use Workout") },
+                            onClick = {
+                                menuExpanded = false
+
+                                val startCopy: () -> Unit = {
+                                    coroutineScope.launch {
+                                        val userId = viewModel.activeProfileUserIdOnce() ?: return@launch
+
+                                        val date = SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss.SSS",
+                                            Locale.getDefault()
+                                        ).format(Date())
+
+                                        activeWorkoutViewModel.startWorkoutFromWorkout(
+                                            sourceWorkoutId = workoutId,
+                                            userId = userId,
+                                            date = date,
+                                            nameOverride = workout?.name
+                                        )
+
+                                        navController.navigate("activeWorkout") { launchSingleTop = true }
+                                    }
+                                }
+
+                                if (isWorkoutInProgress) {
+                                    pendingStartAction = startCopy
+                                    showDiscardToStartDialog = true
+                                    return@DropdownMenuItem
+                                }
+
+                                startCopy()
+                            }
+                        )
+
+                        HorizontalDivider()
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = "Delete workout",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteConfirm = true
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         )
                     }
                 },
@@ -339,32 +483,33 @@ fun WorkoutDetailScreen(
 
                     Spacer(Modifier.height(8.dp))
 
+                    val headerShape = RoundedCornerShape(
+                        topStart = 6.dp,
+                        topEnd = 6.dp
+                    )
+
+                    val bottomRowShape = RoundedCornerShape(
+                        bottomStart = 6.dp,
+                        bottomEnd = 6.dp
+                    )
+
                     // Column headers (like Active, but without PREVIOUS + ✓)
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(headerShape)
                             .background(headerBackground)
-                            .padding(vertical = 6.dp, horizontal = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "SET",
-                            modifier = Modifier.weight(0.8f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Start
-                        )
-                        Text(
-                            "KG",
-                            modifier = Modifier.weight(1.2f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            "REPS",
-                            modifier = Modifier.weight(1.0f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.End
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("SET", modifier = Modifier.weight(0.8f), textAlign = TextAlign.Start)
+                            Text("KG", modifier = Modifier.weight(1.2f), textAlign = TextAlign.Center)
+                            Text("REPS", modifier = Modifier.weight(1.0f), textAlign = TextAlign.End)
+                        }
                     }
 
                     Spacer(Modifier.height(4.dp))
@@ -372,36 +517,29 @@ fun WorkoutDetailScreen(
                     // Set rows (minimal)
                     log.sets.forEachIndexed { index, set ->
                         val alpha = if (set.isCompleted) 1f else 0.45f
-
-                        val backgroundColor =
-                            if (index % 2 == 0) rowBackground else Color.Transparent
-
                         val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
                         val wText = formatWeight(shownW, decimals = 0)
+                        val isLast = index == log.sets.lastIndex
+                        val shape = if (isLast) bottomRowShape else RectangleShape
+                        val bg = if (index % 2 == 0) rowBackground else Color.Transparent
 
-                        Row(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(backgroundColor)
-                                .padding(vertical = 6.dp)
-                                .alpha(alpha),
-                            verticalAlignment = Alignment.CenterVertically
+                                .clip(shape)
+                                .background(bg)
+                                .alpha(if (set.isCompleted) 1f else 0.45f)
                         ) {
-                            Text(
-                                text = set.setNumber.toString(),
-                                modifier = Modifier.weight(0.8f),
-                                textAlign = TextAlign.Start
-                            )
-                            Text(
-                                text = wText,
-                                modifier = Modifier.weight(1.2f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = set.reps.toString(),
-                                modifier = Modifier.weight(1.0f),
-                                textAlign = TextAlign.End
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp, horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(set.setNumber.toString(), modifier = Modifier.weight(0.8f), textAlign = TextAlign.Start)
+                                Text(wText, modifier = Modifier.weight(1.2f), textAlign = TextAlign.Center)
+                                Text(set.reps.toString(), modifier = Modifier.weight(1.0f), textAlign = TextAlign.End)
+                            }
                         }
                     }
 

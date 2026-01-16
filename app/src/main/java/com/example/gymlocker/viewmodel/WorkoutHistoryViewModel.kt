@@ -3,6 +3,7 @@ package com.example.gymlocker.viewmodel
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.PerformedSet
@@ -19,6 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 data class WorkoutLogDetail(
     val exerciseName: String,
@@ -125,6 +127,12 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
                     return WorkoutHistoryViewModel(context.applicationContext) as T
                 }
             }
+        }
+    }
+
+    fun deleteWorkout(workoutId: Long) {
+        viewModelScope.launch {
+            workoutDao.deleteById(workoutId)
         }
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,6 +54,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +76,11 @@ fun TemplateDetailScreen(
     val pendingDeleteTemplateExerciseId = remember { mutableStateOf<Long?>(null) }
     val showDeleteConfirm = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    // starting workout when one is already active
+    val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
+    var showDiscardToStartDialog by remember { mutableStateOf(false) }
+    var pendingStartAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     fun reloadTemplate() {
         scope.launch {
@@ -128,6 +137,39 @@ fun TemplateDetailScreen(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
+    if (showDiscardToStartDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDiscardToStartDialog = false
+                pendingStartAction = null
+            },
+            title = { Text("Discard current workout?") },
+            text = { Text("You have an active workout. Discard it and start the new one?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Reset sker med det samme, så vi kan starte ny bagefter
+                        activeWorkoutViewModel.discardWorkout()
+
+                        val action = pendingStartAction
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+
+                        action?.invoke()
+                    }
+                ) { Text("Discard & start") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardToStartDialog = false
+                        pendingStartAction = null
+                    }
+                ) { Text("Cancel") }
+            }
         )
     }
 
@@ -208,15 +250,28 @@ fun TemplateDetailScreen(
                                 SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
                                     .format(Date())
 
-                            activeWorkoutViewModel.startWorkoutFromTemplate(
-                                templateId = templateId,
-                                userId = profileId,
-                                date = dateString
-                            )
+                            // Det vi vil gøre, hvis vi må starte
+                            val startTemplate: () -> Unit = {
+                                scope.launch {
+                                    activeWorkoutViewModel.startWorkoutFromTemplate(
+                                        templateId = templateId,
+                                        userId = profileId,
+                                        date = dateString
+                                    )
 
-                            navController.navigate("activeWorkout") {
-                                launchSingleTop = true
+                                    navController.navigate("activeWorkout") {
+                                        launchSingleTop = true
+                                    }
+                                }
                             }
+
+                            if (isWorkoutInProgress) {
+                                pendingStartAction = startTemplate
+                                showDiscardToStartDialog = true
+                                return@IconButton
+                            }
+
+                            startTemplate()
                         }
                     ) {
                         Icon(
