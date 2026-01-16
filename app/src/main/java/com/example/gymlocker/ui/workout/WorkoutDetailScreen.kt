@@ -271,57 +271,47 @@ fun WorkoutDetailScreen(
 
                 // 2) Stats row
                 item {
-                    Card(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Brug dine eksisterende icons (Timer/Equalizer/EmojiEvents)
-                            TopStat(icon = Icons.Default.Timer, label = "Duration", value = durationText)
-                            TopStat(
-                                icon = Icons.Default.Equalizer,
-                                label = "Volume",
-                                value = "${totalVolumeKg.toInt()} ${weightUnitLabel(unit)}"
-                            )
-                            TopStat(icon = Icons.Default.EmojiEvents, label = "PRs", value = prCount.toString())
-                        }
+                        TopStat(
+                            icon = Icons.Default.Timer,
+                            label = "Duration",
+                            value = durationText
+                        )
+                        TopStat(
+                            icon = Icons.Default.Equalizer,
+                            label = "Volume",
+                            value = "${totalVolumeKg.toInt()} ${weightUnitLabel(unit)}"
+                        )
+                        TopStat(
+                            icon = Icons.Default.EmojiEvents,
+                            label = "PRs",
+                            value = prCount.toString()
+                        )
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
 
                 // 3) Split section
                 item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Split",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                    Text(
+                        text = "Split",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(10.dp))
 
-                            Spacer(Modifier.height(12.dp))
+                    MuscleGroupDistributionChart(
+                        rows = splitRows,
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                            MuscleGroupDistributionChart(
-                                rows = splitRows,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
 
                 // 4) Exercise logs — HER er din store fejl: brug workoutDetails, ikke logs
@@ -428,7 +418,7 @@ private fun TopStat(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = MaterialTheme.colorScheme.primary
         )
         Spacer(Modifier.height(4.dp))
 
