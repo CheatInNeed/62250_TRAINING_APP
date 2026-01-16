@@ -61,7 +61,9 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
@@ -339,12 +341,23 @@ fun WorkoutDetailScreen(
 
                     Spacer(Modifier.height(8.dp))
 
+                    val headerShape = RoundedCornerShape(
+                        topStart = 6.dp,
+                        topEnd = 6.dp
+                    )
+
+                    val bottomRowShape = RoundedCornerShape(
+                        bottomStart = 6.dp,
+                        bottomEnd = 6.dp
+                    )
+
                     // Column headers (like Active, but without PREVIOUS + ✓)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(headerShape)
                             .background(headerBackground)
-                            .padding(vertical = 6.dp, horizontal = 2.dp),
+                            .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -379,12 +392,21 @@ fun WorkoutDetailScreen(
                         val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
                         val wText = formatWeight(shownW, decimals = 0)
 
+                        val isLast = index == log.sets.lastIndex
+
+                        val background =
+                            if (index % 2 == 0) rowBackground else Color.Transparent
+
+                        val shape =
+                            if (isLast) bottomRowShape else RectangleShape
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(backgroundColor)
+                                .clip(shape)
+                                .background(background)
                                 .padding(vertical = 6.dp)
-                                .alpha(alpha),
+                                .alpha(if (set.isCompleted) 1f else 0.45f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
