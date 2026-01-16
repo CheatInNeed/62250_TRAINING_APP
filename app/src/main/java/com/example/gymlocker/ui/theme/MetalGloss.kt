@@ -15,42 +15,36 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import com.example.gymlocker.ui.settings.LocalUserSettings
 
-/**
- * Global strength knob for the metal gloss effect.
- * Tweak this value only (no settings/db/per-component overrides).
- *
- * Safe range is clamped internally to [0f, 1.5f].
- */
-private const val METAL_GLOSS_STRENGTH = 0.5f // tweak this
-
 @Composable
 fun Modifier.metalGloss(
     shape: Shape = RoundedCornerShape(16.dp)
 ): Modifier {
-    // Required dark-mode detection logic (settings + system)
     val settings = LocalUserSettings.current
     val isDark = isSystemInDarkTheme() || settings.forceDarkMode
 
-    // Tint logic (only tint changes by mode; math/algorithm stays identical)
+    val lightGlossStrength = 0.5f
+    val darkGlossStrength  = 0.5f
+
+    val lightGlossMax = 1.5f
+    val darlGlossMax  = 1.5f
+
     val tint = if (isDark) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
 
-    // Strength: single knob, clamped
-    val s = METAL_GLOSS_STRENGTH.coerceIn(0f, 1.5f)
+    // ✅ split knobs for light/dark
+    val strength = if (isDark) darkGlossStrength else lightGlossStrength
+    val max = if (isDark) darlGlossMax else lightGlossMax
+    val s = strength.coerceIn(0f, max)
 
-    // Map strength into pass alphas (kept stable across light/dark)
-    // Clamp to [0f, 1f] for alpha safety
     val diagonalHighlightAlpha = (0.22f * s).coerceIn(0f, 1f)
     val diagonalShadowAlpha = (0.16f * s).coerceIn(0f, 1f)
     val sheenCenterAlpha = (0.30f * s).coerceIn(0f, 1f)
 
-    // Avoid composable reads inside drawWithCache by capturing computed values above.
     return this
         .clip(shape)
         .drawWithCache {
             val w = size.width
             val h = size.height
 
-            // PASS 1: Full diagonal “metal lighting” gradient (highlight -> transparent -> shadow tail)
             val diagonal = Brush.linearGradient(
                 colorStops = arrayOf(
                     0.00f to tint.copy(alpha = (diagonalHighlightAlpha * 0.90f).coerceIn(0f, 1f)),
@@ -64,8 +58,6 @@ fun Modifier.metalGloss(
                 end = Offset(w, h * 1.8f)
             )
 
-
-            // PASS 2: Specular sheen stripe (reflective band)
             val sheen = Brush.linearGradient(
                 colorStops = arrayOf(
                     0.00f to Color.Transparent,
@@ -80,19 +72,8 @@ fun Modifier.metalGloss(
 
             onDrawWithContent {
                 drawContent()
-
-                // Metallic base
-                drawRect(
-                    brush = diagonal,
-                    blendMode = BlendMode.Hardlight
-                )
-
-                // IMPORTANT: Overlay shows on light AND dark surfaces.
-                // Screen often disappears on near-white surfaces.
-                drawRect(
-                    brush = sheen,
-                    blendMode = BlendMode.Overlay
-                )
+                drawRect(brush = diagonal, blendMode = BlendMode.Hardlight)
+                drawRect(brush = sheen, blendMode = BlendMode.Overlay)
             }
         }
 }

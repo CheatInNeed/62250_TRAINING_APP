@@ -2,6 +2,7 @@ package com.example.gymlocker.ui.profile
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.WeeklyBarChart
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
@@ -155,7 +157,13 @@ fun ProfileStatsScreen(
         ) {
             // Overview Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(shape = RoundedCornerShape(16.dp)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Overview", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(12.dp))
