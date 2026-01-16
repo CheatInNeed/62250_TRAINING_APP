@@ -308,16 +308,16 @@ fun WorkoutDetailScreen(
                     )
                     Spacer(Modifier.height(10.dp))
 
-//                    MuscleGroupDistributionChart(
-//                        rows = splitRows,
-//                        modifier = Modifier.fillMaxWidth()
-//                    )
-                    MuscleGroupDistributionPieChart(
+                    MuscleGroupDistributionChart(
                         rows = splitRows,
-                        modifier = Modifier.fillMaxWidth(),
-                        maxSlices = 5,
-                        donut = true
+                        modifier = Modifier.fillMaxWidth()
                     )
+//                    MuscleGroupDistributionPieChart(
+//                        rows = splitRows,
+//                        modifier = Modifier.fillMaxWidth(),
+//                        maxSlices = 5,
+//                        donut = true
+//                    )
 
                     Spacer(Modifier.height(12.dp))
                 }
