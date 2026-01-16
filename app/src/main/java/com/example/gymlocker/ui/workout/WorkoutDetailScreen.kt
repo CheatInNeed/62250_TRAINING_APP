@@ -72,6 +72,9 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
@@ -115,6 +118,9 @@ fun WorkoutDetailScreen(
 
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
 
     val settings = LocalUserSettings.current
     val unit = settings.weightUnit
@@ -233,6 +239,7 @@ fun WorkoutDetailScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
@@ -263,22 +270,34 @@ fun WorkoutDetailScreen(
                             text = { Text("Use Workout") },
                             onClick = {
                                 menuExpanded = false
+
+                                if (isWorkoutInProgress) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("Finish current workout first")
+                                    }
+                                    return@DropdownMenuItem
+                                }
+
                                 coroutineScope.launch {
-                                    val userId = viewModel.activeProfileUserIdOnce() ?: return@launch
+                                    try {
+                                        val userId = viewModel.activeProfileUserIdOnce() ?: return@launch
 
-                                    val date = java.text.SimpleDateFormat(
-                                        "yyyy-MM-dd HH:mm:ss.SSS",
-                                        java.util.Locale.getDefault()
-                                    ).format(java.util.Date())
+                                        val date = java.text.SimpleDateFormat(
+                                            "yyyy-MM-dd HH:mm:ss.SSS",
+                                            java.util.Locale.getDefault()
+                                        ).format(java.util.Date())
 
-                                    activeWorkoutViewModel.startWorkoutFromWorkout(
-                                        sourceWorkoutId = workoutId,
-                                        userId = userId,
-                                        date = date,
-                                        nameOverride = workout?.name // val workout du allerede loader i screen
-                                    )
+                                        activeWorkoutViewModel.startWorkoutFromWorkout(
+                                            sourceWorkoutId = workoutId,
+                                            userId = userId,
+                                            date = date,
+                                            nameOverride = workout?.name
+                                        )
 
-                                    navController.navigate("activeWorkout")
+                                        navController.navigate("activeWorkout") { launchSingleTop = true }
+                                    } catch (t: Throwable) {
+                                        snackbarHostState.showSnackbar("Couldn’t copy workout")
+                                    }
                                 }
                             }
                         )
