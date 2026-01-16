@@ -42,7 +42,7 @@ fun LoginScreen(
     LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
             if (loggedIn) {
-                navController.navigate("home") {
+                navController.navigate("workout") {
                     popUpTo("login") { inclusive = true }
                 }
             }

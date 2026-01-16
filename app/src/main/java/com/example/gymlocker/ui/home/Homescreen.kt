@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Palette
@@ -67,6 +68,21 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.IconButton
+import com.example.gymlocker.ui.history.HistoryViewMode
+import com.example.gymlocker.ui.history.WorkoutCalendar
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import java.time.format.TextStyle
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +120,7 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Home") },
+                title = { Text("Workout Feed") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -187,6 +203,25 @@ fun HomeScreen(
             .muscleGroupDistribution(userId)
             .collectAsState(initial = emptyList())
 
+        var historyViewMode by remember {
+            mutableStateOf(HistoryViewMode.LIST)
+        }
+
+        val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
+
+
+        val timeFormatter = remember {
+            DateTimeFormatter.ofPattern("HH:mm")
+        }
+
+        val sections = remember(completedWorkouts) {
+            completedWorkouts
+                .map { ws -> ws to ws.homeSafeLocalDateTime(formatter) }
+                .sortedByDescending { (_, dt) -> dt ?: LocalDateTime.MIN }
+                .groupBy { (_, dt) -> dt?.toLocalDate() }
+                .toSortedMap(compareByDescending { it })
+        }
+
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
@@ -196,35 +231,61 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text(
-                    text = lastWorkoutLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                )
+                WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
             }
 
+            // --- Workout History ---
+//            item {
+//                Text(
+//                    text = "Workout Feed",
+//                    style = MaterialTheme.typography.titleLarge,
+//                    color = MaterialTheme.colorScheme.onBackground,
+//                    textAlign = TextAlign.Start,
+//                    modifier = Modifier
+//                        .fillMaxWidth()              // <-- gør at den ikke “centres” af LazyColumn alignment
+//                        .padding(top = 4.dp, bottom = 2.dp)
+//                )
+//            }
 
-            item { WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek) }
+            if (sections.isEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No completed workouts yet.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            } else {
+                sections.forEach { (date, itemsForDate) ->
+                    item {
+                        Text(
+                            text = homeSectionTitleForDate(date),   // <-- samme som før (Today/Yesterday/weekday)
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp, bottom = 2.dp)
+                        )
+                    }
 
-            item {
-                StatsCard(
-                    weeklyHours = weeklyHours,
-                    weeklyVolume = weeklyVolume,
-                    distribution = distribution,
-                    statsRange = statsRange,
-                    onRangeChange = { statViewModel.setStatsRange(it) }
-                )
-            }
-
-            item {
-                CompletedWorkoutsCard(
-                    workouts = completedWorkouts,
-                    onViewHistoryClick = { navController.navigate("workoutHistory") }
-                )
+                    items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
+                        HomeWorkoutHistoryCard(
+                            workout = ws,
+                            dateTime = dt,
+                            onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
+                        )
+                    }
+                }
             }
         }
     }
@@ -525,3 +586,136 @@ private fun ThemeSwitcherCard(
         }
     }
 
+private fun HomeParseSetSummaryLine(line: String): Pair<Int, String>? {
+    val regex = Regex("""^\s*(\d+)\s*x\s*(.+?)\s*$""")
+    val match = regex.find(line) ?: return null
+    val count = match.groupValues[1].toIntOrNull() ?: return null
+    val name = match.groupValues[2]
+    return count to name
+}
+
+private fun WorkoutSummary.homeSafeLocalDateTime(formatter: DateTimeFormatter): LocalDateTime? {
+    return try {
+        LocalDateTime.parse(this.date, formatter)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+private fun homeSectionTitleForDate(date: LocalDate?): String {
+    if (date == null) return "Unknown date"
+
+    val today = LocalDate.now()
+    return when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> {
+            val daysAgo = java.time.temporal.ChronoUnit.DAYS.between(date, today)
+            if (daysAgo in 2..6) {
+                date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            } else {
+                date.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeWorkoutHistoryCard(
+    workout: WorkoutSummary,
+    dateTime: LocalDateTime?,
+    onClick: () -> Unit
+) {
+    val timeText = remember(dateTime) {
+        dateTime?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty()
+    }
+
+    val exerciseLines = remember(workout.exerciseSetSummary) {
+        workout.exerciseSetSummary
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+    }
+
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = workout.name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+
+                if (timeText.isNotBlank()) {
+                    Text(
+                        text = timeText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(Modifier.width(6.dp))
+
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            if (exerciseLines.isEmpty()) {
+                Text(
+                    text = "${workout.exerciseCount} exercises",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                val cutoff = 5
+                exerciseLines.take(cutoff).forEach { line ->
+                    val parsed = HomeParseSetSummaryLine(line)
+                    val count = parsed?.first
+                    val exName = parsed?.second
+
+                    val text = if (count != null && exName != null) {
+                        val unit = if (count == 1) "set" else "sets"
+                        "$count $unit of $exName"
+                    } else {
+                        line
+                    }
+
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+
+                if (exerciseLines.size > cutoff) {
+                    Text(
+                        text = "+${exerciseLines.size - cutoff} more",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
