@@ -58,6 +58,7 @@ import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.WeeklyBarChart
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.viewmodel.StatsRange
@@ -75,14 +76,9 @@ import com.example.gymlocker.ui.history.HistoryViewMode
 import com.example.gymlocker.ui.history.WorkoutCalendar
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import java.time.format.TextStyle
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,6 +116,7 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(shape = RoundedCornerShape(0.dp)),
                 title = { Text("Workout Feed") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -209,7 +206,6 @@ fun HomeScreen(
 
         val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
 
-
         val timeFormatter = remember {
             DateTimeFormatter.ofPattern("HH:mm")
         }
@@ -234,22 +230,13 @@ fun HomeScreen(
                 WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
             }
 
-            // --- Workout History ---
-//            item {
-//                Text(
-//                    text = "Workout Feed",
-//                    style = MaterialTheme.typography.titleLarge,
-//                    color = MaterialTheme.colorScheme.onBackground,
-//                    textAlign = TextAlign.Start,
-//                    modifier = Modifier
-//                        .fillMaxWidth()              // <-- gør at den ikke “centres” af LazyColumn alignment
-//                        .padding(top = 4.dp, bottom = 2.dp)
-//                )
-//            }
-
             if (sections.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .metalGloss(shape = RoundedCornerShape(16.dp))
+                    ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -268,7 +255,7 @@ fun HomeScreen(
                 sections.forEach { (date, itemsForDate) ->
                     item {
                         Text(
-                            text = homeSectionTitleForDate(date),   // <-- samme som før (Today/Yesterday/weekday)
+                            text = homeSectionTitleForDate(date),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Start,
@@ -296,7 +283,9 @@ fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
     val workoutText = if (workoutsThisWeek == 1) "workout" else "workouts"
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -377,7 +366,9 @@ fun StatsCard(
     var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -490,7 +481,9 @@ fun CompletedWorkoutsCard(
     onViewHistoryClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -546,45 +539,47 @@ private fun ThemeSwitcherCard(
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-            Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Force dark mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Overrides system theme",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Switch(
-                    checked = forceDarkMode,
-                    onCheckedChange = onForceDarkChanged,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.secondary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Force dark mode",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Overrides system theme",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            Switch(
+                checked = forceDarkMode,
+                onCheckedChange = onForceDarkChanged,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.secondary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            )
         }
     }
+}
 
 private fun HomeParseSetSummaryLine(line: String): Pair<Int, String>? {
     val regex = Regex("""^\s*(\d+)\s*x\s*(.+?)\s*$""")
@@ -639,6 +634,9 @@ private fun HomeWorkoutHistoryCard(
     }
 
     Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(18.dp)),
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
