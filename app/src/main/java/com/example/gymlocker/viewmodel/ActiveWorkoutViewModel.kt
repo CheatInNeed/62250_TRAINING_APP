@@ -204,6 +204,12 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun observeTemplates(userId: Long?) =
         if (userId == null) flowOf(emptyList()) else workoutTemplateDao.observeTemplates(userId)
+    /**
+     * Delete a template (and its exercises/sets via CASCADE).
+     */
+    suspend fun deleteTemplate(templateId: Long) {
+        workoutTemplateDao.deleteById(templateId)
+    }
 
     /**
      * Fetch a specific template with its exercises for the detail screen.

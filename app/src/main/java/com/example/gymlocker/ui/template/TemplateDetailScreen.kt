@@ -56,6 +56,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,6 +77,12 @@ fun TemplateDetailScreen(
     val pendingDeleteTemplateExerciseId = remember { mutableStateOf<Long?>(null) }
     val showDeleteConfirm = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    //dialog for deleting whole template
+    var showDeleteTemplateDialog by remember { mutableStateOf(false) }
+
+    // Snackbar for feedback (e.g. deleted template)
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // starting workout when one is already active
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
@@ -139,6 +146,42 @@ fun TemplateDetailScreen(
             textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
+    // Existing: delete exercise from template ...
+
+    if (showDeleteTemplateDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteTemplateDialog = false },
+            title = { Text("Delete template?") },
+            text = {
+                Text("This will delete the template and all its exercises/sets. This cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteTemplateDialog = false
+                        scope.launch {
+                            activeWorkoutViewModel.deleteTemplate(templateId)
+                            // Show feedback
+                            snackbarHostState.showSnackbar("Template deleted")
+                            // Go back after deletion so user doesn't stay on a 'missing' screen
+                            navController.popBackUnlessAtRoot()
+                        }
+                    }
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteTemplateDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
 
     if (showDiscardToStartDialog) {
         AlertDialog(
@@ -203,6 +246,9 @@ fun TemplateDetailScreen(
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
                 AppBottomBar(navController)
             }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
         }
     ) { innerPadding ->
         if (isLoading.value) {
@@ -308,6 +354,18 @@ fun TemplateDetailScreen(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    IconButton(
+                        onClick = {
+                            showDeleteTemplateDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete template",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
