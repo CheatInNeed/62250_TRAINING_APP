@@ -10,6 +10,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.ui.home.StatsCard
@@ -17,6 +19,9 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.BarChart
 import com.example.gymlocker.viewmodel.ProfileWorkoutSummaryUi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -408,16 +413,45 @@ fun ProfileScreen(
 
                         DropdownMenu(
                             expanded = isProfilePickerOpen,
-                            onDismissRequest = { isProfilePickerOpen = false }
+                            onDismissRequest = { isProfilePickerOpen = false },
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .widthIn(min = 180.dp)
                         ) {
-                            profiles.forEach { profile ->
+                            profiles.forEachIndexed { index, profile ->
                                 DropdownMenuItem(
-                                    text = { Text(profile.name) },
+                                    text = {
+                                        Text(
+                                            text = profile.name,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Person,
+                                            contentDescription = null,
+                                            tint = if (profile.userId == activeProfileUserId)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
                                     onClick = {
                                         profileViewModel.setActiveProfile(profile.userId)
                                         isProfilePickerOpen = false
                                     }
                                 )
+
+                                // subtle divider between items (except last)
+                                if (index < profiles.lastIndex) {
+                                    Divider(
+                                        modifier = Modifier.padding(horizontal = 12.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -434,17 +468,61 @@ fun ProfileScreen(
 
                         DropdownMenu(
                             expanded = isAvatarMenuOpen,
-                            onDismissRequest = { isAvatarMenuOpen = false }
+                            onDismissRequest = { isAvatarMenuOpen = false },
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .widthIn(min = 200.dp)
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Edit profile") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Person,
+                                        contentDescription = null
+                                    )
+                                },
                                 onClick = {
                                     isAvatarMenuOpen = false
                                     navController.navigate("editProfile")
                                 }
                             )
+
                             DropdownMenuItem(
-                                text = { Text("Log out") },
+                                text = { Text("View statistics") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.BarChart,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    navController.navigate("profileStats")
+                                }
+                            )
+
+                            Divider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Log out",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowBack,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
                                 onClick = {
                                     isAvatarMenuOpen = false
                                     authViewModel.logout()
@@ -454,6 +532,7 @@ fun ProfileScreen(
                                 }
                             )
                         }
+
                     }
 
                     // Existing settings cog
@@ -479,6 +558,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
             // Active profile card
@@ -550,21 +630,6 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(Modifier.height(10.dp))
-                        Button(
-                            onClick = { navController.navigate("editProfile") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) { Text("Edit profile") }
-
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { navController.navigate("profileStats") },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("View Statistics") }
                     }
                 }
             }
