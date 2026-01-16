@@ -352,32 +352,22 @@ fun WorkoutDetailScreen(
                     )
 
                     // Column headers (like Active, but without PREVIOUS + ✓)
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(headerShape)
                             .background(headerBackground)
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "SET",
-                            modifier = Modifier.weight(0.8f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Start
-                        )
-                        Text(
-                            "KG",
-                            modifier = Modifier.weight(1.2f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            "REPS",
-                            modifier = Modifier.weight(1.0f),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.End
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp, horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("SET", modifier = Modifier.weight(0.8f), textAlign = TextAlign.Start)
+                            Text("KG", modifier = Modifier.weight(1.2f), textAlign = TextAlign.Center)
+                            Text("REPS", modifier = Modifier.weight(1.0f), textAlign = TextAlign.End)
+                        }
                     }
 
                     Spacer(Modifier.height(4.dp))
@@ -399,31 +389,25 @@ fun WorkoutDetailScreen(
 
                         val shape =
                             if (isLast) bottomRowShape else RectangleShape
+                        val bg = if (index % 2 == 0) rowBackground else Color.Transparent
 
-                        Row(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(shape)
-                                .background(background)
-                                .padding(vertical = 6.dp)
-                                .alpha(if (set.isCompleted) 1f else 0.45f),
-                            verticalAlignment = Alignment.CenterVertically
+                                .background(bg)
+                                .alpha(if (set.isCompleted) 1f else 0.45f)
                         ) {
-                            Text(
-                                text = set.setNumber.toString(),
-                                modifier = Modifier.weight(0.8f),
-                                textAlign = TextAlign.Start
-                            )
-                            Text(
-                                text = wText,
-                                modifier = Modifier.weight(1.2f),
-                                textAlign = TextAlign.Center
-                            )
-                            Text(
-                                text = set.reps.toString(),
-                                modifier = Modifier.weight(1.0f),
-                                textAlign = TextAlign.End
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp, horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(set.setNumber.toString(), modifier = Modifier.weight(0.8f), textAlign = TextAlign.Start)
+                                Text(wText, modifier = Modifier.weight(1.2f), textAlign = TextAlign.Center)
+                                Text(set.reps.toString(), modifier = Modifier.weight(1.0f), textAlign = TextAlign.End)
+                            }
                         }
                     }
 
