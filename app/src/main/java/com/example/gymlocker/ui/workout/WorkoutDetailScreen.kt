@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -54,9 +56,17 @@ import com.example.gymlocker.data.database.AppDatabase
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.MuscleGroupDistributionPieChart
+
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
 
@@ -76,6 +86,10 @@ fun WorkoutDetailScreen(
     val workout by produceState<com.example.gymlocker.data.entity.Workout?>(initialValue = null, workoutId) {
         value = db.workoutDao().getWorkoutById(workoutId)
     }
+
+    val splitRows by db.performedSetDao()
+        .observeMuscleGroupDistributionForWorkout(workoutId)
+        .collectAsState(initial = emptyList())
 
     val totalVolumeKg = remember(workoutDetails) {
         workoutDetails.sumOf { log ->
@@ -236,89 +250,164 @@ fun WorkoutDetailScreen(
                 )
             }
         } else {
+
+            val durationSeconds = workout?.time ?: 0L
+            val durationText = remember(durationSeconds) { formatDuration(durationSeconds) }
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(16.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
+                // 1) Workout name
                 item {
-                    val durationSeconds = workout?.time ?: 0L
-                    val durationText = remember(durationSeconds) { formatDuration(durationSeconds) }
+                    Text(
+                        text = workout?.name ?: "Workout",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
 
-                    Card(
+                // 2) Stats row
+                item {
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TopStat(icon = Icons.Default.Timer, label = "Duration", value = durationText)
-                            TopStat(icon = Icons.Default.Equalizer, label = "Volume", value = "${totalVolumeKg.toInt()} kg")
-                            TopStat(icon = Icons.Default.EmojiEvents, label = "PRs", value = prCount.toString())
-                        }
+                        TopStat(
+                            icon = Icons.Default.Timer,
+                            label = "Duration",
+                            value = durationText
+                        )
+                        TopStat(
+                            icon = Icons.Default.Equalizer,
+                            label = "Volume",
+                            value = "${totalVolumeKg.toInt()} ${weightUnitLabel(unit)}"
+                        )
+                        TopStat(
+                            icon = Icons.Default.EmojiEvents,
+                            label = "PRs",
+                            value = prCount.toString()
+                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
                 }
+
+                // 3) Split section
+                item {
+                    Text(
+                        text = "Split",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    MuscleGroupDistributionChart(
+                        rows = splitRows,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+//                    MuscleGroupDistributionPieChart(
+//                        rows = splitRows,
+//                        modifier = Modifier.fillMaxWidth(),
+//                        maxSlices = 5,
+//                        donut = true
+//                    )
+
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                // 4) Exercise logs — HER er din store fejl: brug workoutDetails, ikke logs
                 items(workoutDetails) { log ->
-                    Card(
+                    val headerBackground =
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                    val rowBackground =
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+
+                    // Exercise title (minimal)
+                    Text(
+                        text = log.exerciseName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    // Column headers (like Active, but without PREVIOUS + ✓)
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
+                            .background(headerBackground)
+                            .padding(vertical = 6.dp, horizontal = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "SET",
+                            modifier = Modifier.weight(0.8f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Start
+                        )
+                        Text(
+                            "KG",
+                            modifier = Modifier.weight(1.2f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            "REPS",
+                            modifier = Modifier.weight(1.0f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End
+                        )
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    // Set rows (minimal)
+                    log.sets.forEachIndexed { index, set ->
+                        val alpha = if (set.isCompleted) 1f else 0.45f
+
+                        val backgroundColor =
+                            if (index % 2 == 0) rowBackground else Color.Transparent
+
+                        val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
+                        val wText = formatWeight(shownW, decimals = 0)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(backgroundColor)
+                                .padding(vertical = 6.dp)
+                                .alpha(alpha),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                text = log.exerciseName,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                text = set.setNumber.toString(),
+                                modifier = Modifier.weight(0.8f),
+                                textAlign = TextAlign.Start
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Header row (Set | Kg | Reps)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 10.dp, bottom = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Set", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Kg", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Reps", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-
-                            log.sets.forEach { set ->
-                                val alpha = if (set.isCompleted) 1f else 0.45f
-                                val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
-                                val wText = formatWeight(shownW, decimals = 0) // tal uden unit i tabellen
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .alpha(alpha),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(set.setNumber.toString(), style = MaterialTheme.typography.bodyMedium)
-                                    Text(wText, style = MaterialTheme.typography.bodyMedium)
-                                    Text(set.reps.toString(), style = MaterialTheme.typography.bodyMedium)
-                                }
-                            }
+                            Text(
+                                text = wText,
+                                modifier = Modifier.weight(1.2f),
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = set.reps.toString(),
+                                modifier = Modifier.weight(1.0f),
+                                textAlign = TextAlign.End
+                            )
                         }
                     }
+
+                    Spacer(Modifier.height(10.dp))
+                    //HorizontalDivider()
+                    Spacer(Modifier.height(14.dp))
                 }
             }
         }
@@ -337,7 +426,7 @@ private fun TopStat(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = MaterialTheme.colorScheme.primary
         )
         Spacer(Modifier.height(4.dp))
 
