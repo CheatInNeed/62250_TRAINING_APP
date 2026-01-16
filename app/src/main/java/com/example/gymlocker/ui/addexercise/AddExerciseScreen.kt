@@ -348,7 +348,7 @@ fun ExerciseListItem(
 ) {
     // “hele rækken bliver vores lyse themefarve”
     // Brug primary med lav alpha = tydelig highlight uden at ødelægge tekst-contrast.
-    val container = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+    val container = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
     else MaterialTheme.colorScheme.surface
 
     val content = MaterialTheme.colorScheme.onSurface
