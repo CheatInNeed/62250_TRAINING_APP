@@ -100,28 +100,7 @@ fun WorkoutScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
         ) {
-            Button(
-                onClick = {
-                    // Resume if in progress, otherwise start new (ActiveWorkoutScreen handles it)
-                    navController.navigate("activeWorkout")
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
-            }
-
-            Spacer(Modifier.height(12.dp))
-
+            // Top controls: create template / exercise
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -235,7 +214,6 @@ fun WorkoutScreen(
                             .clickable { navController.navigate("templateDetail/${t.templateId}") },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            // Cards/containers should be surface (not surfaceVariant as main background)
                             containerColor = MaterialTheme.colorScheme.surface,
                             contentColor = MaterialTheme.colorScheme.onSurface
                         )
@@ -260,16 +238,29 @@ fun WorkoutScreen(
                     }
                 }
             }
-        }
 
-        if (showBrowseTemplatesSheet) {
-            TemplateBrowseSheet(
-                templates = templates,
-                onDismiss = { showBrowseTemplatesSheet = false },
-                onTemplateSelected = { templateId ->
-                    navController.navigate("templateDetail/$templateId")
-                }
-            )
+            // Push main button to bottom
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = {
+                    // Resume if in progress, otherwise start new (ActiveWorkoutScreen handles it)
+                    navController.navigate("activeWorkout")
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = activeProfileUserId != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
+            }
         }
     }
 }
