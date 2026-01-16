@@ -146,7 +146,7 @@ fun AddExerciseSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Box(modifier = Modifier.fillMaxHeight()) {
