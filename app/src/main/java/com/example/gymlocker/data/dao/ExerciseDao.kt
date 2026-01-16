@@ -5,10 +5,10 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.example.gymlocker.data.entity.Exercises
 import kotlinx.coroutines.flow.Flow
-
+import androidx.room.OnConflictStrategy
 @Dao
 interface ExerciseDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(exercise: Exercises)
 
     @Query("SELECT * FROM exercises")
