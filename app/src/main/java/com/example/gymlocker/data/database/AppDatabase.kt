@@ -144,7 +144,7 @@ abstract class AppDatabase : RoomDatabase() {
         seedTestLoginAndProfile()
         seedMuscleGroupsAndExercisesIfEmpty(appContext)
         seedDummyTemplates(userId = 1L)
-        //seedWorkoutsEveryWeekLast3Months(userId = 1L)
+        seedWorkoutsEveryWeekLast3Months(userId = 1L)
     }
 
     /**
