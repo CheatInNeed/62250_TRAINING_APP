@@ -375,20 +375,10 @@ fun WorkoutDetailScreen(
                     // Set rows (minimal)
                     log.sets.forEachIndexed { index, set ->
                         val alpha = if (set.isCompleted) 1f else 0.45f
-
-                        val backgroundColor =
-                            if (index % 2 == 0) rowBackground else Color.Transparent
-
                         val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
                         val wText = formatWeight(shownW, decimals = 0)
-
                         val isLast = index == log.sets.lastIndex
-
-                        val background =
-                            if (index % 2 == 0) rowBackground else Color.Transparent
-
-                        val shape =
-                            if (isLast) bottomRowShape else RectangleShape
+                        val shape = if (isLast) bottomRowShape else RectangleShape
                         val bg = if (index % 2 == 0) rowBackground else Color.Transparent
 
                         Box(
