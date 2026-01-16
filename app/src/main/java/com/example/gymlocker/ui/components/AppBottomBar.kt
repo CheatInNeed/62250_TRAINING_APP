@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,8 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.border
+import androidx.compose.runtime.mutableStateOf
+import com.example.gymlocker.ui.components.ProfileAvatarIcon
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.example.gymlocker.data.auth.SessionManager
 import androidx.navigation.compose.currentBackStackEntryAsState
 
+
+@SuppressLint("UnrememberedMutableState")
 @Composable
 fun AppBottomBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -43,6 +53,19 @@ fun AppBottomBar(navController: NavController) {
     val isProfileSelected = currentRoute == "profile"
     val isWorkoutSelected = !isProfileSelected && (currentRoute in workoutRoutes)
     val isHomeSelected = !isProfileSelected && !isWorkoutSelected && (currentRoute in homeRoutes)
+
+    val context = LocalContext.current
+    val session = remember { SessionManager(context.applicationContext) }
+
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+
+    // Photo uri for the active profile (null if no profile or no photo)
+    val activeProfilePhotoUri by (
+            if (activeProfileUserId != null)
+                session.profilePhotoUri(activeProfileUserId!!).collectAsState(initial = null)
+            else
+                mutableStateOf<String?>(null)
+            )
 
     BottomAppBar(
         containerColor = MaterialTheme.colorScheme.surface,
@@ -116,7 +139,6 @@ fun AppBottomBar(navController: NavController) {
                 }
             }
 
-            // PROFILE (right)
             IconButton(
                 onClick = {
                     if (currentRoute != "profile") {
@@ -127,12 +149,20 @@ fun AppBottomBar(navController: NavController) {
                     }
                 }
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Person,
-                    contentDescription = "Profile",
-                    tint = if (isProfileSelected) selectedColor else unselectedColor
+                // Avatar (fallback to person icon inside ProfileAvatarIcon)
+                ProfileAvatarIcon(
+                    uriString = activeProfilePhotoUri,
+                    size = 26.dp,
+                    modifier = Modifier
+                        .then(
+                            if (isProfileSelected)
+                                Modifier.border(2.dp, selectedColor, CircleShape)
+                            else
+                                Modifier
+                        )
                 )
             }
+
         }
     }
 }
