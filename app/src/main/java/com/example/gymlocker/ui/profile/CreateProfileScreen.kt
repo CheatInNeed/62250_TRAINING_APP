@@ -177,8 +177,11 @@ fun CreateProfileScreen(
                         height = h,
                         weight = wKg
                     ) {
-                        // Go back to Profile screen
-                        navController.popBackStack()
+                        // Go to Profile screen and drop CreateProfile from history
+                        navController.navigate("profile") {
+                            popUpTo("createProfile") { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -195,3 +198,4 @@ fun CreateProfileScreen(
         }
     }
 }
+

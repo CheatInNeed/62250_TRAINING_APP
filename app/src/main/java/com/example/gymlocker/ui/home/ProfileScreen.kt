@@ -10,6 +10,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gymlocker.viewmodel.StatViewModel
+import com.example.gymlocker.ui.home.StatsCard
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Menu
+import com.example.gymlocker.viewmodel.ProfileWorkoutSummaryUi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,11 +114,15 @@ fun ProfileScreen(
     val profiles by profileViewModel.profiles.collectAsState()
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
     val activeProfile by profileViewModel.activeProfile.collectAsState()
+    val statViewModel: StatViewModel = viewModel()
+
+
 
     // Active profile photo uri (stored in SessionManager/DataStore)
     val photoUriString by profileViewModel.activeProfilePhotoUri.collectAsState()
 
     val context = LocalContext.current
+
 
     // Dialog / UI state
     var deleteTargetUserId by remember { mutableStateOf<Long?>(null) }
@@ -356,32 +374,185 @@ fun ProfileScreen(
             }
         )
     }
+    var isProfilePickerOpen by remember { mutableStateOf(false) }
+    var isAvatarMenuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            contentDescription = "Back"
                         )
                     }
                 },
+                title = {
+                    Box {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable { if (profiles.isNotEmpty()) isProfilePickerOpen = true }
+                        ) {
+                            Text(
+                                text = activeProfile?.name ?: "Select profile",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Icon(
+                                imageVector = if (isProfilePickerOpen) {
+                                    Icons.Filled.ArrowDropUp
+                                } else {
+                                    Icons.Filled.ArrowDropDown
+                                },
+                                contentDescription = "Select profile",
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isProfilePickerOpen,
+                            onDismissRequest = { isProfilePickerOpen = false },
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .widthIn(min = 180.dp)
+                        ) {
+                            profiles.forEachIndexed { index, profile ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = profile.name,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Filled.Person,
+                                            contentDescription = null,
+                                            tint = if (profile.userId == activeProfileUserId)
+                                                MaterialTheme.colorScheme.primary
+                                            else
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    },
+                                    onClick = {
+                                        profileViewModel.setActiveProfile(profile.userId)
+                                        isProfilePickerOpen = false
+                                    }
+                                )
+
+                                // subtle divider between items (except last)
+                                if (index < profiles.lastIndex) {
+                                    Divider(
+                                        modifier = Modifier.padding(horizontal = 12.dp),
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { navController.navigate("settings") }) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                    // Single burger menu (top-right)
+                    Box {
+                        IconButton(onClick = { isAvatarMenuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = "Open menu"
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isAvatarMenuOpen,
+                            onDismissRequest = { isAvatarMenuOpen = false },
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .widthIn(min = 200.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit profile") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Person,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    navController.navigate("editProfile")
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("View statistics") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.BarChart,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    navController.navigate("profileStats")
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    navController.navigate("settings")
+                                }
+                            )
+
+                            Divider(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Log out",
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowBack,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    authViewModel.logout()
+                                    navController.navigate("login") {
+                                        popUpTo("home") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
+
             )
+
+
         },
         bottomBar = {
             Column {
@@ -394,6 +565,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
             // Active profile card
@@ -465,164 +637,57 @@ fun ProfileScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Spacer(Modifier.height(10.dp))
-                        Button(
-                            onClick = { navController.navigate("editProfile") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) { Text("Edit profile") }
-
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { navController.navigate("profileStats") },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("View Statistics") }
                     }
                 }
             }
 
-            Text(
-                text = "Choose a profile",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
             if (profiles.isEmpty()) {
-                Column(
+                NoProfilesCard(
+                    onCreateProfileClick = { navController.navigate("createProfile") }
+                )
+            } else if (activeProfileUserId != null) {
+                val userId = activeProfileUserId!!
+
+                // Same data sources as HomeScreen
+                val statsRange by statViewModel.statsRange.collectAsState()
+
+                val weeklyHours by statViewModel
+                    .weeklyHoursLast3Months(userId)
+                    .collectAsState(initial = emptyList())
+
+                val weeklyVolume by statViewModel
+                    .weeklyVolumeLast3Months(userId)
+                    .collectAsState(initial = emptyList())
+
+                val distribution by statViewModel
+                    .muscleGroupDistribution(userId)
+                    .collectAsState(initial = emptyList())
+
+                // Make the whole card clickable -> dedicated statistics page
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f, fill = true)
+                        .clickable { navController.navigate("profileStats") }
                 ) {
-                    Text(
-                        text = "No profiles yet.\nCreate one to get started.",
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    StatsCard(
+                        weeklyHours = weeklyHours,
+                        weeklyVolume = weeklyVolume,
+                        distribution = distribution,
+                        statsRange = statsRange,
+                        onRangeChange = { statViewModel.setStatsRange(it) }
                     )
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = { navController.navigate("createProfile") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) { Text("Create Profile") }
-
-                    Spacer(Modifier.height(20.dp))
-
-                    TextButton(
-                        onClick = {
-                            authViewModel.logout()
-                            navController.navigate("login") {
-                                popUpTo("home") { inclusive = true }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Log out",
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = true),
-                    contentPadding = PaddingValues(bottom = 8.dp)
-                ) {
-                    items(profiles, key = { it.userId }) { p ->
-                        val isActive = p.userId == activeProfileUserId
-                        val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
-
-                        val settings = LocalUserSettings.current
-                        val unit = settings.weightUnit
-                        val weightText =
-                            if (p.weight == 0) "Not set"
-                            else {
-                                val shown = displayWeightFromKg(p.weight.toDouble(), unit)
-                                "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
-                            }
-
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .clickable { profileViewModel.setActiveProfile(p.userId) },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = if (isActive) "✅ ${p.name}" else p.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Height: $heightText  |  Weight: $weightText",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-
-                                Spacer(Modifier.height(8.dp))
-
-                                Row(modifier = Modifier.fillMaxWidth()) {
-                                    Spacer(Modifier.weight(1f))
-                                    TextButton(
-                                        onClick = {
-                                            deleteTargetUserId = p.userId
-                                            deleteTargetName = p.name
-                                        }
-                                    ) {
-                                        Text(
-                                            text = "Delete",
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { navController.navigate("createProfile") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) { Text("Create another profile") }
-
-                        Spacer(Modifier.height(20.dp))
-
-                        TextButton(
-                            onClick = {
-                                authViewModel.logout()
-                                navController.navigate("login") {
-                                    popUpTo("home") { inclusive = true }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Log out",
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = "Select a profile to see stats.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+
+
         }
     }
 }
@@ -671,3 +736,47 @@ private fun ProfileAvatar(
         }
     }
 }
+@Composable
+private fun NoProfilesCard(
+    onCreateProfileClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "No profiles yet",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Create a profile to start tracking your workouts.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onCreateProfileClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text("Create Profile")
+            }
+        }
+    }
+}
+
