@@ -262,5 +262,15 @@ fun WorkoutScreen(
                 Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
             }
         }
+        if (showBrowseTemplatesSheet) {
+            TemplateBrowseSheet(
+                templates = templates,
+                onDismiss = { showBrowseTemplatesSheet = false },
+                onTemplateSelected = { templateId ->
+                    showBrowseTemplatesSheet = false
+                    navController.navigate("templateDetail/$templateId")
+                }
+            )
+        }
     }
 }
