@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -53,6 +54,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +76,10 @@ fun TemplateDetailScreen(
     val pendingDeleteTemplateExerciseId = remember { mutableStateOf<Long?>(null) }
     val showDeleteConfirm = remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+
+    //snackbar
+    val snackbarHostState = remember { SnackbarHostState() }
+    val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
 
     fun reloadTemplate() {
         scope.launch {
@@ -134,6 +142,16 @@ fun TemplateDetailScreen(
     val template = templateState.value
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionColor = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
@@ -202,20 +220,35 @@ fun TemplateDetailScreen(
                     IconButton(
                         enabled = activeProfileUserId != null,
                         onClick = {
+                            if (isWorkoutInProgress) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Finish current workout first")
+                                }
+                                return@IconButton
+                            }
+
                             val profileId = activeProfileUserId ?: return@IconButton
 
                             val dateString =
-                                SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
-                                    .format(Date())
+                                SimpleDateFormat(
+                                    "yyyy-MM-dd HH:mm:ss.SSS",
+                                    Locale.getDefault()
+                                ).format(Date())
 
-                            activeWorkoutViewModel.startWorkoutFromTemplate(
-                                templateId = templateId,
-                                userId = profileId,
-                                date = dateString
-                            )
+                            scope.launch {
+                                try {
+                                    activeWorkoutViewModel.startWorkoutFromTemplate(
+                                        templateId = templateId,
+                                        userId = profileId,
+                                        date = dateString
+                                    )
 
-                            navController.navigate("activeWorkout") {
-                                launchSingleTop = true
+                                    navController.navigate("activeWorkout") {
+                                        launchSingleTop = true
+                                    }
+                                } catch (t: Throwable) {
+                                    snackbarHostState.showSnackbar("Couldn’t start template")
+                                }
                             }
                         }
                     ) {
