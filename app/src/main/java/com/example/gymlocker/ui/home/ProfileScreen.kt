@@ -22,6 +22,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Menu
 import com.example.gymlocker.viewmodel.ProfileWorkoutSummaryUi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -457,12 +458,12 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
-                    // Avatar icon + dropdown
+                    // Single burger menu (top-right)
                     Box {
                         IconButton(onClick = { isAvatarMenuOpen = true }) {
                             Icon(
-                                imageVector = Icons.Filled.Person,
-                                contentDescription = "Profile menu"
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = "Open menu"
                             )
                         }
 
@@ -504,6 +505,20 @@ fun ProfileScreen(
                                 }
                             )
 
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = null
+                                    )
+                                },
+                                onClick = {
+                                    isAvatarMenuOpen = false
+                                    navController.navigate("settings")
+                                }
+                            )
+
                             Divider(
                                 modifier = Modifier.padding(horizontal = 12.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant
@@ -532,17 +547,9 @@ fun ProfileScreen(
                                 }
                             )
                         }
-
-                    }
-
-                    // Existing settings cog
-                    IconButton(onClick = { navController.navigate("settings") }) {
-                        Icon(
-                            imageVector = Icons.Filled.Settings,
-                            contentDescription = "Settings"
-                        )
                     }
                 }
+
             )
 
 
