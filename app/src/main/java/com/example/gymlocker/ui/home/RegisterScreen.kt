@@ -31,7 +31,7 @@ fun RegisterScreen(
     LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
             if (loggedIn) {
-                navController.navigate("home") {
+                navController.navigate("workout") {
                     popUpTo("register") { inclusive = true }
                 }
             }

@@ -120,7 +120,7 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Home") },
+                title = { Text("Workout Feed") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface
@@ -231,33 +231,21 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text(
-                    text = lastWorkoutLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                )
-            }
-
-            item {
                 WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
             }
 
             // --- Workout History ---
-            item {
-                Text(
-                    text = "Workout History",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Start,
-                    modifier = Modifier
-                        .fillMaxWidth()              // <-- gør at den ikke “centres” af LazyColumn alignment
-                        .padding(top = 4.dp, bottom = 2.dp)
-                )
-            }
+//            item {
+//                Text(
+//                    text = "Workout Feed",
+//                    style = MaterialTheme.typography.titleLarge,
+//                    color = MaterialTheme.colorScheme.onBackground,
+//                    textAlign = TextAlign.Start,
+//                    modifier = Modifier
+//                        .fillMaxWidth()              // <-- gør at den ikke “centres” af LazyColumn alignment
+//                        .padding(top = 4.dp, bottom = 2.dp)
+//                )
+//            }
 
             if (sections.isEmpty()) {
                 item {
