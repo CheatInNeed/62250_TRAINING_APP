@@ -65,6 +65,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.MuscleGroupDistributionPieChart
+
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
 
@@ -306,9 +308,15 @@ fun WorkoutDetailScreen(
                     )
                     Spacer(Modifier.height(10.dp))
 
-                    MuscleGroupDistributionChart(
+//                    MuscleGroupDistributionChart(
+//                        rows = splitRows,
+//                        modifier = Modifier.fillMaxWidth()
+//                    )
+                    MuscleGroupDistributionPieChart(
                         rows = splitRows,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        maxSlices = 5,
+                        donut = true
                     )
 
                     Spacer(Modifier.height(12.dp))
