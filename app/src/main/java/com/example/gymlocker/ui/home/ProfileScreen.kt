@@ -10,6 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gymlocker.viewmodel.StatViewModel
+import com.example.gymlocker.ui.home.StatsCard
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.DropdownMenu
@@ -105,13 +108,15 @@ fun ProfileScreen(
     val profiles by profileViewModel.profiles.collectAsState()
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
     val activeProfile by profileViewModel.activeProfile.collectAsState()
-    val workoutSummary by profileViewModel.workoutSummary.collectAsState()
+    val statViewModel: StatViewModel = viewModel()
+
 
 
     // Active profile photo uri (stored in SessionManager/DataStore)
     val photoUriString by profileViewModel.activeProfilePhotoUri.collectAsState()
 
     val context = LocalContext.current
+
 
     // Dialog / UI state
     var deleteTargetUserId by remember { mutableStateOf<Long?>(null) }
@@ -570,12 +575,46 @@ fun ProfileScreen(
                 NoProfilesCard(
                     onCreateProfileClick = { navController.navigate("createProfile") }
                 )
+            } else if (activeProfileUserId != null) {
+                val userId = activeProfileUserId!!
+
+                // Same data sources as HomeScreen
+                val statsRange by statViewModel.statsRange.collectAsState()
+
+                val weeklyHours by statViewModel
+                    .weeklyHoursLast3Months(userId)
+                    .collectAsState(initial = emptyList())
+
+                val weeklyVolume by statViewModel
+                    .weeklyVolumeLast3Months(userId)
+                    .collectAsState(initial = emptyList())
+
+                val distribution by statViewModel
+                    .muscleGroupDistribution(userId)
+                    .collectAsState(initial = emptyList())
+
+                // Make the whole card clickable -> dedicated statistics page
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { navController.navigate("profileStats") }
+                ) {
+                    StatsCard(
+                        weeklyHours = weeklyHours,
+                        weeklyVolume = weeklyVolume,
+                        distribution = distribution,
+                        statsRange = statsRange,
+                        onRangeChange = { statViewModel.setStatsRange(it) }
+                    )
+                }
             } else {
-                ProfileStatsOverviewCard(
-                    summary = workoutSummary,
-                    onClick = { navController.navigate("profileStats") }
+                Text(
+                    text = "Select a profile to see stats.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
 
         }
     }
@@ -665,69 +704,6 @@ private fun NoProfilesCard(
             ) {
                 Text("Create Profile")
             }
-        }
-    }
-}
-
-@Composable
-private fun ProfileStatsOverviewCard(
-    summary: ProfileWorkoutSummaryUi,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Stats overview",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Total workouts",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = summary.totalWorkouts.toString(),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Last workout",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = summary.mostRecentName ?: "None yet",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = "Tap to see detailed statistics",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
