@@ -20,8 +20,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.R
+import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.max
@@ -93,7 +95,12 @@ fun SplashScreen(
         alphaJob.join()
 
         // Navigate away
-        navController.navigate("login") {
+        val session = SessionManager(context.applicationContext)
+        val loggedIn = session.isLoggedIn.first()
+
+        val target = if (loggedIn) "workout" else "login"
+
+        navController.navigate(target) {
             popUpTo("splash") { inclusive = true }
             launchSingleTop = true
         }
