@@ -245,6 +245,10 @@ fun HomeScreen(
                 .toSet()
         }
 
+        val workoutDates = remember(sections) {
+            sections.keys.filterNotNull().toSet()
+        }
+
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
@@ -254,7 +258,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                WeeklyWorkoutsCircles(workoutDatesThisWeek = workoutDatesThisWeek)
+                WeeklyWorkoutsCircles(workoutDates = workoutDates)
             }
             if (sections.isEmpty()) {
                 item {
@@ -743,13 +747,11 @@ private fun HomeWorkoutHistoryCard(
 
 @Composable
 fun WeeklyWorkoutsCircles(
-    workoutDatesThisWeek: Set<LocalDate>,
+    workoutDates: Set<LocalDate>,
     today: LocalDate = LocalDate.now()
 ) {
-    val weekStart = remember(today) {
-        today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    }
-    val days = remember(weekStart) { (0L..6L).map { weekStart.plusDays(it) } }
+    // Rolling 7 dage: [today-6, ..., today]
+    val days = remember(today) { (6L downTo 0L).map { today.minusDays(it) } }
 
     Row(
         modifier = Modifier
@@ -759,7 +761,8 @@ fun WeeklyWorkoutsCircles(
         verticalAlignment = Alignment.Top
     ) {
         days.forEach { date ->
-            val trained = workoutDatesThisWeek.contains(date)
+            val trained = workoutDates.contains(date)
+
             WeekDayCircleColumn(
                 dayLabel = dayLetter(date.dayOfWeek),
                 numberLabel = date.dayOfMonth.toString(),
@@ -768,6 +771,7 @@ fun WeeklyWorkoutsCircles(
         }
     }
 }
+
 
 @Composable
 private fun WeekDayCircleColumn(
@@ -784,6 +788,7 @@ private fun WeekDayCircleColumn(
         Text(
             text = dayLabel,
             style = MaterialTheme.typography.labelSmall,
+            //fontWeight = FontWeight.Light,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
@@ -795,14 +800,14 @@ private fun WeekDayCircleColumn(
             modifier = Modifier
                 .size(40.dp) // lidt større end før
                 .clip(CircleShape)
-                .background(if (trained) fill.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surface)
+                .background(if (trained) fill.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface)
                 .border(1.dp, outline, CircleShape) // matcher cards: 1dp + primary alpha 0.28
         ) {
             Text(
                 text = numberLabel,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }
