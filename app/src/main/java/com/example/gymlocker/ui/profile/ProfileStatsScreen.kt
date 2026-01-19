@@ -409,6 +409,7 @@ private fun WeeklyProgressCard(
                 it.weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()).toString()
             }
 
+
             if (mode == ChartMode.HOURS) {
                 PeriodBarChart(
                     values = weeklyHours.map { it.hours },
