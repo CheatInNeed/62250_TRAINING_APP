@@ -115,48 +115,60 @@ private val DefaultFallbackLight = lightColorScheme(
 
 // ---------- RED ----------
 private val RedLight = lightCompactScheme(
-    primary = Color(0xFFB3261E),
+    // Muted locker red (accents / buttons)
+    primary = Color(0xFF8B1E1A),
     onPrimary = Color(0xFFFFFFFF),
 
-    secondary = Color(0xFFB07F91),
+    // Steel / hardware grey
+    secondary = Color(0xFF4A4F55),
     onSecondary = Color(0xFFFFFFFF),
 
-    tertiary = Color(0xFFFFDAD6),          // accent container
-    onTertiary = Color(0xFF2B0A06),
+    // Bench wood (warm accent)
+    tertiary = Color(0xFFCEB79F),
+    onTertiary = Color(0xFF1F1510),
 
-    background = Color(0xFFFFFBFE),
-    onBackground = Color(0xFF1C1B1F),
+    // Cool, clean locker-room light
+    background = Color(0xFFF4F5F7),
+    onBackground = Color(0xFF141517),
 
-    surface = Color(0xFFFFFBFE),
-    onSurface = Color(0xFF1C1B1F),
+    // Locker metal panels
+    surface = Color(0xFFE6E7EA),
+    onSurface = Color(0xFF141517),
 
-    surfaceVariant = Color(0xFFF6EFF2),
-    onSurfaceVariant = Color(0xFF1C1B1F),
+    // Slightly deeper metal for inputs/cards separation
+    surfaceVariant = Color(0xFFD6D8DD),
+    onSurfaceVariant = Color(0xFF2B2D30),
 
-    outline = Color(0xFF8C8C8C)
+    outline = Color(0xFF9AA0A6)
 )
-
 private val RedDark = darkCompactScheme(
-    primary = Color(0xFFFFB4AB),
-    onPrimary = Color(0xFF410002),
+    // Muted red highlight (still “red theme” but not neon)
+    primary = Color(0xFFB83A35),
+    onPrimary = Color(0xFF140707),
 
-    secondary = Color(0xFFEFB8C8),
-    onSecondary = Color(0xFF2D151C),
+    // Cool grey highlight
+    secondary = Color(0xFF9AA0A6),
+    onSecondary = Color(0xFF101214),
 
-    tertiary = Color(0xFF5C1A12),          // accent container
-    onTertiary = Color(0xFFFFDAD6),
+    // Bench wood accent (warm pop in dark UI)
+    tertiary = Color(0xFFD8C1A6),
+    onTertiary = Color(0xFF1B140E),
 
-    background = Color(0xFF0F0F0F),
-    onBackground = Color(0xFFE6E1E5),
+    // Charcoal floor / deep room darkness
+    background = Color(0xFF0B0C0D),
+    onBackground = Color(0xFFECEDEF),
 
-    surface = Color(0xFF121212),
-    onSurface = Color(0xFFE6E1E5),
+    // Dark steel surfaces
+    surface = Color(0xFF141619),
+    onSurface = Color(0xFFECEDEF),
 
-    surfaceVariant = Color(0xFF1A1A1A),
-    onSurfaceVariant = Color(0xFFE6E1E5),
+    // Slightly lighter steel for variants/inputs
+    surfaceVariant = Color(0xFF1E2125),
+    onSurfaceVariant = Color(0xFFC9CDD3),
 
-    outline = Color(0xFF6A6A6A)
+    outline = Color(0xFF5E646B)
 )
+
 
 // ---------- BLUE ----------
 private val BlueLight = lightCompactScheme(
