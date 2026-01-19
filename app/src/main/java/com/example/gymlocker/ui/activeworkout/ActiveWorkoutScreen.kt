@@ -61,6 +61,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -243,7 +244,6 @@ fun ActiveWorkoutScreen(
         isVeryShortWorkout = elapsedTime < 60,
         unfinishedMeaningfulSetCount = unfinishedMeaningfulSetCount,
         maxNameLength = maxNameLen,
-        onMarkUnfinishedAsDone = { viewModel.markAllUnfinishedMeaningfulSetsDone() },
         onSave = { name, markUnfinishedAsDone ->
             if (markUnfinishedAsDone) {
                 viewModel.markAllUnfinishedMeaningfulSetsDone()
@@ -251,6 +251,7 @@ fun ActiveWorkoutScreen(
             viewModel.finishWorkoutWithName(name)
         },
     )
+
 
     // UI state to open/close rest-timer bar
     var restTimerExpanded by rememberSaveable { mutableStateOf(true) }
@@ -280,6 +281,8 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     actions = {
+                        val finishEnabled = hasActiveProfile && activeExercises.isNotEmpty()
+
                         Button(
                             onClick = {
                                 scope.launch {
@@ -289,15 +292,19 @@ fun ActiveWorkoutScreen(
                                     showFinishSummarySheet = true
                                 }
                             },
-                            modifier = Modifier.padding(end = 8.dp),
-                            enabled = hasActiveProfile,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .alpha(if (finishEnabled) 1f else 0.45f),
+                            enabled = finishEnabled,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                disabledContainerColor = MaterialTheme.colorScheme.primary,
+                                disabledContentColor = MaterialTheme.colorScheme.onPrimary
                             )
-                        ) { Text("Finish") }
+                        ) {
+                            Text("Finish")
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
@@ -933,13 +940,13 @@ fun ActiveWorkoutExerciseItem(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("SET", modifier = Modifier.weight(0.5f), color = MaterialTheme.colorScheme.onBackground)
-            Text("PREVIOUS", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground)
-            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f), color = MaterialTheme.colorScheme.onBackground)
-            Text("REPS", modifier = Modifier.weight(0.7f), color = MaterialTheme.colorScheme.onBackground)
-            Text("✓", modifier = Modifier.weight(0.4f), color = MaterialTheme.colorScheme.onBackground)
+            Text("SET", modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text("PREVIOUS", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.9f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text("REPS", modifier = Modifier.weight(0.9f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text("✓", modifier = Modifier.weight(0.4f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
         }
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -1104,13 +1111,15 @@ fun ExerciseSetRow(
             text = set.setNumber.toString(),
             modifier = Modifier.weight(0.5f),
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyMedium
         )
         Text(
             text = set.previous ?: "-",
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyMedium
         )
 
         Box(
