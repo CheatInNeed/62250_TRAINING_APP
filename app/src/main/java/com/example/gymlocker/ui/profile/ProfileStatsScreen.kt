@@ -2,7 +2,6 @@ package com.example.gymlocker.ui.profile
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -19,8 +18,7 @@ import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
-import com.example.gymlocker.ui.components.WeeklyBarChart
-import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.components.PeriodBarChart
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
@@ -30,6 +28,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import java.time.temporal.WeekFields
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -157,13 +156,7 @@ fun ProfileStatsScreen(
         ) {
             // Overview Card
             item {
-                Card(modifier = Modifier
-                    .fillMaxWidth()
-                    .metalGloss(shape = RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )) {
+                Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Overview", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(12.dp))
@@ -411,21 +404,25 @@ private fun WeeklyProgressCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Use PeriodBarChart instead of the old WeeklyBarChart
+            val weekLabels = weeklyHours.map {
+                it.weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()).toString()
+            }
+
             if (mode == ChartMode.HOURS) {
-                WeeklyBarChart(
-                    data = weeklyHours,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.hours },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
+                PeriodBarChart(
+                    values = weeklyHours.map { it.hours },
+                    labels = weekLabels,
+                    xCaption = "Week",
+                    modifier = Modifier.fillMaxWidth()
                 )
             } else {
-                WeeklyBarChart(
-                    data = weeklyVolume,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.volume },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
+                PeriodBarChart(
+                    values = weeklyVolume.map { it.volume },
+                    labels = weekLabels,
+                    xCaption = "Week",
+                    yTickStep = 500f, // 500 kg per tick
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -449,4 +446,3 @@ private fun formatVolume(volume: Double): String {
         else -> String.format(Locale.US, "%.0f", volume)
     }
 }
-

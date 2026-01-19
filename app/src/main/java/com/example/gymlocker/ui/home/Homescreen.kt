@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.home
 
+import android.R.style.Theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,8 +58,6 @@ import com.example.gymlocker.data.repo.SettingsRepository
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
-import com.example.gymlocker.ui.components.WeeklyBarChart
-import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.viewmodel.StatsRange
@@ -76,9 +75,46 @@ import com.example.gymlocker.ui.history.HistoryViewMode
 import com.example.gymlocker.ui.history.WorkoutCalendar
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import java.time.format.TextStyle
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import java.time.temporal.TemporalAdjusters
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import java.time.YearMonth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,7 +152,6 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.metalGloss(shape = RoundedCornerShape(0.dp)),
                 title = { Text("Workout Feed") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -206,6 +241,7 @@ fun HomeScreen(
 
         val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
 
+
         val timeFormatter = remember {
             DateTimeFormatter.ofPattern("HH:mm")
         }
@@ -218,6 +254,44 @@ fun HomeScreen(
                 .toSortedMap(compareByDescending { it })
         }
 
+        val today = LocalDate.now()
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val weekEnd = weekStart.plusDays(6)
+
+        val workoutDatesThisWeek = remember(sections, weekStart, weekEnd) {
+            sections.keys
+                .filterNotNull()
+                .filter { !it.isBefore(weekStart) && !it.isAfter(weekEnd) }
+                .toSet()
+        }
+
+        val workoutDates = remember(sections) {
+            sections.keys.filterNotNull().toSet()
+        }
+
+        val workoutsPerDay = remember(sections) {
+            sections
+                .filterKeys { it != null }
+                .mapKeys { it.key!! }
+                .mapValues { (_, list) -> list.size }
+        }
+
+        val listState = rememberLazyListState()
+
+        var calendarExpanded by rememberSaveable { mutableStateOf(false) }
+        var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now()) }
+        var currentMonth by rememberSaveable { mutableStateOf(YearMonth.now()) }
+
+        // Auto-collapse når man scroller i feedet
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+                .map { (idx, off) -> idx > 0 || off > 0 }
+                .distinctUntilChanged()
+                .collect { isScrollingDown ->
+                    if (isScrollingDown) calendarExpanded = false
+                }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
@@ -227,16 +301,24 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
+                ExpandableHomeCalendarHeader(
+                    workoutsPerDay = workoutsPerDay,
+                    selectedDate = selectedDate,
+                    currentMonth = currentMonth,
+                    expanded = calendarExpanded,
+                    onExpandedChange = { calendarExpanded = it },
+                    onMonthChange = { currentMonth = it },
+                    onDateSelected = { date ->
+                        selectedDate = date
+                        currentMonth = YearMonth.from(date)
+                        // calendarExpanded = false
+                    }
+                )
             }
 
             if (sections.isEmpty()) {
                 item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .metalGloss(shape = RoundedCornerShape(16.dp))
-                    ) {
+                    Card(modifier = Modifier.fillMaxWidth()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -252,57 +334,97 @@ fun HomeScreen(
                     }
                 }
             } else {
-                sections.forEach { (date, itemsForDate) ->
+                if (calendarExpanded) {
+                    // ✅ EXPANDED: vis KUN selected day
+                    val itemsForSelectedDay = sections[selectedDate].orEmpty()
+
                     item {
-                        Text(
-                            text = homeSectionTitleForDate(date),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Start,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 6.dp, bottom = 2.dp)
-                        )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = homeSectionTitleForDate(selectedDate),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
                     }
 
-                    items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
-                        HomeWorkoutHistoryCard(
-                            workout = ws,
-                            dateTime = dt,
-                            onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
-                        )
+                    if (itemsForSelectedDay.isEmpty()) {
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(24.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No completed workouts on this day.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        items(itemsForSelectedDay, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
+                            HomeWorkoutHistoryCard(
+                                workout = ws,
+                                dateTime = dt,
+                                onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
+                            )
+                        }
+                    }
+
+                } else {
+                    // ✅ COLLAPSED: vis ALLE workouts (alle sektioner)
+                    sections.forEach { (date, itemsForDate) ->
+
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp, bottom = 2.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f))
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = homeSectionTitleForDate(date ?: LocalDate.now()),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                            }
+                        }
+
+                        items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
+                            HomeWorkoutHistoryCard(
+                                workout = ws,
+                                dateTime = dt,
+                                onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
+                            )
+                        }
                     }
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
-    val workoutText = if (workoutsThisWeek == 1) "workout" else "workouts"
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .metalGloss(shape = RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "This week",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "$workoutsThisWeek $workoutText this week",
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-            )
-        }
+                item { Spacer(Modifier.height(72.dp)) }
+            }}
     }
 }
 
@@ -353,113 +475,6 @@ private fun SegmentedToggle(
     }
 }
 
-enum class WeeklyGraphMode { HOURS, VOLUME }
-
-@Composable
-fun StatsCard(
-    weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
-    weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
-    distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
-    statsRange: StatsRange,
-    onRangeChange: (StatsRange) -> Unit
-) {
-    var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .metalGloss(shape = RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Stats",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SegmentedToggle(
-                    leftText = "Week",
-                    rightText = "Month",
-                    isLeftSelected = statsRange == StatsRange.WEEK,
-                    onLeftClick = { onRangeChange(StatsRange.WEEK) },
-                    onRightClick = { onRangeChange(StatsRange.MONTH) },
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-
-                SegmentedToggle(
-                    leftText = "Hours",
-                    rightText = "Volume",
-                    isLeftSelected = mode == WeeklyGraphMode.HOURS,
-                    onLeftClick = { mode = WeeklyGraphMode.HOURS },
-                    onRightClick = { mode = WeeklyGraphMode.VOLUME },
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = if (mode == WeeklyGraphMode.HOURS)
-                    "Hours trained per week (last 3 months)"
-                else
-                    "Volume per week (last 3 months)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (mode == WeeklyGraphMode.HOURS) {
-                WeeklyBarChart(
-                    data = weeklyHours,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.hours },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
-                )
-            } else {
-                WeeklyBarChart(
-                    data = weeklyVolume,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.volume },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = if (statsRange == StatsRange.WEEK)
-                    "Training balance (this week)"
-                else
-                    "Training balance (this month)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            MuscleGroupDistributionChart(
-                rows = distribution,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
 /**
  * Pretty date:
  * Input: "yyyy-MM-dd HH:mm:ss.SSS"
@@ -481,9 +496,7 @@ fun CompletedWorkoutsCard(
     onViewHistoryClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .metalGloss(shape = RoundedCornerShape(16.dp)),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -539,9 +552,7 @@ private fun ThemeSwitcherCard(
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .metalGloss(shape = RoundedCornerShape(16.dp)),
+        modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -634,84 +645,483 @@ private fun HomeWorkoutHistoryCard(
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .metalGloss(shape = RoundedCornerShape(18.dp)),
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = workout.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
+            // --- Accent strip (brand feel uden at "male" hele kortet) ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.0f))
+            )
 
-                if (timeText.isNotBlank()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // lille badge-dot (primary) -> “alive” feel
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.90f))
+                    )
+                    Spacer(Modifier.width(10.dp))
+
                     Text(
-                        text = timeText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = workout.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
+                    )
+
+                    if (timeText.isNotBlank()) {
+                        Text(
+                            text = timeText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.height(10.dp))
 
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                // resten af dit content uændret
+                if (exerciseLines.isEmpty()) {
+                    Text(
+                        text = "${workout.exerciseCount} exercises",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    val cutoff = 5
+                    exerciseLines.take(cutoff).forEach { line ->
+                        val parsed = HomeParseSetSummaryLine(line)
+                        val count = parsed?.first
+                        val exName = parsed?.second
+
+                        val text = if (count != null && exName != null) {
+                            val unit = if (count == 1) "set" else "sets"
+                            "$count $unit of $exName"
+                        } else line
+
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+
+                    if (exerciseLines.size > cutoff) {
+                        Text(
+                            text = "+${exerciseLines.size - cutoff} more",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyWorkoutsCircles(
+    workoutsPerDay: Map<LocalDate, Int>,
+    today: LocalDate = LocalDate.now()
+) {
+    // Rolling 7 dage: [today-6, ..., today]
+    val days = remember(today) { (6L downTo 0L).map { today.minusDays(it) } }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        days.forEach { date ->
+            val count = workoutsPerDay[date] ?: 0
+
+            WeekDayCircleColumn(
+                dayLabel = dayLetter(date.dayOfWeek),
+                numberLabel = date.dayOfMonth.toString(),
+                workoutCount = count,
+                selected = (date == today),
+                onClick = { /* TODO: vælg dato */ }
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun WeekDayCircleColumn(
+    dayLabel: String,
+    numberLabel: String,
+    workoutCount: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val outline = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val fillTint = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
+
+    val selectedFill = MaterialTheme.colorScheme.primary
+    val selectedText = MaterialTheme.colorScheme.onPrimary
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(44.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Text(
+            text = dayLabel,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(6.dp))
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(
+                    when {
+                        selected -> selectedFill
+                        workoutCount > 0 -> fillTint
+                        else -> MaterialTheme.colorScheme.surface
+                    }
+                )
+                .border(1.dp, outline, CircleShape)
+        ) {
+            Text(
+                text = numberLabel,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) selectedText else MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        Spacer(Modifier.height(6.dp))
+        WorkoutDotsRow(count = workoutCount)
+    }
+}
+
+private fun dayLetter(day: DayOfWeek): String = when (day) {
+    DayOfWeek.MONDAY -> "M"
+    DayOfWeek.TUESDAY -> "T"
+    DayOfWeek.WEDNESDAY -> "W"
+    DayOfWeek.THURSDAY -> "T"
+    DayOfWeek.FRIDAY -> "F"
+    DayOfWeek.SATURDAY -> "S"
+    DayOfWeek.SUNDAY -> "S"
+}
+
+@Composable
+private fun WeekDayCircle(
+    trained: Boolean,
+    isToday: Boolean
+) {
+    val fill = MaterialTheme.colorScheme.primary
+    val emptyFill = MaterialTheme.colorScheme.surface
+
+    val outline = when {
+        trained -> fill
+        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(if (trained) fill else emptyFill)
+            .border(1.dp, outline, CircleShape)
+    )
+}
+
+@Composable
+private fun WorkoutDotsRow(count: Int) {
+    // cap så UI ikke eksploderer, hvis en dag har fx 10 workouts
+    val shown = minOf(count, 4)
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(shown) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+
+        // hvis der er flere end 4: lille "+N"
+        if (count > 4) {
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = "+${count - 4}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExpandableHomeCalendarHeader(
+    workoutsPerDay: Map<LocalDate, Int>,
+    selectedDate: LocalDate,
+    currentMonth: YearMonth,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onMonthChange: (YearMonth) -> Unit,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    // Uge baseret på selectedDate (så den “følger” hvad man klikker)
+    val weekStart = remember(selectedDate) {
+        selectedDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    }
+    val today = remember { LocalDate.now() }
+    val weekDays = remember(today) { (6L downTo 0L).map { today.minusDays(it) } } // [today-6 .. today]
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            // “Pull down” gesture: swipe ned = expand, swipe op = collapse
+            .pointerInput(expanded) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { _, dragAmount ->
+                        // dragAmount > 0 = ned
+                        if (!expanded && dragAmount > 18f) onExpandedChange(true)
+                        if (expanded && dragAmount < -18f) onExpandedChange(false)
+                    }
                 )
             }
+    ) {
+        // Month title row (klik for expand/collapse)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .clickable { onExpandedChange(!expanded) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            val title = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
-            Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
-            if (exerciseLines.isEmpty()) {
+        // Week strip (altid synlig)
+        AnimatedVisibility(
+            visible = !expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                weekDays.forEach { date ->
+                    val count = workoutsPerDay[date] ?: 0
+                    WeekDayCircleColumn(
+                        dayLabel = dayLetter(date.dayOfWeek),
+                        numberLabel = date.dayOfMonth.toString(),
+                        workoutCount = count,
+                        selected = expanded && date == selectedDate,
+                        onClick = {
+                            onDateSelected(date)
+                            onExpandedChange(true) // vigtigt: specifik dag vises kun i expanded state
+                        }
+                    )
+                }
+            }
+        }
+
+        // Month grid (kun når expanded)
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column {
+                Spacer(Modifier.height(10.dp))
+
+                // Month nav (chevrons)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
+                        Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev month")
+                    }
+                    Text(
+                        text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
+                        Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next month")
+                    }
+                }
+
+                HomeCalendarGridCounts(
+                    currentMonth = currentMonth,
+                    workoutsPerDay = workoutsPerDay,
+                    selectedDate = selectedDate,
+                    onDateSelected = onDateSelected
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                // lille “Collapse” affordance (valgfri)
                 Text(
-                    text = "${workout.exerciseCount} exercises",
+                    text = "Collapse",
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 6.dp)
+                        .clickable { onExpandedChange(false) },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                val cutoff = 5
-                exerciseLines.take(cutoff).forEach { line ->
-                    val parsed = HomeParseSetSummaryLine(line)
-                    val count = parsed?.first
-                    val exName = parsed?.second
+            }
+        }
+    }
+}
 
-                    val text = if (count != null && exName != null) {
-                        val unit = if (count == 1) "set" else "sets"
-                        "$count $unit of $exName"
-                    } else {
-                        line
+@Composable
+private fun HomeCalendarGridCounts(
+    currentMonth: YearMonth,
+    workoutsPerDay: Map<LocalDate, Int>,
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit
+) {
+    val firstDayOfMonth = currentMonth.atDay(1).dayOfWeek.value % 7
+    val daysInMonth = currentMonth.lengthOfMonth()
+    val daysOfWeek = listOf("S", "M", "T", "W", "T", "F", "S")
+
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        ) {
+            daysOfWeek.forEach { day ->
+                Text(
+                    text = day,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+
+        val totalCells = ((firstDayOfMonth + daysInMonth + 6) / 7) * 7
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(7),
+            modifier = Modifier.height(240.dp),
+            userScrollEnabled = false
+        ) {
+            items(totalCells) { index ->
+                val dayOfMonth = index - firstDayOfMonth + 1
+
+                if (dayOfMonth in 1..daysInMonth) {
+                    val date = currentMonth.atDay(dayOfMonth)
+                    val count = workoutsPerDay[date] ?: 0
+                    val hasWorkout = count > 0
+                    val isSelected = date == selectedDate
+
+                    Box(
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .padding(2.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    isSelected -> MaterialTheme.colorScheme.primary
+                                    hasWorkout -> MaterialTheme.colorScheme.surfaceVariant
+                                    else -> Color.Transparent
+                                }
+                            )
+                            .clickable { onDateSelected(date) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = dayOfMonth.toString(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = when {
+                                    isSelected -> MaterialTheme.colorScheme.onPrimary
+                                    else -> MaterialTheme.colorScheme.onBackground
+                                }
+                            )
+
+                            // lille dot-row under tallet (som jeres uge-strip)
+                            if (count > 0) {
+                                Spacer(Modifier.height(4.dp))
+                                WorkoutDotsRow(count = count)
+                            }
+                        }
                     }
-
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                }
-
-                if (exerciseLines.size > cutoff) {
-                    Text(
-                        text = "+${exerciseLines.size - cutoff} more",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                } else {
+                    Spacer(Modifier.aspectRatio(1f))
                 }
             }
         }
