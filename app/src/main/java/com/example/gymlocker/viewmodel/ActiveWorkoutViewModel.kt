@@ -706,6 +706,22 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
             SimpleDateFormat("MMM d yyyy", Locale.ENGLISH).format(Date())
         }
 
+        val templateNames = workoutTemplateDao.getTemplateNamesForUser(userId)
+        if (safeBase in templateNames) {
+
+            val likePattern = "$safeBase (%"
+            val existingWorkouts = workoutDao.getNamesForAutoSuffix(
+                userId = userId,
+                baseName = safeBase,
+                likePattern = likePattern
+            )
+
+            val usedNumbers = existingWorkouts.mapNotNull { parseSuffixNumber(it) }.toSet()
+            var n = 2
+            while (usedNumbers.contains(n)) n++
+            return "$safeBase ($n)"
+        }
+
         val likePattern = "$safeBase (%"
         val existing = workoutDao.getNamesForAutoSuffix(
             userId = userId,
