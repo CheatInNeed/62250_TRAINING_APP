@@ -95,6 +95,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
@@ -112,9 +113,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.PlatformTextStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.time.YearMonth
+
+private enum class CalendarZoom {
+    WEEK,   // din “collapsed” uge-strip
+    MONTH,  // din “expanded” måned-grid
+    YEAR    // ny: 12 måneder
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -278,7 +286,7 @@ fun HomeScreen(
 
         val listState = rememberLazyListState()
 
-        var calendarExpanded by rememberSaveable { mutableStateOf(false) }
+        var calendarZoom by rememberSaveable { mutableStateOf(CalendarZoom.WEEK) }
         var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now()) }
         var currentMonth by rememberSaveable { mutableStateOf(YearMonth.now()) }
 
@@ -287,8 +295,8 @@ fun HomeScreen(
             snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
                 .map { (idx, off) -> idx > 0 || off > 0 }
                 .distinctUntilChanged()
-                .collect { isScrollingDown ->
-                    if (isScrollingDown) calendarExpanded = false
+                .collect { isScrolling ->
+                    if (isScrolling) calendarZoom = CalendarZoom.WEEK
                 }
         }
 
@@ -305,13 +313,12 @@ fun HomeScreen(
                     workoutsPerDay = workoutsPerDay,
                     selectedDate = selectedDate,
                     currentMonth = currentMonth,
-                    expanded = calendarExpanded,
-                    onExpandedChange = { calendarExpanded = it },
+                    zoom = calendarZoom,
+                    onZoomChange = { calendarZoom = it },
                     onMonthChange = { currentMonth = it },
                     onDateSelected = { date ->
                         selectedDate = date
                         currentMonth = YearMonth.from(date)
-                        // calendarExpanded = false
                     }
                 )
             }
@@ -334,8 +341,8 @@ fun HomeScreen(
                     }
                 }
             } else {
-                if (calendarExpanded) {
-                    // ✅ EXPANDED: vis KUN selected day
+                if (calendarZoom == CalendarZoom.MONTH) {
+                    // MONTH: vis KUN selected day (som før)
                     val itemsForSelectedDay = sections[selectedDate].orEmpty()
 
                     item {
@@ -903,8 +910,8 @@ private fun ExpandableHomeCalendarHeader(
     workoutsPerDay: Map<LocalDate, Int>,
     selectedDate: LocalDate,
     currentMonth: YearMonth,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
+    zoom: CalendarZoom,
+    onZoomChange: (CalendarZoom) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
     onDateSelected: (LocalDate) -> Unit
 ) {
@@ -918,13 +925,19 @@ private fun ExpandableHomeCalendarHeader(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // “Pull down” gesture: swipe ned = expand, swipe op = collapse
-            .pointerInput(expanded) {
+            .animateContentSize()
+            .pointerInput(zoom) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
-                        // dragAmount > 0 = ned
-                        if (!expanded && dragAmount > 18f) onExpandedChange(true)
-                        if (expanded && dragAmount < -18f) onExpandedChange(false)
+                        if (zoom == CalendarZoom.WEEK && dragAmount > 18f) {
+                            onZoomChange(CalendarZoom.MONTH)
+                        }
+                        if (zoom == CalendarZoom.MONTH && dragAmount < -18f) {
+                            onZoomChange(CalendarZoom.WEEK)
+                        }
+                        if (zoom == CalendarZoom.YEAR && dragAmount < -18f) {
+                            onZoomChange(CalendarZoom.MONTH)
+                        }
                     }
                 )
             }
@@ -936,11 +949,21 @@ private fun ExpandableHomeCalendarHeader(
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
-                .clickable { onExpandedChange(!expanded) },
+                .clickable {
+                when (zoom) {
+                    CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)   // uge -> måned
+                    CalendarZoom.MONTH -> onZoomChange(CalendarZoom.YEAR)   // måned -> år (drill-up)
+                    CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)   // år -> måned (drill-down)
+                }
+            },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            val title = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+            val title = when (zoom) {
+                CalendarZoom.YEAR -> "${currentMonth.year}"
+                else -> "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+            }
+
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
@@ -949,7 +972,11 @@ private fun ExpandableHomeCalendarHeader(
             )
             Spacer(Modifier.width(8.dp))
             Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                imageVector = when (zoom) {
+                    CalendarZoom.YEAR -> Icons.Default.KeyboardArrowDown   // “tilbage ned”
+                    CalendarZoom.MONTH -> Icons.Default.KeyboardArrowUp    // “du kan gå op”
+                    CalendarZoom.WEEK -> Icons.Default.KeyboardArrowDown   // “du kan gå ned”
+                },
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -959,7 +986,7 @@ private fun ExpandableHomeCalendarHeader(
 
         // Week strip (altid synlig)
         AnimatedVisibility(
-            visible = !expanded,
+            visible = (zoom == CalendarZoom.WEEK),
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
@@ -974,10 +1001,10 @@ private fun ExpandableHomeCalendarHeader(
                         dayLabel = dayLetter(date.dayOfWeek),
                         numberLabel = date.dayOfMonth.toString(),
                         workoutCount = count,
-                        selected = expanded && date == selectedDate,
+                        selected = (zoom == CalendarZoom.MONTH) && date == selectedDate,
                         onClick = {
                             onDateSelected(date)
-                            onExpandedChange(true) // vigtigt: specifik dag vises kun i expanded state
+                            onZoomChange(CalendarZoom.MONTH)
                         }
                     )
                 }
@@ -986,7 +1013,7 @@ private fun ExpandableHomeCalendarHeader(
 
         // Month grid (kun når expanded)
         AnimatedVisibility(
-            visible = expanded,
+            visible = (zoom == CalendarZoom.MONTH),
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
@@ -1004,11 +1031,11 @@ private fun ExpandableHomeCalendarHeader(
                     IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
                         Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev month")
                     }
-                    Text(
-                        text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+//                    Text(
+//                        text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+//                        style = MaterialTheme.typography.titleMedium,
+//                        fontWeight = FontWeight.SemiBold
+//                    )
                     IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next month")
                     }
@@ -1022,18 +1049,52 @@ private fun ExpandableHomeCalendarHeader(
                 )
 
                 Spacer(Modifier.height(6.dp))
-
-                // lille “Collapse” affordance (valgfri)
-                Text(
-                    text = "Collapse",
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 6.dp)
-                        .clickable { onExpandedChange(false) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
+        }
+        AnimatedVisibility(
+            visible = (zoom == CalendarZoom.YEAR),
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            HomeYearGrid(
+                year = currentMonth.year,
+                workoutsPerDay = workoutsPerDay,
+                onPrevYear = { onMonthChange(currentMonth.minusYears(1)) },
+                onNextYear = { onMonthChange(currentMonth.plusYears(1)) },
+                onMonthSelected = { ym ->
+                    onMonthChange(ym)
+                    // valgfrit: behold selectedDate hvis den ligger i samme måned,
+                    // ellers hop til 1. i måneden:
+                    onDateSelected(ym.atDay(1))
+                    onZoomChange(CalendarZoom.MONTH) // zoom ind på valgt måned
+                }
+            )
+        }
+        //Spacer(Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp) // 👈 større touch-area (Apple-standard ~44dp)
+                .clickable {
+                    when (zoom) {
+                        CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)
+                        CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK)
+                        CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector =
+                    if (zoom == CalendarZoom.WEEK)
+                        Icons.Default.KeyboardArrowDown
+                    else
+                        Icons.Default.KeyboardArrowUp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -1125,5 +1186,171 @@ private fun HomeCalendarGridCounts(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HomeYearGrid(
+    year: Int,
+    workoutsPerDay: Map<LocalDate, Int>,
+    onPrevYear: () -> Unit,
+    onNextYear: () -> Unit,
+    onMonthSelected: (YearMonth) -> Unit
+) {
+    val months = remember(year) { (1..12).map { YearMonth.of(year, it) } }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    ) {
+        Spacer(Modifier.height(10.dp))
+
+        // Year nav (chevrons)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            IconButton(onClick = onPrevYear) {
+                Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev year")
+            }
+
+            // (valgfrit) hvis du vil vise årstal her også (du har det måske i titel allerede)
+            // Text(text = year.toString(), style = MaterialTheme.typography.titleMedium)
+
+            IconButton(onClick = onNextYear) {
+                Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next year")
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // 12 måneder -> 4 rækker á 3 kolonner
+        val rows = remember(year) { months.chunked(3) }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            rows.forEach { rowMonths ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    rowMonths.forEach { ym ->
+                        MonthMini(
+                            month = ym,
+                            workoutsPerDay = workoutsPerDay,
+                            onClick = { onMonthSelected(ym) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // safety hvis der nogensinde er en række med < 3
+                    repeat(3 - rowMonths.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+@Composable
+private fun MiniMonthCalendar(
+    month: YearMonth,
+    workoutsPerDay: Map<LocalDate, Int>,
+) {
+    val firstDay = month.atDay(1)
+    val daysInMonth = month.lengthOfMonth()
+
+    // Mandag=1 ... søndag=7  (justér hvis du vil starte med søndag)
+    val startOffset = (firstDay.dayOfWeek.value - 1).coerceAtLeast(0)
+    val totalCells = startOffset + daysInMonth
+
+    // “Apple blå” (du kan også bare bruge MaterialTheme.colorScheme.primary)
+    val workoutColor = MaterialTheme.colorScheme.primary
+    val dayTextStyle = MaterialTheme.typography.labelSmall.copy(
+        lineHeight = MaterialTheme.typography.labelSmall.fontSize,
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
+    )
+
+    // 7 kolonner, små tal
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(7),
+        modifier = Modifier.height(86.dp),
+        userScrollEnabled = false,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        // tomme celler før 1. dag
+        items(startOffset) {
+            Box(modifier = Modifier.size(12.dp))
+        }
+
+        items(daysInMonth) { i ->
+            val day = i + 1
+            val date = month.atDay(day)
+            val count = workoutsPerDay[date] ?: 0
+
+            val hasWorkout = count > 0
+
+            Box(
+                modifier = Modifier.size(12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (hasWorkout) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(workoutColor, CircleShape)
+                    )
+                    Text(
+                        text = day.toString(),
+                        style = dayTextStyle,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text(
+                        text = day.toString(),
+                        style = dayTextStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        // (valgfrit) fyld resten ud så grid ikke "hopper"
+        val rest = (7 - (totalCells % 7)) % 7
+        items(rest) { Box(modifier = Modifier.size(12.dp)) }
+    }
+}
+
+@Composable
+private fun MonthMini(
+    month: YearMonth,
+    workoutsPerDay: Map<LocalDate, Int>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(2.dp)
+    ) {
+        Text(
+            text = month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(6.dp))
+
+        MiniMonthCalendar(
+            month = month,
+            workoutsPerDay = workoutsPerDay
+        )
     }
 }
