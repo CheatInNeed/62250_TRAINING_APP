@@ -61,6 +61,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -280,6 +281,8 @@ fun ActiveWorkoutScreen(
                         }
                     },
                     actions = {
+                        val finishEnabled = hasActiveProfile && activeExercises.isNotEmpty()
+
                         Button(
                             onClick = {
                                 scope.launch {
@@ -289,15 +292,19 @@ fun ActiveWorkoutScreen(
                                     showFinishSummarySheet = true
                                 }
                             },
-                            modifier = Modifier.padding(end = 8.dp),
-                            enabled = hasActiveProfile,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .alpha(if (finishEnabled) 1f else 0.45f),
+                            enabled = finishEnabled,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                disabledContainerColor = MaterialTheme.colorScheme.primary,
+                                disabledContentColor = MaterialTheme.colorScheme.onPrimary
                             )
-                        ) { Text("Finish") }
+                        ) {
+                            Text("Finish")
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
