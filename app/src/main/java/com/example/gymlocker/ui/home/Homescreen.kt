@@ -1004,11 +1004,11 @@ private fun ExpandableHomeCalendarHeader(
                     IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
                         Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev month")
                     }
-                    Text(
-                        text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+//                    Text(
+//                        text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+//                        style = MaterialTheme.typography.titleMedium,
+//                        fontWeight = FontWeight.SemiBold
+//                    )
                     IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next month")
                     }
@@ -1022,17 +1022,6 @@ private fun ExpandableHomeCalendarHeader(
                 )
 
                 Spacer(Modifier.height(6.dp))
-
-                // lille “Collapse” affordance (valgfri)
-                Text(
-                    text = "Collapse",
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 6.dp)
-                        .clickable { onExpandedChange(false) },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
