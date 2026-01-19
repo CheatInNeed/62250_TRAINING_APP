@@ -113,6 +113,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.PlatformTextStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.time.YearMonth
@@ -1069,6 +1070,32 @@ private fun ExpandableHomeCalendarHeader(
                 }
             )
         }
+        //Spacer(Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp) // 👈 større touch-area (Apple-standard ~44dp)
+                .clickable {
+                    when (zoom) {
+                        CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)
+                        CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK)
+                        CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector =
+                    if (zoom == CalendarZoom.WEEK)
+                        Icons.Default.KeyboardArrowDown
+                    else
+                        Icons.Default.KeyboardArrowUp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
     }
 }
 
@@ -1246,6 +1273,10 @@ private fun MiniMonthCalendar(
 
     // “Apple blå” (du kan også bare bruge MaterialTheme.colorScheme.primary)
     val workoutColor = MaterialTheme.colorScheme.primary
+    val dayTextStyle = MaterialTheme.typography.labelSmall.copy(
+        lineHeight = MaterialTheme.typography.labelSmall.fontSize,
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
+    )
 
     // 7 kolonner, små tal
     LazyVerticalGrid(
@@ -1272,21 +1303,20 @@ private fun MiniMonthCalendar(
                 contentAlignment = Alignment.Center
             ) {
                 if (hasWorkout) {
-                    // Blå prik/cirkel bag tallet
                     Box(
                         modifier = Modifier
-                            .size(12.dp)
+                            .matchParentSize()
                             .background(workoutColor, CircleShape)
                     )
                     Text(
                         text = day.toString(),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = dayTextStyle,
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
                     Text(
                         text = day.toString(),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = dayTextStyle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
