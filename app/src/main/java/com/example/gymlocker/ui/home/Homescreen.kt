@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.home
 
+import android.R.style.Theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,7 +83,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.time.format.TextStyle
-
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import java.time.temporal.TemporalAdjusters
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,6 +234,21 @@ fun HomeScreen(
                 .toSortedMap(compareByDescending { it })
         }
 
+        val today = LocalDate.now()
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val weekEnd = weekStart.plusDays(6)
+
+        val workoutDatesThisWeek = remember(sections, weekStart, weekEnd) {
+            sections.keys
+                .filterNotNull()
+                .filter { !it.isBefore(weekStart) && !it.isAfter(weekEnd) }
+                .toSet()
+        }
+
+        val workoutDates = remember(sections) {
+            sections.keys.filterNotNull().toSet()
+        }
+
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
@@ -231,22 +258,8 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
+                WeeklyWorkoutsCircles(workoutDates = workoutDates)
             }
-
-            // --- Workout History ---
-//            item {
-//                Text(
-//                    text = "Workout Feed",
-//                    style = MaterialTheme.typography.titleLarge,
-//                    color = MaterialTheme.colorScheme.onBackground,
-//                    textAlign = TextAlign.Start,
-//                    modifier = Modifier
-//                        .fillMaxWidth()              // <-- gør at den ikke “centres” af LazyColumn alignment
-//                        .padding(top = 4.dp, bottom = 2.dp)
-//                )
-//            }
-
             if (sections.isEmpty()) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
@@ -267,15 +280,30 @@ fun HomeScreen(
             } else {
                 sections.forEach { (date, itemsForDate) ->
                     item {
-                        Text(
-                            text = homeSectionTitleForDate(date),   // <-- samme som før (Today/Yesterday/weekday)
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Start,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 6.dp, bottom = 2.dp)
-                        )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                    )
+                                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                            ) {
+
+                                // Lille primary dot – samme som på cards
+                                Text(
+                                    text = homeSectionTitleForDate(date),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
                     }
 
                     items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
@@ -287,32 +315,6 @@ fun HomeScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
-    val workoutText = if (workoutsThisWeek == 1) "workout" else "workouts"
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "This week",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "$workoutsThisWeek $workoutText this week",
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
-            )
         }
     }
 }
@@ -641,81 +643,205 @@ private fun HomeWorkoutHistoryCard(
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = workout.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
+            // --- Accent strip (brand feel uden at "male" hele kortet) ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.0f))
+            )
 
-                if (timeText.isNotBlank()) {
-                    Text(
-                        text = timeText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(modifier = Modifier.padding(16.dp)) {
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // lille badge-dot (primary) -> “alive” feel
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.90f))
                     )
-                }
-
-                Spacer(Modifier.width(6.dp))
-
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            if (exerciseLines.isEmpty()) {
-                Text(
-                    text = "${workout.exerciseCount} exercises",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                val cutoff = 5
-                exerciseLines.take(cutoff).forEach { line ->
-                    val parsed = HomeParseSetSummaryLine(line)
-                    val count = parsed?.first
-                    val exName = parsed?.second
-
-                    val text = if (count != null && exName != null) {
-                        val unit = if (count == 1) "set" else "sets"
-                        "$count $unit of $exName"
-                    } else {
-                        line
-                    }
+                    Spacer(Modifier.width(10.dp))
 
                     Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = workout.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
+
+                    if (timeText.isNotBlank()) {
+                        Text(
+                            text = timeText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                if (exerciseLines.size > cutoff) {
+                Spacer(Modifier.height(10.dp))
+
+                // resten af dit content uændret
+                if (exerciseLines.isEmpty()) {
                     Text(
-                        text = "+${exerciseLines.size - cutoff} more",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "${workout.exerciseCount} exercises",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                } else {
+                    val cutoff = 5
+                    exerciseLines.take(cutoff).forEach { line ->
+                        val parsed = HomeParseSetSummaryLine(line)
+                        val count = parsed?.first
+                        val exName = parsed?.second
+
+                        val text = if (count != null && exName != null) {
+                            val unit = if (count == 1) "set" else "sets"
+                            "$count $unit of $exName"
+                        } else line
+
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+
+                    if (exerciseLines.size > cutoff) {
+                        Text(
+                            text = "+${exerciseLines.size - cutoff} more",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun WeeklyWorkoutsCircles(
+    workoutDates: Set<LocalDate>,
+    today: LocalDate = LocalDate.now()
+) {
+    // Rolling 7 dage: [today-6, ..., today]
+    val days = remember(today) { (6L downTo 0L).map { today.minusDays(it) } }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        days.forEach { date ->
+            val trained = workoutDates.contains(date)
+
+            WeekDayCircleColumn(
+                dayLabel = dayLetter(date.dayOfWeek),
+                numberLabel = date.dayOfMonth.toString(),
+                trained = trained
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun WeekDayCircleColumn(
+    dayLabel: String,
+    numberLabel: String,
+    trained: Boolean
+) {
+    val outline = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val fill = MaterialTheme.colorScheme.primary
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = dayLabel,
+            style = MaterialTheme.typography.labelSmall,
+            //fontWeight = FontWeight.Light,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(6.dp))
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp) // lidt større end før
+                .clip(CircleShape)
+                .background(if (trained) fill.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface)
+                .border(1.dp, outline, CircleShape) // matcher cards: 1dp + primary alpha 0.28
+        ) {
+            Text(
+                text = numberLabel,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+    }
+}
+
+private fun dayLetter(day: DayOfWeek): String = when (day) {
+    DayOfWeek.MONDAY -> "M"
+    DayOfWeek.TUESDAY -> "T"
+    DayOfWeek.WEDNESDAY -> "W"
+    DayOfWeek.THURSDAY -> "T"
+    DayOfWeek.FRIDAY -> "F"
+    DayOfWeek.SATURDAY -> "S"
+    DayOfWeek.SUNDAY -> "S"
+}
+
+@Composable
+private fun WeekDayCircle(
+    trained: Boolean,
+    isToday: Boolean
+) {
+    val fill = MaterialTheme.colorScheme.primary
+    val emptyFill = MaterialTheme.colorScheme.surface
+
+    val outline = when {
+        trained -> fill
+        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+    }
+
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(if (trained) fill else emptyFill)
+            .border(1.dp, outline, CircleShape)
+    )
 }
