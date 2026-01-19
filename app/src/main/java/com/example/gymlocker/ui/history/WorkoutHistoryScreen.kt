@@ -52,6 +52,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.foundation.BorderStroke
 
 
 enum class HistoryViewMode { LIST, CALENDAR }
@@ -183,12 +184,24 @@ fun WorkoutList(
     ) {
         sections.forEach { (date, itemsForDate) ->
             item {
-                Text(
-                    text = sectionTitleForDate(date),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = sectionTitleForDate(date),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
             }
 
             items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
@@ -226,85 +239,111 @@ private fun WorkoutHistoryCard(
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
 
-            // Header: name (left) + time (right)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Workout name
-                Text(
-                    text = workout.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
+            // --- Accent strip (tertiary) ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f))
+            )
 
-                // Time
-                if (timeText.isNotBlank()) {
-                    Text(
-                        text = timeText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(modifier = Modifier.padding(16.dp)) {
+
+                // Header: name (left) + time (right)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    // --- lille "alive" dot (primary) ---
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.90f))
                     )
-                }
 
-                Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(10.dp))
 
-                // Chevron
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            if (exerciseLines.isEmpty()) {
-                Text(
-                    text = "${workout.exerciseCount} exercises",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                val cutoff = 5
-                exerciseLines.take(cutoff).forEach { line ->
-                    // line expected like "5x Bench Press"
-                    val parsed = parseSetSummaryLine(line) // (count, name)
-                    val count = parsed?.first
-                    val exName = parsed?.second
-
-                    val text = if (count != null && exName != null) {
-                        val unit = if (count == 1) "set" else "sets"
-                        "$count $unit of $exName"
-                    } else {
-                        // fallback hvis format ikke matcher
-                        line
-                    }
-
+                    // Workout name
                     Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = workout.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
+
+                    // Time
+                    if (timeText.isNotBlank()) {
+                        Text(
+                            text = timeText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
+                    // Chevron
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                if (exerciseLines.size > cutoff) {
+                Spacer(Modifier.height(10.dp))
+
+                if (exerciseLines.isEmpty()) {
                     Text(
-                        text = "+${exerciseLines.size - cutoff} more",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "${workout.exerciseCount} exercises",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                } else {
+                    val cutoff = 5
+                    exerciseLines.take(cutoff).forEach { line ->
+                        // line expected like "5x Bench Press"
+                        val parsed = parseSetSummaryLine(line) // (count, name)
+                        val count = parsed?.first
+                        val exName = parsed?.second
+
+                        val text = if (count != null && exName != null) {
+                            val unit = if (count == 1) "set" else "sets"
+                            "$count $unit of $exName"
+                        } else {
+                            // fallback hvis format ikke matcher
+                            line
+                        }
+
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+
+                    if (exerciseLines.size > cutoff) {
+                        Text(
+                            text = "+${exerciseLines.size - cutoff} more",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
