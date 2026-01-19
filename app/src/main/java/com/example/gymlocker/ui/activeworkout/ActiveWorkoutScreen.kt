@@ -940,13 +940,13 @@ fun ActiveWorkoutExerciseItem(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("SET", modifier = Modifier.weight(0.5f), color = MaterialTheme.colorScheme.onBackground)
-            Text("PREVIOUS", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground)
-            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.7f), color = MaterialTheme.colorScheme.onBackground)
-            Text("REPS", modifier = Modifier.weight(0.7f), color = MaterialTheme.colorScheme.onBackground)
-            Text("✓", modifier = Modifier.weight(0.4f), color = MaterialTheme.colorScheme.onBackground)
+            Text("SET", modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text("PREVIOUS", modifier = Modifier.weight(1f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text(weightUnitLabel(unit).uppercase(), modifier = Modifier.weight(0.9f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text("REPS", modifier = Modifier.weight(0.9f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
+            Text("✓", modifier = Modifier.weight(0.4f), textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onBackground, style = MaterialTheme.typography.labelSmall)
         }
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -1111,13 +1111,15 @@ fun ExerciseSetRow(
             text = set.setNumber.toString(),
             modifier = Modifier.weight(0.5f),
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyMedium
         )
         Text(
             text = set.previous ?: "-",
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.bodyMedium
         )
 
         Box(
