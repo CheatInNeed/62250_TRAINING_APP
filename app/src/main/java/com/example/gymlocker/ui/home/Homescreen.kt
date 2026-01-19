@@ -249,6 +249,13 @@ fun HomeScreen(
             sections.keys.filterNotNull().toSet()
         }
 
+        val workoutsPerDay = remember(sections) {
+            sections
+                .filterKeys { it != null }
+                .mapKeys { it.key!! }
+                .mapValues { (_, list) -> list.size }
+        }
+
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
@@ -258,7 +265,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                WeeklyWorkoutsCircles(workoutDates = workoutDates)
+                WeeklyWorkoutsCircles(workoutsPerDay = workoutsPerDay)
             }
             if (sections.isEmpty()) {
                 item {
@@ -747,7 +754,7 @@ private fun HomeWorkoutHistoryCard(
 
 @Composable
 fun WeeklyWorkoutsCircles(
-    workoutDates: Set<LocalDate>,
+    workoutsPerDay: Map<LocalDate, Int>,
     today: LocalDate = LocalDate.now()
 ) {
     // Rolling 7 dage: [today-6, ..., today]
@@ -761,12 +768,12 @@ fun WeeklyWorkoutsCircles(
         verticalAlignment = Alignment.Top
     ) {
         days.forEach { date ->
-            val trained = workoutDates.contains(date)
+            val count = workoutsPerDay[date] ?: 0
 
             WeekDayCircleColumn(
                 dayLabel = dayLetter(date.dayOfWeek),
                 numberLabel = date.dayOfMonth.toString(),
-                trained = trained
+                workoutCount = count
             )
         }
     }
@@ -777,39 +784,43 @@ fun WeeklyWorkoutsCircles(
 private fun WeekDayCircleColumn(
     dayLabel: String,
     numberLabel: String,
-    trained: Boolean
+    workoutCount: Int
 ) {
     val outline = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-    val fill = MaterialTheme.colorScheme.primary
+    val fillTint = MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+        // Day letter (over)
         Text(
             text = dayLabel,
             style = MaterialTheme.typography.labelSmall,
-            //fontWeight = FontWeight.Light,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(Modifier.height(6.dp))
 
+        // Circle
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(40.dp) // lidt større end før
+                .size(40.dp)
                 .clip(CircleShape)
-                .background(if (trained) fill.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface)
-                .border(1.dp, outline, CircleShape) // matcher cards: 1dp + primary alpha 0.28
+                .background(if (workoutCount > 0) fillTint else MaterialTheme.colorScheme.surface)
+                .border(1.dp, outline, CircleShape)
         ) {
             Text(
                 text = numberLabel,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.ExtraBold
+                fontWeight = FontWeight.SemiBold
             )
         }
+
+        // Dots under (samme blå som theme primary)
+        Spacer(Modifier.height(6.dp))
+        WorkoutDotsRow(count = workoutCount)
     }
 }
 
@@ -844,4 +855,34 @@ private fun WeekDayCircle(
             .background(if (trained) fill else emptyFill)
             .border(1.dp, outline, CircleShape)
     )
+}
+
+@Composable
+private fun WorkoutDotsRow(count: Int) {
+    // cap så UI ikke eksploderer, hvis en dag har fx 10 workouts
+    val shown = minOf(count, 4)
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(shown) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+        }
+
+        // hvis der er flere end 4: lille "+N"
+        if (count > 4) {
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = "+${count - 4}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
