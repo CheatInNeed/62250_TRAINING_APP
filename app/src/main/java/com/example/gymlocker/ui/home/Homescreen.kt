@@ -312,28 +312,32 @@ fun HomeScreen(
                     onDateSelected = { date ->
                         selectedDate = date
                         currentMonth = YearMonth.from(date)
-                        calendarExpanded = false // fold sammen efter valg
+                        // calendarExpanded = false
                     }
                 )
             }
+
             if (sections.isEmpty()) {
-                item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No completed workouts yet.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No completed workouts yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-            } else {val itemsForSelectedDay = sections[selectedDate].orEmpty()
+            }
+        } else {
+            if (calendarExpanded) {
+                // ✅ EXPANDED: vis KUN selected day
+                val itemsForSelectedDay = sections[selectedDate].orEmpty()
 
                 item {
                     Box(
@@ -383,8 +387,45 @@ fun HomeScreen(
                             onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
                         )
                     }
-                }}
-        }
+                }
+
+            } else {
+                // ✅ COLLAPSED: vis ALLE workouts (alle sektioner)
+                sections.forEach { (date, itemsForDate) ->
+
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp, bottom = 2.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = homeSectionTitleForDate(date ?: LocalDate.now()),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+                    }
+
+                    items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
+                        HomeWorkoutHistoryCard(
+                            workout = ws,
+                            dateTime = dt,
+                            onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
+                        )
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(72.dp)) }
+        }}
     }
 }
 
@@ -977,7 +1018,8 @@ private fun ExpandableHomeCalendarHeader(
     val weekStart = remember(selectedDate) {
         selectedDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
     }
-    val weekDays = remember(weekStart) { (0L..6L).map { weekStart.plusDays(it) } }
+    val today = remember { LocalDate.now() }
+    val weekDays = remember(today) { (6L downTo 0L).map { today.minusDays(it) } } // [today-6 .. today]
 
     Column(
         modifier = Modifier
@@ -1022,6 +1064,11 @@ private fun ExpandableHomeCalendarHeader(
         Spacer(Modifier.height(10.dp))
 
         // Week strip (altid synlig)
+    AnimatedVisibility(
+        visible = !expanded,
+        enter = expandVertically(),
+        exit = shrinkVertically()
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1033,11 +1080,15 @@ private fun ExpandableHomeCalendarHeader(
                     dayLabel = dayLetter(date.dayOfWeek),
                     numberLabel = date.dayOfMonth.toString(),
                     workoutCount = count,
-                    selected = date == selectedDate,
-                    onClick = { onDateSelected(date) }
+                    selected = expanded && date == selectedDate,
+                    onClick = {
+                        onDateSelected(date)
+                        onExpandedChange(true) // vigtigt: specifik dag vises kun i expanded state
+                    }
                 )
             }
         }
+    }
 
         // Month grid (kun når expanded)
         AnimatedVisibility(
