@@ -42,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -420,21 +421,27 @@ fun TemplateExerciseItem(
 
             androidx.compose.foundation.layout.Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     "SET",
                     modifier = Modifier.weight(0.5f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     "KG",
-                    modifier = Modifier.weight(0.7f),
+                    modifier = Modifier.weight(0.9f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     "REPS",
-                    modifier = Modifier.weight(0.7f),
+                    modifier = Modifier.weight(0.9f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -487,7 +494,8 @@ fun TemplateSetRow(
             text = set.setNumber.toString(),
             modifier = Modifier.weight(0.5f),
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.bodyMedium
         )
 
         Box(
@@ -501,6 +509,7 @@ fun TemplateSetRow(
                 onValueChange = onWeightChange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -533,6 +542,7 @@ fun TemplateSetRow(
                 onValueChange = onRepsChange,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
+                textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,

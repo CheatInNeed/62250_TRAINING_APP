@@ -278,6 +278,36 @@ private fun WorkoutSessionCard(session: WorkoutSessionData) {
             HorizontalDivider()
             Spacer(Modifier.height(8.dp))
 
+            // Header row for sets
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "SET",
+                    modifier = Modifier.weight(0.8f),
+                    textAlign = TextAlign.Start,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    text = "KG",
+                    modifier = Modifier.weight(1.2f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+                Text(
+                    text = "REPS",
+                    modifier = Modifier.weight(1.0f),
+                    textAlign = TextAlign.End,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+
             // Display sets
             session.sets.forEachIndexed { index, set ->
                 if (set.isCompleted) {
@@ -285,14 +315,25 @@ private fun WorkoutSessionCard(session: WorkoutSessionData) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "Set ${index + 1}",
+                            modifier = Modifier.weight(0.8f),
+                            textAlign = TextAlign.Start,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = "${set.weight.toInt()} kg × ${set.reps} reps",
+                            text = set.weight.toInt().toString(),
+                            modifier = Modifier.weight(1.2f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = set.reps.toString(),
+                            modifier = Modifier.weight(1.0f),
+                            textAlign = TextAlign.End,
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
