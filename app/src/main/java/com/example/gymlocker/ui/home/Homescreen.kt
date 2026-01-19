@@ -1,6 +1,5 @@
 package com.example.gymlocker.ui.home
 
-import android.R.style.Theme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,13 +15,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -48,33 +53,32 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.AppTheme
+import com.example.gymlocker.data.repo.SettingsRepository
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.WeeklyBarChart
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
+import com.example.gymlocker.viewmodel.StatsRange
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material3.IconButton
 import com.example.gymlocker.ui.history.HistoryViewMode
+import com.example.gymlocker.ui.history.WorkoutCalendar
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.FontWeight
 import java.time.format.TextStyle
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import java.time.temporal.TemporalAdjusters
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,6 +116,7 @@ fun HomeScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(shape = RoundedCornerShape(0.dp)),
                 title = { Text("Workout Feed") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -181,15 +186,25 @@ fun HomeScreen(
             )
             .collectAsState(initial = 0)
 
+        val weeklyVolume by statViewModel
+            .weeklyVolumeLast3Months(userId)
+            .collectAsState(initial = emptyList())
 
+        val weeklyHours by statViewModel
+            .weeklyHoursLast3Months(userId)
+            .collectAsState(initial = emptyList())
 
+        val statsRange by statViewModel.statsRange.collectAsState()
+
+        val distribution by statViewModel
+            .muscleGroupDistribution(userId)
+            .collectAsState(initial = emptyList())
 
         var historyViewMode by remember {
             mutableStateOf(HistoryViewMode.LIST)
         }
 
         val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
-
 
         val timeFormatter = remember {
             DateTimeFormatter.ofPattern("HH:mm")
@@ -203,21 +218,6 @@ fun HomeScreen(
                 .toSortedMap(compareByDescending { it })
         }
 
-        val today = LocalDate.now()
-        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val weekEnd = weekStart.plusDays(6)
-
-        val workoutDatesThisWeek = remember(sections, weekStart, weekEnd) {
-            sections.keys
-                .filterNotNull()
-                .filter { !it.isBefore(weekStart) && !it.isAfter(weekEnd) }
-                .toSet()
-        }
-
-        val workoutDates = remember(sections) {
-            sections.keys.filterNotNull().toSet()
-        }
-
         LazyColumn(
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
@@ -227,11 +227,16 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                WeeklyWorkoutsCircles(workoutDates = workoutDates)
+                WeeklyWorkoutsCard(workoutsThisWeek = workoutsThisWeek)
             }
+
             if (sections.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .metalGloss(shape = RoundedCornerShape(16.dp))
+                    ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -249,30 +254,15 @@ fun HomeScreen(
             } else {
                 sections.forEach { (date, itemsForDate) ->
                     item {
-                        Box(
+                        Text(
+                            text = homeSectionTitleForDate(date),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            textAlign = TextAlign.Start,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 6.dp, bottom = 2.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                    )
-                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                            ) {
-
-                                // Lille primary dot – samme som på cards
-                                Text(
-                                    text = homeSectionTitleForDate(date),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                        }
+                        )
                     }
 
                     items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
@@ -284,6 +274,34 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun WeeklyWorkoutsCard(workoutsThisWeek: Int) {
+    val workoutText = if (workoutsThisWeek == 1) "workout" else "workouts"
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "This week",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "$workoutsThisWeek $workoutText this week",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+            )
         }
     }
 }
@@ -337,7 +355,110 @@ private fun SegmentedToggle(
 
 enum class WeeklyGraphMode { HOURS, VOLUME }
 
+@Composable
+fun StatsCard(
+    weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
+    weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
+    distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
+    statsRange: StatsRange,
+    onRangeChange: (StatsRange) -> Unit
+) {
+    var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
 
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Stats",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SegmentedToggle(
+                    leftText = "Week",
+                    rightText = "Month",
+                    isLeftSelected = statsRange == StatsRange.WEEK,
+                    onLeftClick = { onRangeChange(StatsRange.WEEK) },
+                    onRightClick = { onRangeChange(StatsRange.MONTH) },
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+
+                SegmentedToggle(
+                    leftText = "Hours",
+                    rightText = "Volume",
+                    isLeftSelected = mode == WeeklyGraphMode.HOURS,
+                    onLeftClick = { mode = WeeklyGraphMode.HOURS },
+                    onRightClick = { mode = WeeklyGraphMode.VOLUME },
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = if (mode == WeeklyGraphMode.HOURS)
+                    "Hours trained per week (last 3 months)"
+                else
+                    "Volume per week (last 3 months)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (mode == WeeklyGraphMode.HOURS) {
+                WeeklyBarChart(
+                    data = weeklyHours,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.hours },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            } else {
+                WeeklyBarChart(
+                    data = weeklyVolume,
+                    weekStartOf = { it.weekStart },
+                    valueOf = { it.volume },
+                    modifier = Modifier.fillMaxWidth(),
+                    legendPrefix = "Week:"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Text(
+                text = if (statsRange == StatsRange.WEEK)
+                    "Training balance (this week)"
+                else
+                    "Training balance (this month)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            MuscleGroupDistributionChart(
+                rows = distribution,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
 
 /**
  * Pretty date:
@@ -360,7 +481,9 @@ fun CompletedWorkoutsCard(
     onViewHistoryClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -416,45 +539,47 @@ private fun ThemeSwitcherCard(
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-            Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "Force dark mode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Overrides system theme",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Switch(
-                    checked = forceDarkMode,
-                    onCheckedChange = onForceDarkChanged,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        checkedTrackColor = MaterialTheme.colorScheme.secondary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "Force dark mode",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Overrides system theme",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            Switch(
+                checked = forceDarkMode,
+                onCheckedChange = onForceDarkChanged,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                    checkedTrackColor = MaterialTheme.colorScheme.secondary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            )
         }
     }
+}
 
 private fun HomeParseSetSummaryLine(line: String): Pair<Int, String>? {
     val regex = Regex("""^\s*(\d+)\s*x\s*(.+?)\s*$""")
@@ -509,207 +634,86 @@ private fun HomeWorkoutHistoryCard(
     }
 
     Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(shape = RoundedCornerShape(18.dp)),
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-        Column {
+        Column(modifier = Modifier.padding(16.dp)) {
 
-            // --- Accent strip (brand feel uden at "male" hele kortet) ---
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.0f))
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = workout.name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
 
-            Column(modifier = Modifier.padding(16.dp)) {
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // lille badge-dot (primary) -> “alive” feel
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.90f))
-                    )
-                    Spacer(Modifier.width(10.dp))
-
+                if (timeText.isNotBlank()) {
                     Text(
-                        text = workout.name,
-                        modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1
-                    )
-
-                    if (timeText.isNotBlank()) {
-                        Text(
-                            text = timeText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Spacer(Modifier.width(6.dp))
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = timeText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.width(6.dp))
 
-                // resten af dit content uændret
-                if (exerciseLines.isEmpty()) {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            if (exerciseLines.isEmpty()) {
+                Text(
+                    text = "${workout.exerciseCount} exercises",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                val cutoff = 5
+                exerciseLines.take(cutoff).forEach { line ->
+                    val parsed = HomeParseSetSummaryLine(line)
+                    val count = parsed?.first
+                    val exName = parsed?.second
+
+                    val text = if (count != null && exName != null) {
+                        val unit = if (count == 1) "set" else "sets"
+                        "$count $unit of $exName"
+                    } else {
+                        line
+                    }
+
                     Text(
-                        text = "${workout.exerciseCount} exercises",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+
+                if (exerciseLines.size > cutoff) {
+                    Text(
+                        text = "+${exerciseLines.size - cutoff} more",
+                        style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                } else {
-                    val cutoff = 5
-                    exerciseLines.take(cutoff).forEach { line ->
-                        val parsed = HomeParseSetSummaryLine(line)
-                        val count = parsed?.first
-                        val exName = parsed?.second
-
-                        val text = if (count != null && exName != null) {
-                            val unit = if (count == 1) "set" else "sets"
-                            "$count $unit of $exName"
-                        } else line
-
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-
-                    if (exerciseLines.size > cutoff) {
-                        Text(
-                            text = "+${exerciseLines.size - cutoff} more",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
         }
     }
-}
-
-@Composable
-fun WeeklyWorkoutsCircles(
-    workoutDates: Set<LocalDate>,
-    today: LocalDate = LocalDate.now()
-) {
-    // Rolling 7 dage: [today-6, ..., today]
-    val days = remember(today) { (6L downTo 0L).map { today.minusDays(it) } }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
-    ) {
-        days.forEach { date ->
-            val trained = workoutDates.contains(date)
-
-            WeekDayCircleColumn(
-                dayLabel = dayLetter(date.dayOfWeek),
-                numberLabel = date.dayOfMonth.toString(),
-                trained = trained
-            )
-        }
-    }
-}
-
-
-@Composable
-private fun WeekDayCircleColumn(
-    dayLabel: String,
-    numberLabel: String,
-    trained: Boolean
-) {
-    val outline = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-    val fill = MaterialTheme.colorScheme.primary
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = dayLabel,
-            style = MaterialTheme.typography.labelSmall,
-            //fontWeight = FontWeight.Light,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(6.dp))
-
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(40.dp) // lidt større end før
-                .clip(CircleShape)
-                .background(if (trained) fill.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface)
-                .border(1.dp, outline, CircleShape) // matcher cards: 1dp + primary alpha 0.28
-        ) {
-            Text(
-                text = numberLabel,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
-    }
-}
-
-private fun dayLetter(day: DayOfWeek): String = when (day) {
-    DayOfWeek.MONDAY -> "M"
-    DayOfWeek.TUESDAY -> "T"
-    DayOfWeek.WEDNESDAY -> "W"
-    DayOfWeek.THURSDAY -> "T"
-    DayOfWeek.FRIDAY -> "F"
-    DayOfWeek.SATURDAY -> "S"
-    DayOfWeek.SUNDAY -> "S"
-}
-
-@Composable
-private fun WeekDayCircle(
-    trained: Boolean,
-    isToday: Boolean
-) {
-    val fill = MaterialTheme.colorScheme.primary
-    val emptyFill = MaterialTheme.colorScheme.surface
-
-    val outline = when {
-        trained -> fill
-        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-    }
-
-    Box(
-        modifier = Modifier
-            .size(18.dp)
-            .clip(CircleShape)
-            .background(if (trained) fill else emptyFill)
-            .border(1.dp, outline, CircleShape)
-    )
 }
