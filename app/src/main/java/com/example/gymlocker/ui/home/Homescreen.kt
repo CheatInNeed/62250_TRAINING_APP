@@ -948,39 +948,60 @@ private fun ExpandableHomeCalendarHeader(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-                .clickable {
-                when (zoom) {
-                    CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)   // uge -> måned
-                    CalendarZoom.MONTH -> onZoomChange(CalendarZoom.YEAR)   // måned -> år (drill-up)
-                    CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)   // år -> måned (drill-down)
-                }
-            },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .padding(horizontal = 14.dp, vertical = 0.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             val title = when (zoom) {
                 CalendarZoom.YEAR -> "${currentMonth.year}"
                 else -> "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
             }
 
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                imageVector = when (zoom) {
-                    CalendarZoom.YEAR -> Icons.Default.KeyboardArrowDown   // “tilbage ned”
-                    CalendarZoom.MONTH -> Icons.Default.KeyboardArrowUp    // “du kan gå op”
-                    CalendarZoom.WEEK -> Icons.Default.KeyboardArrowDown   // “du kan gå ned”
+            val iconButtonSize = 48.dp
+            Spacer(modifier = Modifier.width(iconButtonSize))
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .clickable {
+                        when (zoom) {
+                            CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)
+                            CalendarZoom.MONTH -> onZoomChange(CalendarZoom.YEAR)
+                            CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)
+                        }
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    when (zoom) {
+                        CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)   // valgfrit
+                        CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK)   // collapse
+                        CalendarZoom.YEAR -> onZoomChange(CalendarZoom.WEEK)    // fuld collapse
+                    }
                 },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                modifier = Modifier.size(iconButtonSize)
+            ) {
+                Icon(
+                    imageVector = if (zoom == CalendarZoom.WEEK)
+                        Icons.Default.KeyboardArrowDown
+                    else
+                        Icons.Default.KeyboardArrowUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
+
 
         Spacer(Modifier.height(10.dp))
 
@@ -1051,6 +1072,7 @@ private fun ExpandableHomeCalendarHeader(
                 Spacer(Modifier.height(6.dp))
             }
         }
+
         AnimatedVisibility(
             visible = (zoom == CalendarZoom.YEAR),
             enter = expandVertically(),
@@ -1068,32 +1090,6 @@ private fun ExpandableHomeCalendarHeader(
                     onDateSelected(ym.atDay(1))
                     onZoomChange(CalendarZoom.MONTH) // zoom ind på valgt måned
                 }
-            )
-        }
-        //Spacer(Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(36.dp) // 👈 større touch-area (Apple-standard ~44dp)
-                .clickable {
-                    when (zoom) {
-                        CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)
-                        CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK)
-                        CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector =
-                    if (zoom == CalendarZoom.WEEK)
-                        Icons.Default.KeyboardArrowDown
-                    else
-                        Icons.Default.KeyboardArrowUp,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.size(22.dp)
             )
         }
     }
