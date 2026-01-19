@@ -813,6 +813,10 @@ fun StatsCard(
 ) {
     var mode by remember { mutableStateOf(GraphMode.HOURS) }
 
+    // --- NEW: limit months to last 6 for the compact card ---
+    val last6MonthlyHours = monthlyHours.takeLast(6)
+    val last6MonthlyVolume = monthlyVolume.takeLast(6)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -873,9 +877,9 @@ fun StatsCard(
                             "Volume per week (last 3 months)"
                     StatsRange.MONTH ->
                         if (mode == GraphMode.HOURS)
-                            "Hours trained per month (last 12 months)"
+                            "Hours trained per month (last 6 months)"
                         else
-                            "Volume per month (last 12 months)"
+                            "Volume per month (last 6 months)"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary
@@ -884,7 +888,6 @@ fun StatsCard(
             Spacer(Modifier.height(10.dp))
 
             // --------- CHART AREA (PeriodBarChart) ---------
-
             when (statsRange) {
                 StatsRange.WEEK -> {
                     val weekLabels = weeklyHours.map {
@@ -910,23 +913,30 @@ fun StatsCard(
                 }
 
                 StatsRange.MONTH -> {
-                    // Assumes Month*Ui has a 'yearMonth' field.
-                    // If yours is called something else (e.g. 'monthStart'),
-                    // just swap it here.
-                    val monthLabels = monthlyHours.map {
-                        it.yearMonth.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-                    }
-
                     if (mode == GraphMode.HOURS) {
+                        val monthLabels = last6MonthlyHours.map {
+                            it.yearMonth.month.getDisplayName(
+                                TextStyle.SHORT,
+                                Locale.getDefault()
+                            )
+                        }
+
                         PeriodBarChart(
-                            values = monthlyHours.map { it.hours },
+                            values = last6MonthlyHours.map { it.hours },
                             labels = monthLabels,
                             xCaption = "Month",
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
+                        val monthLabels = last6MonthlyVolume.map {
+                            it.yearMonth.month.getDisplayName(
+                                TextStyle.SHORT,
+                                Locale.getDefault()
+                            )
+                        }
+
                         PeriodBarChart(
-                            values = monthlyVolume.map { it.volume },
+                            values = last6MonthlyVolume.map { it.volume },
                             labels = monthLabels,
                             xCaption = "Month",
                             yTickStep = 500f, // 500 kg per tick
@@ -934,6 +944,7 @@ fun StatsCard(
                         )
                     }
                 }
+
             }
 
             Spacer(Modifier.height(16.dp))
@@ -956,4 +967,5 @@ fun StatsCard(
         }
     }
 }
+
 

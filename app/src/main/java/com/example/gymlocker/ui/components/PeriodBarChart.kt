@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,10 +45,20 @@ fun PeriodBarChart(
     val maxValue = kotlin.math.max(1f, maxValueRaw)
 
     // --- Y-axis tick configuration ---
-    val maxTicks = 4 // "up to" this many steps above zero
-    val step = yTickStep ?: (maxValue / maxTicks).coerceAtLeast(1f)
-    val top = (kotlin.math.ceil(maxValue / step) * step).coerceAtLeast(step)
-    val stepsCount = (top / step).roundToInt().coerceAtLeast(1)
+    val maxTicks = 4 // at most 4 steps above zero
+
+    // 1) Start from either caller-provided step or an auto one
+    var step = yTickStep ?: (maxValue / maxTicks).coerceAtLeast(1f)
+    var top = (kotlin.math.ceil(maxValue / step) * step).coerceAtLeast(step)
+
+    // How many steps would that give?
+    var stepsCount = (top / step).roundToInt().coerceAtLeast(1)
+
+    // 2) If that would give MORE than maxTicks, increase the step
+    if (stepsCount > maxTicks) {
+        stepsCount = maxTicks
+        step = top / stepsCount
+    }
 
     Column(modifier = modifier) {
         Canvas(
@@ -55,7 +66,8 @@ fun PeriodBarChart(
                 .fillMaxWidth()
                 .height(160.dp)
         ) {
-            val leftPad = 44.dp.toPx()
+            val leftPadDp = 44.dp
+            val leftPad = leftPadDp.toPx()
             val bottomPad = 18.dp.toPx()
 
             val chartW = size.width - leftPad
@@ -72,9 +84,7 @@ fun PeriodBarChart(
                 color = android.graphics.Color.GRAY
             }
 
-            val actualSteps = stepsCount.coerceAtMost(maxTicks)
-
-            for (i in 0..actualSteps) {
+            for (i in 0..stepsCount) {
                 val v = i * step
                 val ratio = if (top == 0f) 0f else (v / top)
                 val y = chartH - ratio * chartH
@@ -95,7 +105,6 @@ fun PeriodBarChart(
                 )
 
                 val label = if (step < 1f) {
-                    // show decimals for small ranges like hours
                     String.format(Locale.US, "%.1f", v)
                 } else {
                     v.toInt().toString()
@@ -131,8 +140,8 @@ fun PeriodBarChart(
         // --- X labels ---
         val count = labels.size
 
-        // For Month view we show all labels (12 months).
-        // For others (like Week) keep the old behaviour: ~5 samples.
+        // For Month view show all labels (e.g. 6 months),
+        // for others aim for ~5.
         val desiredSlots = if (xCaption == "Month") {
             count
         } else {
@@ -149,7 +158,12 @@ fun PeriodBarChart(
             }.distinct().filter { it in labels.indices }
         }
 
-        Row(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                // IMPORTANT: align labels with chart area, not with whole screen
+                .padding(start = 44.dp)
+        ) {
             indices.forEach { idx ->
                 Text(
                     text = labels[idx],
@@ -161,7 +175,6 @@ fun PeriodBarChart(
             }
         }
 
-        // Caption BELOW axis/labels (no wasted chart space)
         Spacer(Modifier.height(4.dp))
         Text(
             text = xCaption,
