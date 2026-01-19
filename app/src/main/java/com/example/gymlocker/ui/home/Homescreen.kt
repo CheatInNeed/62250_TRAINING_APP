@@ -15,19 +15,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -53,34 +47,20 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.AppTheme
-import com.example.gymlocker.data.repo.SettingsRepository
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
-import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
-import com.example.gymlocker.ui.components.WeeklyBarChart
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
-import com.example.gymlocker.viewmodel.StatsRange
-import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.IconButton
 import com.example.gymlocker.ui.history.HistoryViewMode
-import com.example.gymlocker.ui.history.WorkoutCalendar
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import java.time.format.TextStyle
 
 
@@ -189,19 +169,8 @@ fun HomeScreen(
             )
             .collectAsState(initial = 0)
 
-        val weeklyVolume by statViewModel
-            .weeklyVolumeLast3Months(userId)
-            .collectAsState(initial = emptyList())
 
-        val weeklyHours by statViewModel
-            .weeklyHoursLast3Months(userId)
-            .collectAsState(initial = emptyList())
 
-        val statsRange by statViewModel.statsRange.collectAsState()
-
-        val distribution by statViewModel
-            .muscleGroupDistribution(userId)
-            .collectAsState(initial = emptyList())
 
         var historyViewMode by remember {
             mutableStateOf(HistoryViewMode.LIST)
@@ -366,108 +335,7 @@ private fun SegmentedToggle(
 
 enum class WeeklyGraphMode { HOURS, VOLUME }
 
-@Composable
-fun StatsCard(
-    weeklyHours: List<com.example.gymlocker.viewmodel.WeekHoursUi>,
-    weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>,
-    distribution: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
-    statsRange: StatsRange,
-    onRangeChange: (StatsRange) -> Unit
-) {
-    var mode by remember { mutableStateOf(WeeklyGraphMode.HOURS) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        )
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                "Stats",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SegmentedToggle(
-                    leftText = "Week",
-                    rightText = "Month",
-                    isLeftSelected = statsRange == StatsRange.WEEK,
-                    onLeftClick = { onRangeChange(StatsRange.WEEK) },
-                    onRightClick = { onRangeChange(StatsRange.MONTH) },
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-
-                SegmentedToggle(
-                    leftText = "Hours",
-                    rightText = "Volume",
-                    isLeftSelected = mode == WeeklyGraphMode.HOURS,
-                    onLeftClick = { mode = WeeklyGraphMode.HOURS },
-                    onRightClick = { mode = WeeklyGraphMode.VOLUME },
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedContentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = if (mode == WeeklyGraphMode.HOURS)
-                    "Hours trained per week (last 3 months)"
-                else
-                    "Volume per week (last 3 months)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            if (mode == WeeklyGraphMode.HOURS) {
-                WeeklyBarChart(
-                    data = weeklyHours,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.hours },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
-                )
-            } else {
-                WeeklyBarChart(
-                    data = weeklyVolume,
-                    weekStartOf = { it.weekStart },
-                    valueOf = { it.volume },
-                    modifier = Modifier.fillMaxWidth(),
-                    legendPrefix = "Week:"
-                )
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Text(
-                text = if (statsRange == StatsRange.WEEK)
-                    "Training balance (this week)"
-                else
-                    "Training balance (this month)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            MuscleGroupDistributionChart(
-                rows = distribution,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
 
 /**
  * Pretty date:

@@ -9,12 +9,24 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.material3.FilterChip
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.PeriodBarChart
+import com.example.gymlocker.data.dao.MuscleGroupDistributionRow
+import com.example.gymlocker.viewmodel.WeekHoursUi
+import com.example.gymlocker.viewmodel.WeekVolumeUi
+import com.example.gymlocker.viewmodel.MonthHoursUi
+import com.example.gymlocker.viewmodel.MonthVolumeUi
+import com.example.gymlocker.viewmodel.StatsRange
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
+import java.util.Locale
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gymlocker.viewmodel.StatViewModel
-import com.example.gymlocker.ui.home.StatsCard
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.DropdownMenu
@@ -86,7 +98,6 @@ import kotlinx.coroutines.withContext
 import com.example.gymlocker.ui.components.ProfileAvatarIcon
 import com.example.gymlocker.data.auth.SessionManager
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -111,15 +122,11 @@ fun ProfileScreen(
     val activeProfile by profileViewModel.activeProfile.collectAsState()
     val statViewModel: StatViewModel = viewModel()
 
-
-
     // Active profile photo uri (stored in SessionManager/DataStore)
     val photoUriString by profileViewModel.activeProfilePhotoUri.collectAsState()
 
     val context = LocalContext.current
     val session = remember { SessionManager(context.applicationContext) }
-
-
 
     // Dialog / UI state
     var deleteTargetUserId by remember { mutableStateOf<Long?>(null) }
@@ -371,6 +378,7 @@ fun ProfileScreen(
             }
         )
     }
+
     var isProfilePickerOpen by remember { mutableStateOf(false) }
     var isAvatarMenuOpen by remember { mutableStateOf(false) }
 
@@ -556,8 +564,6 @@ fun ProfileScreen(
                 }
 
             )
-
-
         },
         bottomBar = {
             Column {
@@ -670,6 +676,14 @@ fun ProfileScreen(
                     .muscleGroupDistribution(userId)
                     .collectAsState(initial = emptyList())
 
+                val monthlyHours by statViewModel
+                    .monthlyHoursLast12Months(userId)
+                    .collectAsState(initial = emptyList())
+
+                val monthlyVolume by statViewModel
+                    .monthlyVolumeLast12Months(userId)
+                    .collectAsState(initial = emptyList())
+
                 // Make the whole card clickable -> dedicated statistics page
                 Box(
                     modifier = Modifier
@@ -679,6 +693,8 @@ fun ProfileScreen(
                     StatsCard(
                         weeklyHours = weeklyHours,
                         weeklyVolume = weeklyVolume,
+                        monthlyHours = monthlyHours,
+                        monthlyVolume = monthlyVolume,
                         distribution = distribution,
                         statsRange = statsRange,
                         onRangeChange = { statViewModel.setStatsRange(it) }
@@ -691,8 +707,6 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-
         }
     }
 }
@@ -741,6 +755,7 @@ private fun ProfileAvatar(
         }
     }
 }
+
 @Composable
 private fun NoProfilesCard(
     onCreateProfileClick: () -> Unit
@@ -781,6 +796,163 @@ private fun NoProfilesCard(
             ) {
                 Text("Create Profile")
             }
+        }
+    }
+}
+private enum class GraphMode { HOURS, VOLUME }
+
+@Composable
+fun StatsCard(
+    weeklyHours: List<WeekHoursUi>,
+    weeklyVolume: List<WeekVolumeUi>,
+    monthlyHours: List<MonthHoursUi>,
+    monthlyVolume: List<MonthVolumeUi>,
+    distribution: List<MuscleGroupDistributionRow>,
+    statsRange: StatsRange,
+    onRangeChange: (StatsRange) -> Unit
+) {
+    var mode by remember { mutableStateOf(GraphMode.HOURS) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Stats",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Week/Month + Hours/Volume toggles
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = statsRange == StatsRange.WEEK,
+                        onClick = { onRangeChange(StatsRange.WEEK) },
+                        label = { Text("Week") }
+                    )
+                    FilterChip(
+                        selected = statsRange == StatsRange.MONTH,
+                        onClick = { onRangeChange(StatsRange.MONTH) },
+                        label = { Text("Month") }
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = mode == GraphMode.HOURS,
+                        onClick = { mode = GraphMode.HOURS },
+                        label = { Text("Hours") }
+                    )
+                    FilterChip(
+                        selected = mode == GraphMode.VOLUME,
+                        onClick = { mode = GraphMode.VOLUME },
+                        label = { Text("Volume") }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                text = when (statsRange) {
+                    StatsRange.WEEK ->
+                        if (mode == GraphMode.HOURS)
+                            "Hours trained per week (last 3 months)"
+                        else
+                            "Volume per week (last 3 months)"
+                    StatsRange.MONTH ->
+                        if (mode == GraphMode.HOURS)
+                            "Hours trained per month (last 12 months)"
+                        else
+                            "Volume per month (last 12 months)"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            // --------- CHART AREA (PeriodBarChart) ---------
+
+            when (statsRange) {
+                StatsRange.WEEK -> {
+                    val weekLabels = weeklyHours.map {
+                        it.weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()).toString()
+                    }
+
+                    if (mode == GraphMode.HOURS) {
+                        PeriodBarChart(
+                            values = weeklyHours.map { it.hours },
+                            labels = weekLabels,
+                            xCaption = "Week",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        PeriodBarChart(
+                            values = weeklyVolume.map { it.volume },
+                            labels = weekLabels,
+                            xCaption = "Week",
+                            yTickStep = 500f, // 500 kg per tick
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                StatsRange.MONTH -> {
+                    // Assumes Month*Ui has a 'yearMonth' field.
+                    // If yours is called something else (e.g. 'monthStart'),
+                    // just swap it here.
+                    val monthLabels = monthlyHours.map {
+                        it.yearMonth.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+                    }
+
+                    if (mode == GraphMode.HOURS) {
+                        PeriodBarChart(
+                            values = monthlyHours.map { it.hours },
+                            labels = monthLabels,
+                            xCaption = "Month",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        PeriodBarChart(
+                            values = monthlyVolume.map { it.volume },
+                            labels = monthLabels,
+                            xCaption = "Month",
+                            yTickStep = 500f, // 500 kg per tick
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = if (statsRange == StatsRange.WEEK)
+                    "Training balance (this week)"
+                else
+                    "Training balance (this month)",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            MuscleGroupDistributionChart(
+                rows = distribution,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
