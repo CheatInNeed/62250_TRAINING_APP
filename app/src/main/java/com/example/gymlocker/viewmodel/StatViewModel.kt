@@ -14,6 +14,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
+
 
 
 enum class StatsRange { WEEK, MONTH }
@@ -105,6 +109,68 @@ class StatViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
     }
+    fun monthlyHoursLast12Months(userId: Long): Flow<List<MonthHoursUi>> {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
+        val today = LocalDate.now()
+        val thisMonth = YearMonth.from(today)
+        val firstMonth = thisMonth.minusMonths(11)
+
+        val startInclusive = firstMonth.atDay(1).atStartOfDay().format(formatter)
+
+        return workoutDao.observeWorkoutsFrom(userId = userId, startInclusive = startInclusive)
+            .map { workouts ->
+                val byMonth = mutableMapOf<YearMonth, Long>() // YearMonth -> totalSeconds
+
+                workouts.forEach { w ->
+                    val ldt = runCatching { LocalDateTime.parse(w.date, formatter) }.getOrNull()
+                        ?: return@forEach
+                    val ym = YearMonth.from(ldt.toLocalDate())
+                    byMonth[ym] = (byMonth[ym] ?: 0L) + w.time
+                }
+
+                (0..11).map { i ->
+                    val ym = firstMonth.plusMonths(i.toLong())
+                    val seconds = byMonth[ym] ?: 0L
+                    MonthHoursUi(
+                        yearMonth = ym,
+                        hours = seconds / 3600f
+                    )
+                }
+            }
+    }
+
+    fun monthlyVolumeLast12Months(userId: Long): Flow<List<MonthVolumeUi>> {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+
+        val today = LocalDate.now()
+        val thisMonth = YearMonth.from(today)
+        val firstMonth = thisMonth.minusMonths(11)
+
+        val startInclusive = firstMonth.atDay(1).atStartOfDay().format(formatter)
+
+        return performedSetDao
+            .observeWorkoutVolumesFrom(userId = userId, startInclusive = startInclusive)
+            .map { rows ->
+                val byMonth = mutableMapOf<YearMonth, Float>() // YearMonth -> totalVolume
+
+                rows.forEach { r ->
+                    val ldt = runCatching { LocalDateTime.parse(r.date, formatter) }.getOrNull()
+                        ?: return@forEach
+                    val ym = YearMonth.from(ldt.toLocalDate())
+                    byMonth[ym] = (byMonth[ym] ?: 0f) + r.volume.toFloat()
+                }
+
+                (0..11).map { i ->
+                    val ym = firstMonth.plusMonths(i.toLong())
+                    MonthVolumeUi(
+                        yearMonth = ym,
+                        volume = byMonth[ym] ?: 0f
+                    )
+                }
+            }
+    }
+
 
     // ----------------------------
     // Stats: range + distribution

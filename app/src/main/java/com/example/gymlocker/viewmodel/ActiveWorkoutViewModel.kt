@@ -44,6 +44,7 @@ import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.util.storageKgFromInput
+import java.time.YearMonth
 import kotlin.math.roundToInt
 
 // Ét sæt (1 række i tabellen)
@@ -74,6 +75,16 @@ data class WeekHoursUi(
 
 data class WeekVolumeUi(
     val weekStart: LocalDate, // Monday
+    val volume: Float
+)
+
+data class MonthHoursUi(
+    val yearMonth: YearMonth,
+    val hours: Float
+)
+
+data class MonthVolumeUi(
+    val yearMonth: YearMonth,
     val volume: Float
 )
 
