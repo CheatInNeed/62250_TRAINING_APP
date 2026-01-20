@@ -1,51 +1,79 @@
 package com.example.gymlocker.ui.home
 
-import android.R.style.Theme
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -53,83 +81,32 @@ import androidx.navigation.NavController
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.data.database.AppDatabase
-import com.example.gymlocker.data.entity.AppTheme
-import com.example.gymlocker.data.repo.SettingsRepository
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
-import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
-import com.example.gymlocker.viewmodel.StatsRange
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.IconButton
-import com.example.gymlocker.ui.history.HistoryViewMode
-import com.example.gymlocker.ui.history.WorkoutCalendar
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.remember
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import java.time.format.TextStyle
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-import java.time.temporal.TemporalAdjusters
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.ui.draw.clip
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.PlatformTextStyle
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import java.time.YearMonth
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 
 private enum class CalendarZoom {
-    WEEK,   // din “collapsed” uge-strip
-    MONTH,  // din “expanded” måned-grid
-    YEAR    // ny: 12 måneder
+    WEEK,
+    MONTH,
+    YEAR
 }
+
+// PS-120: same shape must be used for Card(shape) + border + metalGloss(shape)
+private val HomeCardShape = RoundedCornerShape(18.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,10 +119,6 @@ fun HomeScreen(
     val completedWorkouts by activeWorkoutViewModel
         .completedWorkouts()
         .collectAsState(initial = emptyList())
-
-    val lastWorkoutLabel by activeWorkoutViewModel
-        .lastWorkoutLabel()
-        .collectAsState(initial = "Finder seneste workout…")
 
     val context = LocalContext.current
     val session = remember { SessionManager(context.applicationContext) }
@@ -163,21 +136,37 @@ fun HomeScreen(
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
+
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+
+        // PS: chrome uses shapes + metalGloss
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Workout Feed") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
+
+        // PS: bottom bar must be surface + metalGloss(BotBarShape)
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -244,40 +233,12 @@ fun HomeScreen(
             .weeklyHoursLast3Months(userId)
             .collectAsState(initial = emptyList())
 
-        val statsRange by statViewModel.statsRange.collectAsState()
-
-        val distribution by statViewModel
-            .muscleGroupDistribution(userId)
-            .collectAsState(initial = emptyList())
-
-        var historyViewMode by remember {
-            mutableStateOf(HistoryViewMode.LIST)
-        }
-
-        val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
-
-
-        val timeFormatter = remember {
-            DateTimeFormatter.ofPattern("HH:mm")
-        }
-
         val sections = remember(completedWorkouts) {
             completedWorkouts
                 .map { ws -> ws to ws.homeSafeLocalDateTime(formatter) }
                 .sortedByDescending { (_, dt) -> dt ?: LocalDateTime.MIN }
                 .groupBy { (_, dt) -> dt?.toLocalDate() }
                 .toSortedMap(compareByDescending { it })
-        }
-
-        val today = LocalDate.now()
-        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val weekEnd = weekStart.plusDays(6)
-
-        val workoutDatesThisWeek = remember(sections, weekStart, weekEnd) {
-            sections.keys
-                .filterNotNull()
-                .filter { !it.isBefore(weekStart) && !it.isAfter(weekEnd) }
-                .toSet()
         }
 
         val workoutDates = remember(sections) {
@@ -298,7 +259,7 @@ fun HomeScreen(
         var currentMonth by rememberSaveable { mutableStateOf(YearMonth.now()) }
         var yearCursor by rememberSaveable { mutableStateOf(currentMonth.year) }
 
-        // Auto-collapse når man scroller i feedet
+        // Auto-collapse when scrolling feed
         LaunchedEffect(listState) {
             snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
                 .map { (idx, off) -> idx > 0 || off > 0 }
@@ -309,6 +270,7 @@ fun HomeScreen(
         }
 
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
@@ -338,7 +300,17 @@ fun HomeScreen(
 
             if (sections.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .metalGloss(HomeCardShape),
+                        shape = HomeCardShape,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -355,7 +327,7 @@ fun HomeScreen(
                 }
             } else {
                 if (calendarZoom == CalendarZoom.MONTH) {
-                    // MONTH: vis KUN selected day (som før)
+                    // MONTH: show only selected day
                     val itemsForSelectedDay = sections[selectedDate].orEmpty()
 
                     item {
@@ -383,7 +355,17 @@ fun HomeScreen(
 
                     if (itemsForSelectedDay.isEmpty()) {
                         item {
-                            Card(modifier = Modifier.fillMaxWidth()) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .metalGloss(HomeCardShape),
+                                shape = HomeCardShape,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -409,7 +391,7 @@ fun HomeScreen(
                     }
 
                 } else {
-                    // ✅ COLLAPSED: vis ALLE workouts (alle sektioner)
+                    // WEEK (collapsed) + YEAR modes: show all workouts grouped
                     sections.forEach { (date, itemsForDate) ->
 
                         item {
@@ -444,7 +426,8 @@ fun HomeScreen(
                 }
 
                 item { Spacer(Modifier.height(72.dp)) }
-            }}
+            }
+        }
     }
 }
 
@@ -515,21 +498,22 @@ private fun HomeWorkoutHistoryCard(
             .orEmpty()
     }
 
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(HomeCardShape),
+        shape = HomeCardShape,
+        border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column {
-
-            // --- Accent strip (brand feel uden at "male" hele kortet) ---
+            // Accent strip (kept subtle)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -543,7 +527,6 @@ private fun HomeWorkoutHistoryCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // lille badge-dot (primary) -> “alive” feel
                     Box(
                         modifier = Modifier
                             .size(8.dp)
@@ -580,7 +563,6 @@ private fun HomeWorkoutHistoryCard(
 
                 Spacer(Modifier.height(10.dp))
 
-                // resten af dit content uændret
                 if (exerciseLines.isEmpty()) {
                     Text(
                         text = "${workout.exerciseCount} exercises",
@@ -625,7 +607,6 @@ fun WeeklyWorkoutsCircles(
     workoutsPerDay: Map<LocalDate, Int>,
     today: LocalDate = LocalDate.now()
 ) {
-    // Rolling 7 dage: [today-6, ..., today]
     val days = remember(today) { (6L downTo 0L).map { today.minusDays(it) } }
 
     Row(
@@ -643,12 +624,11 @@ fun WeeklyWorkoutsCircles(
                 numberLabel = date.dayOfMonth.toString(),
                 workoutCount = count,
                 selected = (date == today),
-                onClick = { /* TODO: vælg dato */ }
+                onClick = { /* TODO: pick date */ }
             )
         }
     }
 }
-
 
 @Composable
 private fun WeekDayCircleColumn(
@@ -717,31 +697,7 @@ private fun dayLetter(day: DayOfWeek): String = when (day) {
 }
 
 @Composable
-private fun WeekDayCircle(
-    trained: Boolean,
-    isToday: Boolean
-) {
-    val fill = MaterialTheme.colorScheme.primary
-    val emptyFill = MaterialTheme.colorScheme.surface
-
-    val outline = when {
-        trained -> fill
-        isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-    }
-
-    Box(
-        modifier = Modifier
-            .size(18.dp)
-            .clip(CircleShape)
-            .background(if (trained) fill else emptyFill)
-            .border(1.dp, outline, CircleShape)
-    )
-}
-
-@Composable
 private fun WorkoutDotsRow(count: Int) {
-    // cap så UI ikke eksploderer, hvis en dag har fx 10 workouts
     val shown = minOf(count, 4)
 
     Row(
@@ -757,7 +713,6 @@ private fun WorkoutDotsRow(count: Int) {
             )
         }
 
-        // hvis der er flere end 4: lille "+N"
         if (count > 4) {
             Spacer(Modifier.width(2.dp))
             Text(
@@ -781,10 +736,6 @@ private fun ExpandableHomeCalendarHeader(
     onYearChange: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit
 ) {
-    // Uge baseret på selectedDate (så den “følger” hvad man klikker)
-    val weekStart = remember(selectedDate) {
-        selectedDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    }
     val today = remember { LocalDate.now() }
     val weekDays = remember(today) { (6L downTo 0L).map { today.minusDays(it) } } // [today-6 .. today]
 
@@ -795,20 +746,13 @@ private fun ExpandableHomeCalendarHeader(
             .pointerInput(zoom) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
-                        if (zoom == CalendarZoom.WEEK && dragAmount > 18f) {
-                            onZoomChange(CalendarZoom.MONTH)
-                        }
-                        if (zoom == CalendarZoom.MONTH && dragAmount < -18f) {
-                            onZoomChange(CalendarZoom.WEEK)
-                        }
-                        if (zoom == CalendarZoom.YEAR && dragAmount < -18f) {
-                            onZoomChange(CalendarZoom.MONTH)
-                        }
+                        if (zoom == CalendarZoom.WEEK && dragAmount > 18f) onZoomChange(CalendarZoom.MONTH)
+                        if (zoom == CalendarZoom.MONTH && dragAmount < -18f) onZoomChange(CalendarZoom.WEEK)
+                        if (zoom == CalendarZoom.YEAR && dragAmount < -18f) onZoomChange(CalendarZoom.MONTH)
                     }
                 )
             }
     ) {
-        // Month title row (klik for expand/collapse)
         MonthYearSwitchHeader(
             currentMonth = currentMonth,
             yearCursor = yearCursor,
@@ -817,10 +761,8 @@ private fun ExpandableHomeCalendarHeader(
             onYearChange = onYearChange
         )
 
-
         Spacer(Modifier.height(10.dp))
 
-        // Week strip (altid synlig)
         AnimatedVisibility(
             visible = (zoom == CalendarZoom.WEEK),
             enter = expandVertically(),
@@ -847,7 +789,6 @@ private fun ExpandableHomeCalendarHeader(
             }
         }
 
-        // Month grid (kun når expanded)
         AnimatedVisibility(
             visible = (zoom == CalendarZoom.MONTH),
             enter = expandVertically(),
@@ -856,7 +797,6 @@ private fun ExpandableHomeCalendarHeader(
             Column {
                 Spacer(Modifier.height(10.dp))
 
-                // Month nav (chevrons)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -867,11 +807,6 @@ private fun ExpandableHomeCalendarHeader(
                     IconButton(onClick = { onMonthChange(currentMonth.minusMonths(1)) }) {
                         Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev month")
                     }
-//                    Text(
-//                        text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-//                        style = MaterialTheme.typography.titleMedium,
-//                        fontWeight = FontWeight.SemiBold
-//                    )
                     IconButton(onClick = { onMonthChange(currentMonth.plusMonths(1)) }) {
                         Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next month")
                     }
@@ -983,7 +918,6 @@ private fun HomeCalendarGridCounts(
                                 }
                             )
 
-                            // lille dot-row under tallet (som jeres uge-strip)
                             if (count > 0) {
                                 Spacer(Modifier.height(4.dp))
                                 WorkoutDotsRow(count = count)
@@ -1015,7 +949,6 @@ private fun HomeYearGrid(
     ) {
         Spacer(Modifier.height(10.dp))
 
-        // Year nav (chevrons)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -1024,10 +957,6 @@ private fun HomeYearGrid(
             IconButton(onClick = onPrevYear) {
                 Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Prev year")
             }
-
-            // (valgfrit) hvis du vil vise årstal her også (du har det måske i titel allerede)
-            // Text(text = year.toString(), style = MaterialTheme.typography.titleMedium)
-
             IconButton(onClick = onNextYear) {
                 Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Next year")
             }
@@ -1035,7 +964,6 @@ private fun HomeYearGrid(
 
         Spacer(Modifier.height(8.dp))
 
-        // 12 måneder -> 4 rækker á 3 kolonner
         val rows = remember(year) { months.chunked(3) }
 
         Column(
@@ -1056,7 +984,6 @@ private fun HomeYearGrid(
                         )
                     }
 
-                    // safety hvis der nogensinde er en række med < 3
                     repeat(3 - rowMonths.size) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
@@ -1075,19 +1002,14 @@ private fun MiniMonthCalendar(
 ) {
     val firstDay = month.atDay(1)
     val daysInMonth = month.lengthOfMonth()
-
-    // Mandag=1 ... søndag=7  (justér hvis du vil starte med søndag)
     val startOffset = (firstDay.dayOfWeek.value - 1).coerceAtLeast(0)
-    val totalCells = startOffset + daysInMonth
 
-    // “Apple blå” (du kan også bare bruge MaterialTheme.colorScheme.primary)
     val workoutColor = MaterialTheme.colorScheme.primary
     val dayTextStyle = MaterialTheme.typography.labelSmall.copy(
         lineHeight = MaterialTheme.typography.labelSmall.fontSize,
         platformStyle = PlatformTextStyle(includeFontPadding = false)
     )
 
-    // 7 kolonner, små tal
     LazyVerticalGrid(
         columns = GridCells.Fixed(7),
         modifier = Modifier.height(86.dp),
@@ -1095,16 +1017,12 @@ private fun MiniMonthCalendar(
         verticalArrangement = Arrangement.spacedBy(2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        // tomme celler før 1. dag
-        items(startOffset) {
-            Box(modifier = Modifier.size(12.dp))
-        }
+        items(startOffset) { Box(modifier = Modifier.size(12.dp)) }
 
         items(daysInMonth) { i ->
             val day = i + 1
             val date = month.atDay(day)
             val count = workoutsPerDay[date] ?: 0
-
             val hasWorkout = count > 0
 
             Box(
@@ -1132,7 +1050,7 @@ private fun MiniMonthCalendar(
             }
         }
 
-        // (valgfrit) fyld resten ud så grid ikke "hopper"
+        val totalCells = startOffset + daysInMonth
         val rest = (7 - (totalCells % 7)) % 7
         items(rest) { Box(modifier = Modifier.size(12.dp)) }
     }
@@ -1176,8 +1094,8 @@ private fun MonthYearSwitchHeader(
     val monthText =
         "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
 
-    val yearTextForLeft = currentMonth.year.toString()   // vises i WEEK/MONTH (faded venstre)
-    val yearTextForCenter = yearCursor.toString()        // vises i YEAR (center)
+    val yearTextForLeft = currentMonth.year.toString()
+    val yearTextForCenter = yearCursor.toString()
 
     Box(
         modifier = Modifier
@@ -1187,25 +1105,21 @@ private fun MonthYearSwitchHeader(
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 14.dp),
     ) {
-        // ---- SWITCH-AREA (venstre/center/højre labels) ----
         AnimatedContent(
             targetState = zoom,
-            modifier = Modifier
-                .fillMaxSize(),
-                // reserver plads til chevronen så centeren ikke skubbes
-                //.padding(end = 40.dp),
+            modifier = Modifier.fillMaxSize(),
             transitionSpec = {
                 if (
                     (initialState == CalendarZoom.MONTH && targetState == CalendarZoom.YEAR) ||
-                    (initialState == CalendarZoom.WEEK  && targetState == CalendarZoom.YEAR)
+                    (initialState == CalendarZoom.WEEK && targetState == CalendarZoom.YEAR)
                 ) {
                     (slideInHorizontally { w -> -w / 2 } + fadeIn()) togetherWith
-                            (slideOutHorizontally { w ->  w / 2 } + fadeOut())
+                            (slideOutHorizontally { w -> w / 2 } + fadeOut())
                 } else if (
                     (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.MONTH) ||
                     (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.WEEK)
                 ) {
-                    (slideInHorizontally { w ->  w / 2 } + fadeIn()) togetherWith
+                    (slideInHorizontally { w -> w / 2 } + fadeIn()) togetherWith
                             (slideOutHorizontally { w -> -w / 2 } + fadeOut())
                 } else {
                     fadeIn() togetherWith fadeOut()
@@ -1213,10 +1127,7 @@ private fun MonthYearSwitchHeader(
             },
             label = "MonthYearSwitch"
         ) { state ->
-            // ✅ vigtig: BoxScope så align virker rigtigt + klikflader bliver stabile
             Box(modifier = Modifier.fillMaxSize()) {
-
-                // ✅ Year er synlig HELE tiden (i WEEK og MONTH som faded venstre)
                 if (state == CalendarZoom.WEEK || state == CalendarZoom.MONTH) {
                     Text(
                         text = yearTextForLeft,
@@ -1235,7 +1146,6 @@ private fun MonthYearSwitchHeader(
 
                 when (state) {
                     CalendarZoom.WEEK -> {
-                        // ✅ CENTER monthText (klik -> MONTH)
                         Text(
                             text = monthText,
                             modifier = Modifier
@@ -1249,7 +1159,6 @@ private fun MonthYearSwitchHeader(
                     }
 
                     CalendarZoom.MONTH -> {
-                        // ✅ CENTER monthText (normal)
                         Text(
                             text = monthText,
                             modifier = Modifier.align(Alignment.Center),
@@ -1260,7 +1169,6 @@ private fun MonthYearSwitchHeader(
                     }
 
                     CalendarZoom.YEAR -> {
-                        // ✅ CENTER year (normal)
                         Text(
                             text = yearTextForCenter,
                             modifier = Modifier.align(Alignment.Center),
@@ -1269,7 +1177,6 @@ private fun MonthYearSwitchHeader(
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        // ✅ RIGHT faded month (klik -> MONTH)
                         Text(
                             text = monthText,
                             modifier = Modifier
@@ -1285,13 +1192,12 @@ private fun MonthYearSwitchHeader(
             }
         }
 
-        // ---- Chevron: WEEK <-> MONTH, og MONTH/YEAR -> WEEK ----
         IconButton(
             onClick = {
                 when (zoom) {
-                    CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH) // ✅ expand
-                    CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK) // ✅ collapse
-                    CalendarZoom.YEAR -> onZoomChange(CalendarZoom.WEEK)  // ✅ collapse helt
+                    CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)
+                    CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK)
+                    CalendarZoom.YEAR -> onZoomChange(CalendarZoom.WEEK)
                 }
             },
             modifier = Modifier.align(Alignment.CenterEnd)
