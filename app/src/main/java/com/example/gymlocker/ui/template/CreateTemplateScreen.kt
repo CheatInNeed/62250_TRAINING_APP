@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.template
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import androidx.navigation.NavController
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.TemplateExerciseState
@@ -91,6 +93,9 @@ fun CreateTemplateScreen(
             textContentColor = MaterialTheme.colorScheme.onSurface
         )
     }
+
+    val unit = LocalUserSettings.current.weightUnit
+
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -259,6 +264,9 @@ fun CreateTemplateScreen(
                             onRepsChange = { setNumber, text ->
                                 viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                             },
+                            onOpenExercise = { exerciseId ->
+                                navController.navigate("exerciseDetail/$exerciseId")
+                            },
                             onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
@@ -302,6 +310,7 @@ fun TemplateExerciseItem(
     onAddSet: () -> Unit,
     onWeightChange: (setNumber: Int, newWeight: String) -> Unit,
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
+    onOpenExercise: (exerciseId: Long) -> Unit,
     onDeleteExercise: () -> Unit = {},
     onDeleteSet: (setNumber: Int) -> Unit = {}
 ) {
@@ -347,7 +356,11 @@ fun TemplateExerciseItem(
                 Text(
                     text = exercise.exerciseName,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onOpenExercise(exercise.exerciseId) }
+                        .padding(vertical = 2.dp)
                 )
 
                 Box {

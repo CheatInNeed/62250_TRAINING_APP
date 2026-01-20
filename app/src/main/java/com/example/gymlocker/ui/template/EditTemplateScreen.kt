@@ -37,6 +37,7 @@ import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.EditTemplateViewModel
 
@@ -67,7 +68,7 @@ fun EditTemplateScreen(
             TopAppBar(
                 title = { Text("Edit Template") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -226,12 +227,16 @@ fun EditTemplateScreen(
                                 onRepsChange = { setNumber, text ->
                                     viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                                 },
+                                onOpenExercise = { exerciseId ->
+                                    navController.navigate("exerciseDetail/$exerciseId")
+                                },
                                 onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
                                 onDeleteSet = { setNumber ->
                                     viewModel.removeSet(exercise.exerciseId, setNumber)
                                 }
                             )
                         }
+
 
                         item {
                             Button(
