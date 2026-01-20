@@ -1,21 +1,35 @@
 package com.example.gymlocker.ui.history
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +43,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +60,9 @@ import androidx.navigation.NavController
 import com.example.gymlocker.data.dao.WorkoutSummary
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.WorkoutHistoryViewModel
@@ -50,9 +72,6 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.ChevronRight
-
 
 enum class HistoryViewMode { LIST, CALENDAR }
 
@@ -61,7 +80,7 @@ private fun prettyWorkoutDate(raw: String): String {
         val input = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault())
         val output = DateTimeFormatter.ofPattern("MMM d yyyy", Locale.ENGLISH)
         LocalDateTime.parse(raw, input).format(output)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         raw
     }
 }
@@ -79,38 +98,58 @@ fun WorkoutHistoryScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = { Text("Workout History") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            viewMode =
-                                if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR
-                                else HistoryViewMode.LIST
+            // Peter Standard: top bar uses metalGloss(TopBarShape)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(TopBarShape)
+            ) {
+                TopAppBar(
+                    title = { Text("Workout History") },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                    ) {
-                        Icon(
-                            imageVector = if (viewMode == HistoryViewMode.LIST) Icons.Default.DateRange else Icons.AutoMirrored.Filled.List,
-                            contentDescription = if (viewMode == HistoryViewMode.LIST) "Switch to Calendar" else "Switch to List",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                viewMode =
+                                    if (viewMode == HistoryViewMode.LIST) HistoryViewMode.CALENDAR
+                                    else HistoryViewMode.LIST
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (viewMode == HistoryViewMode.LIST) {
+                                    Icons.Default.DateRange
+                                } else {
+                                    Icons.AutoMirrored.Filled.List
+                                },
+                                contentDescription = if (viewMode == HistoryViewMode.LIST) {
+                                    "Switch to Calendar"
+                                } else {
+                                    "Switch to List"
+                                },
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                        actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    )
                 )
-            )
+            }
         },
         bottomBar = {
-            Column {
+            // Peter Standard: bottom bar uses metalGloss(BotBarShape)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(BotBarShape)
+            ) {
                 ActiveWorkoutBanner(navController, activeWorkoutViewModel)
                 AppBottomBar(navController)
             }
@@ -154,13 +193,12 @@ fun WorkoutList(
 ) {
     val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS") }
 
-    // Parse once, sort newest first, and group into human-friendly sections
     val sections = remember(workouts) {
         workouts
             .map { ws -> ws to ws.safeLocalDateTime(formatter) }
             .sortedByDescending { (_, dt) -> dt ?: LocalDateTime.MIN }
             .groupBy { (_, dt) -> dt?.toLocalDate() }
-            .toSortedMap(compareByDescending { it }) // newest date section first
+            .toSortedMap(compareByDescending { it })
     }
 
     if (workouts.isEmpty()) {
@@ -183,12 +221,24 @@ fun WorkoutList(
     ) {
         sections.forEach { (date, itemsForDate) ->
             item {
-                Text(
-                    text = sectionTitleForDate(date),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = sectionTitleForDate(date),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
             }
 
             items(itemsForDate, key = { (ws, _) -> ws.workoutId }) { (ws, dt) ->
@@ -200,7 +250,7 @@ fun WorkoutList(
             }
         }
 
-        item { Spacer(Modifier.height(72.dp)) } // breathing room above bottom bar
+        item { Spacer(Modifier.height(72.dp)) }
     }
 }
 
@@ -214,7 +264,6 @@ private fun WorkoutHistoryCard(
         dateTime?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty()
     }
 
-    // Parse: "5x Bench Press, 3x Tricep Pushdown"
     val exerciseLines = remember(workout.exerciseSetSummary) {
         workout.exerciseSetSummary
             ?.split(",")
@@ -223,88 +272,106 @@ private fun WorkoutHistoryCard(
             .orEmpty()
     }
 
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            // Peter Standard: cards use metalGloss()
+            .metalGloss(),
+        border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
+            // Small accent strip is fine (tertiary used sparingly)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f))
+            )
 
-            // Header: name (left) + time (right)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Workout name
-                Text(
-                    text = workout.name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
-                )
-
-                // Time
-                if (timeText.isNotBlank()) {
-                    Text(
-                        text = timeText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.90f))
                     )
-                }
 
-                Spacer(Modifier.width(6.dp))
-
-                // Chevron
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            if (exerciseLines.isEmpty()) {
-                Text(
-                    text = "${workout.exerciseCount} exercises",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                val cutoff = 5
-                exerciseLines.take(cutoff).forEach { line ->
-                    // line expected like "5x Bench Press"
-                    val parsed = parseSetSummaryLine(line) // (count, name)
-                    val count = parsed?.first
-                    val exName = parsed?.second
-
-                    val text = if (count != null && exName != null) {
-                        val unit = if (count == 1) "set" else "sets"
-                        "$count $unit of $exName"
-                    } else {
-                        // fallback hvis format ikke matcher
-                        line
-                    }
+                    Spacer(Modifier.width(10.dp))
 
                     Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = workout.name,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1
                     )
+
+                    if (timeText.isNotBlank()) {
+                        Text(
+                            text = timeText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(Modifier.width(6.dp))
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
-                if (exerciseLines.size > cutoff) {
+                Spacer(Modifier.height(10.dp))
+
+                if (exerciseLines.isEmpty()) {
                     Text(
-                        text = "+${exerciseLines.size - cutoff} more",
-                        style = MaterialTheme.typography.labelSmall,
+                        text = "${workout.exerciseCount} exercises",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                } else {
+                    val cutoff = 5
+                    exerciseLines.take(cutoff).forEach { line ->
+                        val parsed = parseSetSummaryLine(line)
+                        val count = parsed?.first
+                        val exName = parsed?.second
+
+                        val text = if (count != null && exName != null) {
+                            val unit = if (count == 1) "set" else "sets"
+                            "$count $unit of $exName"
+                        } else {
+                            line
+                        }
+
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+
+                    if (exerciseLines.size > cutoff) {
+                        Text(
+                            text = "+${exerciseLines.size - cutoff} more",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -312,7 +379,6 @@ private fun WorkoutHistoryCard(
 }
 
 private fun parseSetSummaryLine(line: String): Pair<Int, String>? {
-    // Accepts "5x Bench Press" OR "5 x Bench Press"
     val regex = Regex("""^\s*(\d+)\s*x\s*(.+?)\s*$""")
     val match = regex.find(line) ?: return null
     val count = match.groupValues[1].toIntOrNull() ?: return null
@@ -360,7 +426,7 @@ fun WorkoutCalendar(
         workouts.groupBy {
             try {
                 LocalDateTime.parse(it.date, formatter).toLocalDate()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }.filterKeys { it != null }.mapKeys { it.key!! }
@@ -412,13 +478,15 @@ fun WorkoutCalendar(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(MaterialTheme.colorScheme.background),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(dayWorkouts) { workout ->
+                    items(dayWorkouts, key = { it.workoutId }) { workout ->
                         val time = try {
                             LocalDateTime.parse(workout.date, formatter)
                                 .format(DateTimeFormatter.ofPattern("HH:mm"))
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             null
                         }
 
@@ -428,29 +496,36 @@ fun WorkoutCalendar(
                             "${workout.name} - ${workout.exerciseCount} exercises"
                         }
 
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    text = line,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            },
+                        val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+
+                        Card(
                             modifier = Modifier
-                                .clickable { onWorkoutClick(workout.workoutId) }
-                                .background(MaterialTheme.colorScheme.surface),
-                            colors = ListItemDefaults.colors(
+                                .fillMaxWidth()
+                                .metalGloss(),
+                            border = cardBorder,
+                            colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surface,
-                                headlineColor = MaterialTheme.colorScheme.onSurface
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            ),
+                            onClick = { onWorkoutClick(workout.workoutId) }
+                        ) {
+                            ListItem(
+                                headlineContent = { Text(text = line) },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                    headlineColor = MaterialTheme.colorScheme.onSurface
+                                )
                             )
-                        )
-                        HorizontalDivider()
+                        }
                     }
+
+                    item { Spacer(Modifier.height(72.dp)) }
                 }
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    "Select a day to see workouts",
+                    text = "Select a day to see workouts",
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -522,7 +597,6 @@ fun CalendarGrid(
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    // Use onBackground for header labels (avoid random secondary)
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }

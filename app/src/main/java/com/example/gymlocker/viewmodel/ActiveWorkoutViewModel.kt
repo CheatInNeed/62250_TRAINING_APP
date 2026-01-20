@@ -44,6 +44,7 @@ import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.util.storageKgFromInput
+import java.time.YearMonth
 import kotlin.math.roundToInt
 
 // Ét sæt (1 række i tabellen)
@@ -74,6 +75,16 @@ data class WeekHoursUi(
 
 data class WeekVolumeUi(
     val weekStart: LocalDate, // Monday
+    val volume: Float
+)
+
+data class MonthHoursUi(
+    val yearMonth: YearMonth,
+    val hours: Float
+)
+
+data class MonthVolumeUi(
+    val yearMonth: YearMonth,
     val volume: Float
 )
 
@@ -693,6 +704,22 @@ class ActiveWorkoutViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun makeUniqueWorkoutName(userId: Long, baseName: String): String {
         val safeBase = baseName.ifBlank {
             SimpleDateFormat("MMM d yyyy", Locale.ENGLISH).format(Date())
+        }
+
+        val templateNames = workoutTemplateDao.getTemplateNamesForUser(userId)
+        if (safeBase in templateNames) {
+
+            val likePattern = "$safeBase (%"
+            val existingWorkouts = workoutDao.getNamesForAutoSuffix(
+                userId = userId,
+                baseName = safeBase,
+                likePattern = likePattern
+            )
+
+            val usedNumbers = existingWorkouts.mapNotNull { parseSuffixNumber(it) }.toSet()
+            var n = 2
+            while (usedNumbers.contains(n)) n++
+            return "$safeBase ($n)"
         }
 
         val likePattern = "$safeBase (%"

@@ -19,15 +19,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.gymlocker.data.dao.MuscleGroupDistributionRow
 
 @Composable
 fun MuscleGroupDistributionChart(
-    rows: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
+    rows: List<MuscleGroupDistributionRow>,
     modifier: Modifier = Modifier
 ) {
     if (rows.isEmpty()) {
         Text(
-            "No data in range",
+            text = "No data in range",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -38,15 +39,16 @@ fun MuscleGroupDistributionChart(
     val totalSets = shown.sumOf { it.completedSets }.coerceAtLeast(1)
     val maxValue = shown.maxOf { it.completedSets }.coerceAtLeast(1)
 
-    // Theme-safe roles
-    val barColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    // Theme roles
+    val fillColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val trackColor: Color = MaterialTheme.colorScheme.surfaceVariant
     val labelColor: Color = MaterialTheme.colorScheme.onSurface
     val subColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(modifier = modifier) {
         shown.forEach { r ->
-            val pct = ((r.completedSets * 100f) / totalSets)
-            val pctText = "${pct.toInt()}%" // integer percent
+            val pct = (r.completedSets * 100f) / totalSets
+            val pctText = "${pct.toInt()}%"
 
             Row(
                 modifier = Modifier
@@ -71,21 +73,29 @@ fun MuscleGroupDistributionChart(
                     )
                 }
 
-                // Bar
+                // Bar (track + fill)
                 Canvas(
                     modifier = Modifier
                         .height(18.dp)
                         .weight(1f)
                 ) {
+                    // Track
+                    drawRect(
+                        color = trackColor,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(size.width, size.height)
+                    )
+
+                    // Fill
                     val w = (r.completedSets.toFloat() / maxValue) * size.width
                     drawRect(
-                        color = barColor,
+                        color = fillColor,
                         topLeft = Offset(0f, 0f),
                         size = Size(w, size.height)
                     )
                 }
 
-                // Percentage label on the right
+                // Right percent
                 Text(
                     text = pctText,
                     modifier = Modifier.width(40.dp),

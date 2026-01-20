@@ -60,7 +60,8 @@ private fun lightCompactScheme(
     surfaceVariant = surfaceVariant,
     onSurfaceVariant = onSurfaceVariant,
 
-    outline = outline ?: onSurface.copy(alpha = 0.35f)
+    // Style guide update: outline matches primary in each theme
+    outline = outline ?: primary
 )
 
 private fun darkCompactScheme(
@@ -96,7 +97,8 @@ private fun darkCompactScheme(
     surfaceVariant = surfaceVariant,
     onSurfaceVariant = onSurfaceVariant,
 
-    outline = outline ?: onSurface.copy(alpha = 0.35f)
+    // Style guide update: outline matches primary in each theme
+    outline = outline ?: primary
 )
 
 // ---------- DEFAULT (your old fallback schemes) ----------
@@ -115,48 +117,60 @@ private val DefaultFallbackLight = lightColorScheme(
 
 // ---------- RED ----------
 private val RedLight = lightCompactScheme(
-    primary = Color(0xFFB3261E),
+    // Muted locker red (accents / buttons)
+    primary = Color(0xFF8B1E1A),
     onPrimary = Color(0xFFFFFFFF),
 
-    secondary = Color(0xFFB07F91),
+    // Steel / hardware grey
+    secondary = Color(0xFF4A4F55),
     onSecondary = Color(0xFFFFFFFF),
 
-    tertiary = Color(0xFFFFDAD6),          // accent container
-    onTertiary = Color(0xFF2B0A06),
+    // Bench wood (warm accent)
+    tertiary = Color(0xFFCEB79F),
+    onTertiary = Color(0xFF1F1510),
 
-    background = Color(0xFFFFFBFE),
-    onBackground = Color(0xFF1C1B1F),
+    // Cool, clean locker-room light
+    background = Color(0xFFF4F5F7),
+    onBackground = Color(0xFF141517),
 
-    surface = Color(0xFFFFFBFE),
-    onSurface = Color(0xFF1C1B1F),
+    // Locker metal panels
+    surface = Color(0xFFE6E7EA),
+    onSurface = Color(0xFF141517),
 
-    surfaceVariant = Color(0xFFF6EFF2),
-    onSurfaceVariant = Color(0xFF1C1B1F),
+    // Slightly deeper metal for inputs/cards separation
+    surfaceVariant = Color(0xFFD6D8DD),
+    onSurfaceVariant = Color(0xFF2B2D30),
 
-    outline = Color(0xFF8C8C8C)
+    outline = Color(0xFF8B1E1A)
 )
-
 private val RedDark = darkCompactScheme(
-    primary = Color(0xFFFFB4AB),
-    onPrimary = Color(0xFF410002),
+    // Muted red highlight (still “red theme” but not neon)
+    primary = Color(0xFFB83A35),
+    onPrimary = Color(0xFF140707),
 
-    secondary = Color(0xFFEFB8C8),
-    onSecondary = Color(0xFF2D151C),
+    // Cool grey highlight
+    secondary = Color(0xFF9AA0A6),
+    onSecondary = Color(0xFF101214),
 
-    tertiary = Color(0xFF5C1A12),          // accent container
-    onTertiary = Color(0xFFFFDAD6),
+    // Bench wood accent (warm pop in dark UI)
+    tertiary = Color(0xFFD8C1A6),
+    onTertiary = Color(0xFF1B140E),
 
-    background = Color(0xFF0F0F0F),
-    onBackground = Color(0xFFE6E1E5),
+    // Charcoal floor / deep room darkness
+    background = Color(0xFF0B0C0D),
+    onBackground = Color(0xFFECEDEF),
 
-    surface = Color(0xFF121212),
-    onSurface = Color(0xFFE6E1E5),
+    // Dark steel surfaces
+    surface = Color(0xFF141619),
+    onSurface = Color(0xFFECEDEF),
 
-    surfaceVariant = Color(0xFF1A1A1A),
-    onSurfaceVariant = Color(0xFFE6E1E5),
+    // Slightly lighter steel for variants/inputs
+    surfaceVariant = Color(0xFF1E2125),
+    onSurfaceVariant = Color(0xFFC9CDD3),
 
-    outline = Color(0xFF6A6A6A)
+    outline = Color(0xFFB83A35)
 )
+
 
 // ---------- BLUE ----------
 private val BlueLight = lightCompactScheme(
@@ -178,7 +192,7 @@ private val BlueLight = lightCompactScheme(
     surfaceVariant = Color(0xFFDCE7EE),
     onSurfaceVariant = Color(0xFF0E1B24),
 
-    outline = Color(0xFF9FB2BE)
+    outline = Color(0xFF1565C0)
 )
 
 private val BlueDark = darkCompactScheme(
@@ -200,7 +214,7 @@ private val BlueDark = darkCompactScheme(
     surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFE7F2F5),
 
-    outline = Color(0xFF4B6776)
+    outline = Color(0xFF90CAF9)
 )
 
 // ---------- GREEN ----------
@@ -223,7 +237,7 @@ private val GreenLight = lightCompactScheme(
     surfaceVariant = Color(0xFFD3DED4),   // mossy slab / input fill
     onSurfaceVariant = Color(0xFF2B3B32),
 
-    outline = Color(0xFF6F8277)
+    outline = Color(0xFF1B7A4B)
 )
 
 private val GreenDark = darkCompactScheme(
@@ -245,7 +259,7 @@ private val GreenDark = darkCompactScheme(
     surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFE7F2F5),
 
-    outline = Color(0xFF4B6776)
+    outline = Color(0xFFA5D6A7)
 )
 
 // ---------- RETRO ----------
@@ -268,7 +282,7 @@ private val ArcadeLight = lightCompactScheme(
     surfaceVariant = Color(0xFFF0E8FF),
     onSurfaceVariant = Color(0xFF1B1024),
 
-    outline = Color(0xFFB9A6D6)
+    outline = Color(0xFFFF00E5)
 )
 
 private val ArcadeDark = darkCompactScheme(
@@ -290,7 +304,7 @@ private val ArcadeDark = darkCompactScheme(
     surfaceVariant = Color(0xFF151020),
     onSurfaceVariant = Color(0xFFF4EFFF),
 
-    outline = Color(0xFF6C5A83)
+    outline = Color(0xFFFF4DEB)
 )
 
 // ---------- SPONGEBOB (explicit) ----------
@@ -313,7 +327,7 @@ private val SpongeBobLight = lightColorScheme(
     surfaceVariant = Color(0xFFFFEDBF),
     onSurfaceVariant = Color(0xFF1F1B16),
 
-    outline = Color(0xFF2CB67D)
+    outline = Color(0xFFFFD400)
 )
 
 private val SpongeBobDark = darkColorScheme(
@@ -335,7 +349,7 @@ private val SpongeBobDark = darkColorScheme(
     surfaceVariant = Color(0xFF12313D),
     onSurfaceVariant = Color(0xFFFFF4D9),
 
-    outline = Color(0xFFFFD400)
+    outline = Color(0xFFFFE066)
 )
 
 // ---------- SPIDERMAN (explicit) ----------
@@ -358,7 +372,7 @@ private val SpiderManLight = lightColorScheme(
     surfaceVariant = Color(0xFFE7F2FF),
     onSurfaceVariant = Color(0xFF0B1220),
 
-    outline = Color(0xFF0B1220)
+    outline = Color(0xFFE53935)
 )
 
 private val SpiderManDark = darkColorScheme(
@@ -380,7 +394,7 @@ private val SpiderManDark = darkColorScheme(
     surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFECEFF1),
 
-    outline = Color(0xFFECEFF1)
+    outline = Color(0xFFFF4D4D)
 )
 
 // ---------- MATRIX (explicit special/semantic) ----------
@@ -428,7 +442,7 @@ val SwampLightColors = lightColorScheme(
     surfaceVariant = Color(0xFFD3DED4),   // mossy slab / input fill
     onSurfaceVariant = Color(0xFF2B3B32),
 
-    outline = Color(0xFF6F8277)
+    outline = Color(0xFF1B7A4B)
 )
 
 // ============================================================
@@ -455,26 +469,7 @@ val SwampDarkColors = darkColorScheme(
     surfaceVariant = Color(0xFF143125),   // input / chips base
     onSurfaceVariant = Color(0xFFBFD3C6),
 
-    outline = Color(0xFF496357)
-)
-
-// ---------- Shapes ----------
-private val DefaultShapes = Shapes()
-
-private val SpongeBobShapes = Shapes(
-    extraSmall = RoundedCornerShape(24.dp),
-    small = RoundedCornerShape(28.dp),
-    medium = RoundedCornerShape(32.dp),
-    large = RoundedCornerShape(36.dp),
-    extraLarge = RoundedCornerShape(40.dp),
-)
-
-private val SpiderManShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(14.dp),
-    large = RoundedCornerShape(18.dp),
-    extraLarge = RoundedCornerShape(22.dp),
+    outline = Color(0xFF38D987)
 )
 
 @Composable
@@ -485,12 +480,6 @@ fun GymLockerTheme(
 ) {
     val settings = com.example.gymlocker.ui.settings.LocalUserSettings.current
     val effectiveDarkTheme = settings.forceDarkMode || darkTheme
-
-    val shapes = when (settings.appTheme) {
-        AppTheme.SpongeBob -> SpongeBobShapes
-        AppTheme.SpiderMan -> SpiderManShapes
-        else -> DefaultShapes
-    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -524,18 +513,18 @@ fun GymLockerTheme(
         AppTheme.MATRIX -> MatrixDark
     }
 
-    // 2) Global safety net: if surface == background, promote surfaceVariant to surface
+    // 2) Global safety net:
+    // - If surface == background, promote surfaceVariant to surface
+    // - Force outline to match primary for every theme (including dynamic/default fallbacks)
     val scheme = baseScheme.copy(
         background = baseScheme.background,
-        surface = if (baseScheme.surface == baseScheme.background)
-            baseScheme.surfaceVariant
-        else baseScheme.surface
+        surface = if (baseScheme.surface == baseScheme.background) baseScheme.surfaceVariant else baseScheme.surface,
+        outline = baseScheme.primary
     )
 
     MaterialTheme(
         colorScheme = scheme,
         typography = Typography,
-        shapes = shapes,
         content = content
     )
 }

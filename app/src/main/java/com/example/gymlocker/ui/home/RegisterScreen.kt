@@ -1,19 +1,35 @@
 package com.example.gymlocker.ui.auth
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.AuthViewModel
 import kotlinx.coroutines.flow.collectLatest
 
@@ -27,7 +43,7 @@ fun RegisterScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // Auto-login after successful register (session becomes logged in)
+    // Auto-navigate after successful register (session becomes logged in)
     LaunchedEffect(Unit) {
         authViewModel.isLoggedIn.collectLatest { loggedIn ->
             if (loggedIn) {
@@ -62,18 +78,28 @@ fun RegisterScreen(
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Email") },
             singleLine = true,
-            // Inputs: surfaceVariant container + onSurface text + outline/primary borders
-            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                 disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                errorTextColor = MaterialTheme.colorScheme.onSurface,
+
                 cursorColor = MaterialTheme.colorScheme.primary,
+
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                errorBorderColor = MaterialTheme.colorScheme.error,
+
                 focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                errorLabelColor = MaterialTheme.colorScheme.error
             )
         )
 
@@ -89,17 +115,28 @@ fun RegisterScreen(
             label = { Text("Password (min 6)") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
-            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                 disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                errorTextColor = MaterialTheme.colorScheme.onSurface,
+
                 cursorColor = MaterialTheme.colorScheme.primary,
+
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                errorBorderColor = MaterialTheme.colorScheme.error,
+
                 focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                errorLabelColor = MaterialTheme.colorScheme.error
             )
         )
 
@@ -121,7 +158,6 @@ fun RegisterScreen(
             onClick = { authViewModel.register(email, password) },
             modifier = Modifier.fillMaxWidth(),
             enabled = !uiState.isLoading && emailOk && passOk,
-            // CTA: primary/onPrimary
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -138,7 +174,7 @@ fun RegisterScreen(
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = "Creating...",
+                    text = "Creating…",
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
@@ -152,9 +188,8 @@ fun RegisterScreen(
         Spacer(Modifier.height(8.dp))
 
         TextButton(
-            onClick = { navController.popBackStack() },
+            onClick = { navController.popBackUnlessAtRoot() },
             modifier = Modifier.fillMaxWidth(),
-            // Supporting action: primary text on the screen layer
             colors = ButtonDefaults.textButtonColors(
                 contentColor = MaterialTheme.colorScheme.primary
             )

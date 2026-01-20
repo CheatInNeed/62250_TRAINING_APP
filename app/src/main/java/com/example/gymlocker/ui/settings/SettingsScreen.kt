@@ -1,7 +1,9 @@
 package com.example.gymlocker.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -20,9 +22,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +35,10 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.entity.AppTheme
 import com.example.gymlocker.data.entity.WeightUnit
 import com.example.gymlocker.data.repo.SettingsRepository
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,21 +54,29 @@ fun SettingsScreen(
     val settingsOrNull by repo.activeSettings.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
 
+    val cardShape = RoundedCornerShape(18.dp)
+    val cardBorder = BorderStroke(
+        1.dp,
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    )
+
     // Guard: if no active profile, block editing
     if (activeUserId == null) {
         Scaffold(
             topBar = {
                 TopAppBar(
+                    modifier = Modifier.metalGloss(TopBarShape),
                     title = { Text("Settings") },
                     navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
+                        IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
-                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.onSurface,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                        actionIconContentColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
             },
@@ -121,16 +135,19 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                // FIX: must use TopBarShape for top bar
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
@@ -148,7 +165,11 @@ fun SettingsScreen(
 
             // --- Units ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
+                shape = cardShape,
+                border = cardBorder,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -182,7 +203,11 @@ fun SettingsScreen(
 
             // --- Rest timer ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
+                shape = cardShape,
+                border = cardBorder,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -219,7 +244,11 @@ fun SettingsScreen(
 
             // --- Dark mode ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
+                shape = cardShape,
+                border = cardBorder,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -255,7 +284,11 @@ fun SettingsScreen(
 
             // --- Theme picker (keep it in a surface card; inputs use surfaceVariant) ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
+                shape = cardShape,
+                border = cardBorder,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface
@@ -333,10 +366,13 @@ fun SettingsScreen(
                                 appTheme = selectedTheme
                             )
                         }
-                        navController.popBackStack()
+                        navController.popBackUnlessAtRoot()
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,

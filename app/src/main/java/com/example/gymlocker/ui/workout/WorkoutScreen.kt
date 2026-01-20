@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -51,6 +51,9 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -77,6 +80,7 @@ fun WorkoutScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Workout") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -87,9 +91,15 @@ fun WorkoutScreen(
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -141,7 +151,7 @@ fun WorkoutScreen(
             Spacer(Modifier.height(16.dp))
 
             // Favorite template boxes
-            val favoriteTemplates = templates.filter { it.isFavorite }.take(3)
+            val favoriteTemplates = templates.filter { it.isFavorite }
             val templateSummaries = remember { mutableStateMapOf<Long, String>() }
 
             LaunchedEffect(favoriteTemplates) {
@@ -200,19 +210,25 @@ fun WorkoutScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                userScrollEnabled = false
+                userScrollEnabled = true
             ) {
                 items(favoriteTemplates) { t ->
+                    val templateCardShape = RoundedCornerShape(18.dp)
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(96.dp)
+                            .metalGloss(templateCardShape)
                             .clickable { navController.navigate("templateDetail/${t.templateId}") },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = templateCardShape,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                        ),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface,
                             contentColor = MaterialTheme.colorScheme.onSurface
@@ -262,13 +278,14 @@ fun WorkoutScreen(
                 Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
             }
         }
+
         if (showBrowseTemplatesSheet) {
             TemplateBrowseSheet(
                 templates = templates,
                 onDismiss = { showBrowseTemplatesSheet = false },
                 onTemplateSelected = { templateId ->
-                    showBrowseTemplatesSheet = false
                     navController.navigate("templateDetail/$templateId")
+                    showBrowseTemplatesSheet = false
                 }
             )
         }

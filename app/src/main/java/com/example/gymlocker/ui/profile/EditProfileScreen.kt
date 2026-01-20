@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -44,6 +45,9 @@ import com.example.gymlocker.util.storageKgFromInput
 import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlin.math.roundToInt
+import com.example.gymlocker.ui.theme.TopBarShape
+ import com.example.gymlocker.ui.theme.metalGloss
+ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,7 +188,12 @@ fun EditProfileScreen(
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Edit profile") },
+                modifier = Modifier.metalGloss(TopBarShape),
+                title = {
+                    Text(
+                        text = "Edit profile"
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
