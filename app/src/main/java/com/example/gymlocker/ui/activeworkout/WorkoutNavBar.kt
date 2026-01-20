@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardHide
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.materialIcon
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -109,18 +110,18 @@ fun WorkoutNumpadBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // LEFT SIDE: Number pad (3x4 grid)
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Row 1: 1 2 3
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         NumpadButton("1", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("1") }
                         NumpadButton("2", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("2") }
@@ -129,7 +130,7 @@ fun WorkoutNumpadBar(
                     // Row 2: 4 5 6
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         NumpadButton("4", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("4") }
                         NumpadButton("5", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("5") }
@@ -138,7 +139,7 @@ fun WorkoutNumpadBar(
                     // Row 3: 7 8 9
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         NumpadButton("7", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("7") }
                         NumpadButton("8", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("8") }
@@ -147,7 +148,7 @@ fun WorkoutNumpadBar(
                     // Row 4: , 0 ⌫
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         NumpadButton(",", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick(",") }
                         NumpadButton("0", buttonBackground, contentColor, Modifier.weight(1f)) { onNumberClick("0") }
@@ -162,17 +163,17 @@ fun WorkoutNumpadBar(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
                 // RIGHT SIDE: Action buttons
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Hide keyboard button - same width as other buttons
                     Box(
                         modifier = Modifier
-                            .width(88.dp)
-                            .height(40.dp)
+                            .width(120.dp)
+                            .height(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(buttonBackground)
                             .clickable { onHide() },
@@ -182,12 +183,12 @@ fun WorkoutNumpadBar(
                             imageVector = Icons.Filled.KeyboardHide,
                             contentDescription = "Hide",
                             tint = contentColor,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
                     // Left/Right navigation row
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IconButton(
                             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             backgroundColor = buttonBackground,
@@ -205,7 +206,7 @@ fun WorkoutNumpadBar(
                     }
 
                     // Plus/Minus row
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         IconButton(
                             icon = Icons.Filled.Remove,
                             backgroundColor = buttonBackground,
@@ -225,8 +226,8 @@ fun WorkoutNumpadBar(
                     // Next button (move to next field) - uses primary color
                     Box(
                         modifier = Modifier
-                            .width(88.dp)
-                            .height(40.dp)
+                            .width(120.dp)
+                            .height(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(accentColor)
                             .clickable { onNext() },
@@ -234,19 +235,19 @@ fun WorkoutNumpadBar(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                             Text(
                                 text = "Next",
                                 color = MaterialTheme.colorScheme.onPrimary,
                                 fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
+                                fontSize = 18.sp
                             )
                         }
                     }
@@ -270,7 +271,7 @@ private fun NumpadButton(
 ) {
     Box(
         modifier = modifier
-            .height(40.dp)
+            .height(64.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .clickable { onClick() },
@@ -279,7 +280,7 @@ private fun NumpadButton(
         Text(
             text = text,
             color = contentColor,
-            fontSize = 20.sp,
+            fontSize = 40.sp,
             fontWeight = FontWeight.Normal,
             textAlign = TextAlign.Center
         )
@@ -300,7 +301,7 @@ private fun IconButton(
 ) {
     Box(
         modifier = modifier
-            .size(40.dp)
+            .size(64.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .clickable { onClick() },
@@ -310,7 +311,7 @@ private fun IconButton(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = contentColor,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(28.dp)
         )
     }
 }
