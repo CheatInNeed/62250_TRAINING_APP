@@ -172,7 +172,7 @@ fun WorkoutNumpadBar(
                     // Hide keyboard button - same width as other buttons
                     Box(
                         modifier = Modifier
-                            .width(120.dp)
+                            .width(136.dp)
                             .height(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(buttonBackground)
@@ -226,7 +226,7 @@ fun WorkoutNumpadBar(
                     // Next button (move to next field) - uses primary color
                     Box(
                         modifier = Modifier
-                            .width(120.dp)
+                            .width(136.dp)
                             .height(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(accentColor)
