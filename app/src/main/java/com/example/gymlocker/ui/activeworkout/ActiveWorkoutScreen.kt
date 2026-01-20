@@ -696,7 +696,13 @@ fun ActiveWorkoutScreen(
                             exercise = exercise,
                             exerciseIndex = exerciseIndex,
                             cursorPosition = cursorPosition,
-                            onCursorChange = { newPos -> cursorPosition = newPos },
+                            onCursorChange = { newPos ->
+                                cursorPosition = newPos
+                                // Show numpad when weight or reps field is selected
+                                if (newPos != null && (newPos.field == FieldType.WEIGHT || newPos.field == FieldType.REPS)) {
+                                    isNumpadVisible = true
+                                }
+                            },
                             viewModel = viewModel,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onMarkAllSetsDone = { viewModel.markAllSetsDone(exercise.exerciseId) },
@@ -1077,12 +1083,11 @@ fun ExerciseSetRow(
     }
     val unit = LocalUserSettings.current.weightUnit
 
-    // IMPORTANT: keep an editable string while focused; don't overwrite on every recomposition
+    // Track focus state and keep editable string for display
     var isWeightFocused by remember { mutableStateOf(false) }
     var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
 
-    // When NOT editing, sync display from canonical stored kg value
-    // Also sync when numpad is visible to ensure navigation bar input works correctly
+    // Sync display from canonical stored kg value when not focused or when numpad is visible
     LaunchedEffect(set.weight, unit, isNumpadVisible) {
         if (!isWeightFocused || isNumpadVisible) {
             weightText =
@@ -1134,11 +1139,16 @@ fun ExerciseSetRow(
                         onWeightChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,
+                readOnly = isNumpadVisible,  // Read-only when numpad is visible
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
-                    .onFocusChanged { isWeightFocused = it.isFocused },
+                    .onFocusChanged { focusState ->
+                        isWeightFocused = focusState.isFocused
+                        if (focusState.isFocused) {
+                            onFieldSelected(FieldType.WEIGHT)
+                        }
+                    },
                 placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
@@ -1164,7 +1174,7 @@ fun ExerciseSetRow(
                     disabledIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
 
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    cursorColor = Color.Transparent  // Hide cursor
                 )
             )
         }
@@ -1191,9 +1201,15 @@ fun ExerciseSetRow(
                         onRepsChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,
+                readOnly = isNumpadVisible,  // Read-only when numpad is visible
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier
+                    .fillMaxWidth(.9f)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            onFieldSelected(FieldType.REPS)
+                        }
+                    },
                 placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
@@ -1219,7 +1235,7 @@ fun ExerciseSetRow(
                     disabledIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
 
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    cursorColor = Color.Transparent  // Hide cursor
                 )
             )
 
