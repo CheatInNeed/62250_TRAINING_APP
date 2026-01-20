@@ -698,7 +698,7 @@ private fun dayLetter(day: DayOfWeek): String = when (day) {
 
 @Composable
 private fun WorkoutDotsRow(count: Int) {
-    val shown = minOf(count, 4)
+    val shown = minOf(count, 3)
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -710,15 +710,6 @@ private fun WorkoutDotsRow(count: Int) {
                     .size(6.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary)
-            )
-        }
-
-        if (count > 4) {
-            Spacer(Modifier.width(2.dp))
-            Text(
-                text = "+${count - 4}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -920,7 +911,7 @@ private fun HomeCalendarGridCounts(
 
                             if (count > 0) {
                                 Spacer(Modifier.height(4.dp))
-                                WorkoutDotsRow(count = count)
+                                WorkoutDotsRow(count = count.coerceAtMost(3))
                             }
                         }
                     }

@@ -35,6 +35,7 @@ import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 
 // Shared shape for all stats cards (PS-120: shape must match border + metalGloss)
 private val StatsCardShape = RoundedCornerShape(18.dp)
@@ -238,16 +239,28 @@ fun ProfileStatsScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             HorizontalDivider()
                             Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Last workout: ${workoutSummary.mostRecentName}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            workoutSummary.mostRecentDate?.let { date ->
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate("workoutDetail/${workoutSummary.mostRecentWorkoutId}")
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
                                 Text(
-                                    text = prettyDate(date),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.outline
+                                    text = "Last workout: ${workoutSummary.mostRecentName}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
+
+                                workoutSummary.mostRecentDate?.let { date ->
+                                    Text(
+                                        text = prettyDate(date),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
                             }
                         }
                     }
