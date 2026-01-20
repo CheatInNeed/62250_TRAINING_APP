@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,6 +42,9 @@ import com.example.gymlocker.util.storageKgFromInput
 import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlin.math.roundToInt
+import com.example.gymlocker.ui.theme.TopBarShape
+ import com.example.gymlocker.ui.theme.metalGloss
+ import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +109,7 @@ fun EditProfileScreen(
                     onClick = {
                         profileViewModel.resetActiveProfile {
                             showResetConfirm = false
-                            navController.popBackStack()
+                            navController.popBackUnlessAtRoot()
                         }
                     }
                 ) {
@@ -130,16 +135,26 @@ fun EditProfileScreen(
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Edit profile") },
+                modifier = Modifier.metalGloss(TopBarShape),
+                title = {
+                    Text(
+                        text = "Edit profile"
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            contentDescription = "Back"
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         }
     ) { innerPadding ->
@@ -157,7 +172,7 @@ fun EditProfileScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Button(
-                    onClick = { navController.popBackStack() },
+                    onClick = { navController.popBackUnlessAtRoot() },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -238,7 +253,7 @@ fun EditProfileScreen(
                         height = heightInt,
                         weight = wKg,
                         onError = { error = it },
-                        onSuccess = { navController.popBackStack() }
+                        onSuccess = { navController.popBackUnlessAtRoot() }
                     )
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -268,7 +283,6 @@ fun EditProfileScreen(
             ) {
                 Text("Create new profile")
             }
-
         }
     }
 }

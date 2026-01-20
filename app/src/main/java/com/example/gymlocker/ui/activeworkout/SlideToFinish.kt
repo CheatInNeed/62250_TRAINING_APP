@@ -35,6 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.theme.TopBarShape
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -47,6 +50,10 @@ fun SlideToFinish(
 ) {
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
+
+    // Peter Standard: use forceDarkMode-aware dark detection
+    val settings = LocalUserSettings.current
+    val isDark = androidx.compose.foundation.isSystemInDarkTheme() || settings.forceDarkMode
 
     var trackWidthPx by remember { mutableStateOf(0f) }
     val thumbSize = 44.dp
@@ -66,10 +73,14 @@ fun SlideToFinish(
     // Text fades out as you drag
     val textAlpha = if (!enabled) 0.35f else (1f - (progress * 1.2f)).coerceIn(0f, 1f)
 
-    // Track: primary (brand) -> secondary (accent) at 100%
+    // Track: primary -> secondary at 100%
     val startColor = MaterialTheme.colorScheme.primary
     val endColor = MaterialTheme.colorScheme.secondary
     val trackColor = lerpColor(startColor, endColor, progress)
+
+    // Peter Standard: metalGloss highlight uses SECONDARY in both dark/light
+    val highlightColor = MaterialTheme.colorScheme.secondary
+    val highlightAlpha = if (isDark) 0.22f else 0.14f
 
     Box(
         modifier = modifier
@@ -79,6 +90,10 @@ fun SlideToFinish(
             .onSizeChanged { trackWidthPx = it.width.toFloat() }
             .clip(RoundedCornerShape(999.dp))
             .background(trackColor, RoundedCornerShape(999.dp))
+            // apply metalGloss with the requested TopBarShape
+            .metalGloss(TopBarShape)
+            // subtle accent "gloss" to emphasize the slide affordance, per standard
+            .background(highlightColor.copy(alpha = highlightAlpha), RoundedCornerShape(999.dp))
             .padding(horizontal = horizontalPadding),
         contentAlignment = Alignment.CenterStart
     ) {
@@ -117,12 +132,9 @@ fun SlideToFinish(
 
                         if (done) {
                             completed = true
-
-                            // Compose har ikke "heavyImpact" som i iOS; LongPress føles tungest på Android.
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
 
                             scope.launch {
-                                // snap to end
                                 x.animateTo(max, tween(120))
                                 onFinished()
                             }
@@ -135,7 +147,6 @@ fun SlideToFinish(
     }
 }
 
-// Simple color lerp without depending on additional libs
 private fun lerpColor(a: Color, b: Color, t: Float): Color {
     val clamped = t.coerceIn(0f, 1f)
     return Color(

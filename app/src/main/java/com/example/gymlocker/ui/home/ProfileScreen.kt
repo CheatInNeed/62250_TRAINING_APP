@@ -7,34 +7,11 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.material3.FilterChip
-import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
-import com.example.gymlocker.ui.components.PeriodBarChart
-import com.example.gymlocker.data.dao.MuscleGroupDistributionRow
-import com.example.gymlocker.viewmodel.WeekHoursUi
-import com.example.gymlocker.viewmodel.WeekVolumeUi
-import com.example.gymlocker.viewmodel.MonthHoursUi
-import com.example.gymlocker.viewmodel.MonthVolumeUi
-import com.example.gymlocker.viewmodel.StatsRange
-import java.time.format.TextStyle
-import java.time.temporal.WeekFields
-import java.util.Locale
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gymlocker.viewmodel.StatViewModel
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,9 +22,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Settings
@@ -57,14 +43,20 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -83,20 +75,36 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.gymlocker.data.auth.SessionManager
+import com.example.gymlocker.data.dao.MuscleGroupDistributionRow
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
+import com.example.gymlocker.ui.components.PeriodBarChart
+import com.example.gymlocker.ui.components.ProfileAvatarIcon
 import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.AuthViewModel
+import com.example.gymlocker.viewmodel.MonthHoursUi
+import com.example.gymlocker.viewmodel.MonthVolumeUi
 import com.example.gymlocker.viewmodel.ProfileViewModel
+import com.example.gymlocker.viewmodel.StatViewModel
+import com.example.gymlocker.viewmodel.StatsRange
+import com.example.gymlocker.viewmodel.WeekHoursUi
+import com.example.gymlocker.viewmodel.WeekVolumeUi
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
-import com.example.gymlocker.ui.components.ProfileAvatarIcon
-import com.example.gymlocker.data.auth.SessionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,13 +130,11 @@ fun ProfileScreen(
     val activeProfile by profileViewModel.activeProfile.collectAsState()
     val statViewModel: StatViewModel = viewModel()
 
-    // Active profile photo uri (stored in SessionManager/DataStore)
     val photoUriString by profileViewModel.activeProfilePhotoUri.collectAsState()
 
     val context = LocalContext.current
     val session = remember { SessionManager(context.applicationContext) }
 
-    // Dialog / UI state
     var deleteTargetUserId by remember { mutableStateOf<Long?>(null) }
     var deleteTargetName by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -137,7 +143,6 @@ fun ProfileScreen(
     var showPermissionDenied by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf(false) }
 
-    // Permission: used to satisfy the "deny permission shows explanation" AC
     val permission = remember {
         if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES
         else Manifest.permission.READ_EXTERNAL_STORAGE
@@ -148,7 +153,6 @@ fun ProfileScreen(
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
 
-        // Persist URI read access across restarts
         try {
             context.contentResolver.takePersistableUriPermission(
                 uri,
@@ -171,7 +175,7 @@ fun ProfileScreen(
         }
     }
 
-    // Confirm delete dialog
+    // --- Dialogs ---
     if (deleteTargetUserId != null) {
         AlertDialog(
             onDismissRequest = { deleteTargetUserId = null },
@@ -203,7 +207,9 @@ fun ProfileScreen(
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) { Text("Delete") }
             },
@@ -218,49 +224,29 @@ fun ProfileScreen(
         )
     }
 
-    // Error dialog
     if (errorMsg != null) {
         AlertDialog(
             onDismissRequest = { errorMsg = null },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = {
-                Text(
-                    text = "Oops",
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Text(
-                    text = errorMsg ?: "",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
+            title = { Text(text = "Oops", color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text(text = errorMsg ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
                 TextButton(onClick = { errorMsg = null }) {
-                    Text(
-                        text = "OK",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "OK", color = MaterialTheme.colorScheme.primary)
                 }
             }
         )
     }
 
-    // Permission denied explanation (AC)
     if (showPermissionDenied) {
         AlertDialog(
             onDismissRequest = { showPermissionDenied = false },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = {
-                Text(
-                    text = "Photo permission denied",
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
+            title = { Text(text = "Photo permission denied", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Text(
                     text = "You can keep using the app without a profile photo. If you want to add one later, allow photo access in system settings.",
@@ -269,28 +255,19 @@ fun ProfileScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showPermissionDenied = false }) {
-                    Text(
-                        text = "OK",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "OK", color = MaterialTheme.colorScheme.primary)
                 }
             }
         )
     }
 
-    // Photo menu (choose/remove)
     if (showPhotoMenu) {
         AlertDialog(
             onDismissRequest = { showPhotoMenu = false },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = {
-                Text(
-                    text = "Profile photo",
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
+            title = { Text(text = "Profile photo", color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Text(
                     text = "Choose a photo or remove the current one.",
@@ -304,10 +281,7 @@ fun ProfileScreen(
                         permissionLauncher.launch(permission)
                     }
                 ) {
-                    Text(
-                        text = "Choose photo",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "Choose photo", color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
@@ -319,42 +293,25 @@ fun ProfileScreen(
                                 showRemoveConfirm = true
                             }
                         ) {
-                            Text(
-                                text = "Remove",
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Text(text = "Remove", color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     TextButton(onClick = { showPhotoMenu = false }) {
-                        Text(
-                            text = "Cancel",
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Text(text = "Cancel", color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
         )
     }
 
-    // Remove confirm
     if (showRemoveConfirm) {
         AlertDialog(
             onDismissRequest = { showRemoveConfirm = false },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = {
-                Text(
-                    text = "Remove photo?",
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Text(
-                    text = "This will restore the default avatar.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
+            title = { Text(text = "Remove photo?", color = MaterialTheme.colorScheme.onSurface) },
+            text = { Text(text = "This will restore the default avatar.", color = MaterialTheme.colorScheme.onSurfaceVariant) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -362,18 +319,12 @@ fun ProfileScreen(
                         profileViewModel.removeActiveProfilePhoto()
                     }
                 ) {
-                    Text(
-                        text = "Remove",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "Remove", color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRemoveConfirm = false }) {
-                    Text(
-                        text = "Cancel",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Text(text = "Cancel", color = MaterialTheme.colorScheme.primary)
                 }
             }
         )
@@ -382,36 +333,40 @@ fun ProfileScreen(
     var isProfilePickerOpen by remember { mutableStateOf(false) }
     var isAvatarMenuOpen by remember { mutableStateOf(false) }
 
+    val outlineColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val cardBorder = remember(outlineColor) {
+        BorderStroke(1.dp, outlineColor)
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape), // ✅ required: metalGloss(TopBarShape)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                        Icon(imageVector = Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 title = {
                     Box {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clickable { if (profiles.isNotEmpty()) isProfilePickerOpen = true }
+                            modifier = Modifier.clickable { if (profiles.isNotEmpty()) isProfilePickerOpen = true }
                         ) {
                             Text(
                                 text = activeProfile?.name ?: "Select profile",
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Icon(
-                                imageVector = if (isProfilePickerOpen) {
-                                    Icons.Filled.ArrowDropUp
-                                } else {
-                                    Icons.Filled.ArrowDropDown
-                                },
+                                imageVector = if (isProfilePickerOpen) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
                                 contentDescription = "Select profile",
                                 modifier = Modifier.padding(start = 4.dp)
                             )
@@ -421,20 +376,12 @@ fun ProfileScreen(
                             expanded = isProfilePickerOpen,
                             onDismissRequest = { isProfilePickerOpen = false },
                             modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
+                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                                 .widthIn(min = 180.dp)
                         ) {
                             profiles.forEachIndexed { index, profile ->
                                 DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = profile.name,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    },
+                                    text = { Text(text = profile.name, style = MaterialTheme.typography.bodyMedium) },
                                     leadingIcon = {
                                         val uriForThisProfile by session
                                             .profilePhotoUri(profile.userId)
@@ -452,14 +399,12 @@ fun ProfileScreen(
                                                 .padding(2.dp)
                                         )
                                     },
-
                                     onClick = {
                                         profileViewModel.setActiveProfile(profile.userId)
                                         isProfilePickerOpen = false
                                     }
                                 )
 
-                                // subtle divider between items (except last)
                                 if (index < profiles.lastIndex) {
                                     Divider(
                                         modifier = Modifier.padding(horizontal = 12.dp),
@@ -471,33 +416,21 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
-                    // Single burger menu (top-right)
                     Box {
                         IconButton(onClick = { isAvatarMenuOpen = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.Menu,
-                                contentDescription = "Open menu"
-                            )
+                            Icon(imageVector = Icons.Filled.Menu, contentDescription = "Open menu")
                         }
 
                         DropdownMenu(
                             expanded = isAvatarMenuOpen,
                             onDismissRequest = { isAvatarMenuOpen = false },
                             modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
+                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                                 .widthIn(min = 200.dp)
                         ) {
                             DropdownMenuItem(
                                 text = { Text("Edit profile") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.Person,
-                                        contentDescription = null
-                                    )
-                                },
+                                leadingIcon = { Icon(imageVector = Icons.Filled.Person, contentDescription = null) },
                                 onClick = {
                                     isAvatarMenuOpen = false
                                     navController.navigate("editProfile")
@@ -506,12 +439,7 @@ fun ProfileScreen(
 
                             DropdownMenuItem(
                                 text = { Text("View statistics") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.BarChart,
-                                        contentDescription = null
-                                    )
-                                },
+                                leadingIcon = { Icon(imageVector = Icons.Filled.BarChart, contentDescription = null) },
                                 onClick = {
                                     isAvatarMenuOpen = false
                                     navController.navigate("profileStats")
@@ -520,12 +448,7 @@ fun ProfileScreen(
 
                             DropdownMenuItem(
                                 text = { Text("Settings") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.Settings,
-                                        contentDescription = null
-                                    )
-                                },
+                                leadingIcon = { Icon(imageVector = Icons.Filled.Settings, contentDescription = null) },
                                 onClick = {
                                     isAvatarMenuOpen = false
                                     navController.navigate("settings")
@@ -538,12 +461,7 @@ fun ProfileScreen(
                             )
 
                             DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Log out",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                },
+                                text = { Text(text = "Log out", color = MaterialTheme.colorScheme.error) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.ArrowBack,
@@ -562,13 +480,18 @@ fun ProfileScreen(
                         }
                     }
                 }
-
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape), // ✅ required: metalGloss(BotBarShape)
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -579,7 +502,6 @@ fun ProfileScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
         ) {
-            // Active profile card
             activeProfile?.let { p ->
                 val heightText = if (p.height == 0) "Not set" else "${p.height} cm"
 
@@ -593,10 +515,15 @@ fun ProfileScreen(
                         "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
                     }
 
+                val activeProfileCardShape = RoundedCornerShape(18.dp)
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 14.dp),
+                        .padding(bottom = 14.dp)
+                        .metalGloss(activeProfileCardShape),
+                    shape = activeProfileCardShape,
+                    border = cardBorder,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurface
@@ -647,7 +574,6 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-
                     }
                 }
             }
@@ -661,30 +587,14 @@ fun ProfileScreen(
             } else if (activeProfileUserId != null) {
                 val userId = activeProfileUserId!!
 
-                // Same data sources as HomeScreen
                 val statsRange by statViewModel.statsRange.collectAsState()
 
-                val weeklyHours by statViewModel
-                    .weeklyHoursLast3Months(userId)
-                    .collectAsState(initial = emptyList())
+                val weeklyHours by statViewModel.weeklyHoursLast3Months(userId).collectAsState(initial = emptyList())
+                val weeklyVolume by statViewModel.weeklyVolumeLast3Months(userId).collectAsState(initial = emptyList())
+                val distribution by statViewModel.muscleGroupDistribution(userId).collectAsState(initial = emptyList())
+                val monthlyHours by statViewModel.monthlyHoursLast12Months(userId).collectAsState(initial = emptyList())
+                val monthlyVolume by statViewModel.monthlyVolumeLast12Months(userId).collectAsState(initial = emptyList())
 
-                val weeklyVolume by statViewModel
-                    .weeklyVolumeLast3Months(userId)
-                    .collectAsState(initial = emptyList())
-
-                val distribution by statViewModel
-                    .muscleGroupDistribution(userId)
-                    .collectAsState(initial = emptyList())
-
-                val monthlyHours by statViewModel
-                    .monthlyHoursLast12Months(userId)
-                    .collectAsState(initial = emptyList())
-
-                val monthlyVolume by statViewModel
-                    .monthlyVolumeLast12Months(userId)
-                    .collectAsState(initial = emptyList())
-
-                // Make the whole card clickable -> dedicated statistics page
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -760,17 +670,21 @@ private fun ProfileAvatar(
 private fun NoProfilesCard(
     onCreateProfileClick: () -> Unit
 ) {
+    val noProfilesShape = RoundedCornerShape(18.dp)
+
     Card(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .metalGloss(noProfilesShape),
+        shape = noProfilesShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -791,7 +705,9 @@ private fun NoProfilesCard(
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
                 Text("Create Profile")
@@ -799,8 +715,8 @@ private fun NoProfilesCard(
         }
     }
 }
-private enum class GraphMode { HOURS, VOLUME }
 
+private enum class GraphMode { HOURS, VOLUME }
 @Composable
 fun StatsCard(
     weeklyHours: List<WeekHoursUi>,
@@ -813,12 +729,31 @@ fun StatsCard(
 ) {
     var mode by remember { mutableStateOf(GraphMode.HOURS) }
 
-    // --- NEW: limit months to last 6 for the compact card ---
     val last6MonthlyHours = monthlyHours.takeLast(6)
     val last6MonthlyVolume = monthlyVolume.takeLast(6)
 
+    // Peter Standard: force 16.dp corners on cards
+    val statsCardShape = RoundedCornerShape(16.dp)
+
+    // Theme-colored chips (no custom border API)
+    // Selected: primary/onPrimary. Unselected: surfaceVariant/onSurfaceVariant.
+    val chipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(statsCardShape),
+        shape = statsCardShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -833,7 +768,6 @@ fun StatsCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Week/Month + Hours/Volume toggles
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -843,12 +777,14 @@ fun StatsCard(
                     FilterChip(
                         selected = statsRange == StatsRange.WEEK,
                         onClick = { onRangeChange(StatsRange.WEEK) },
-                        label = { Text("Week") }
+                        label = { Text("Week") },
+                        colors = chipColors
                     )
                     FilterChip(
                         selected = statsRange == StatsRange.MONTH,
                         onClick = { onRangeChange(StatsRange.MONTH) },
-                        label = { Text("Month") }
+                        label = { Text("Month") },
+                        colors = chipColors
                     )
                 }
 
@@ -856,12 +792,14 @@ fun StatsCard(
                     FilterChip(
                         selected = mode == GraphMode.HOURS,
                         onClick = { mode = GraphMode.HOURS },
-                        label = { Text("Hours") }
+                        label = { Text("Hours") },
+                        colors = chipColors
                     )
                     FilterChip(
                         selected = mode == GraphMode.VOLUME,
                         onClick = { mode = GraphMode.VOLUME },
-                        label = { Text("Volume") }
+                        label = { Text("Volume") },
+                        colors = chipColors
                     )
                 }
             }
@@ -882,12 +820,11 @@ fun StatsCard(
                             "Volume per month (last 6 months)"
                 },
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(10.dp))
 
-            // --------- CHART AREA (PeriodBarChart) ---------
             when (statsRange) {
                 StatsRange.WEEK -> {
                     val weekLabels = weeklyHours.map {
@@ -906,7 +843,7 @@ fun StatsCard(
                             values = weeklyVolume.map { it.volume },
                             labels = weekLabels,
                             xCaption = "Week",
-                            yTickStep = 500f, // 500 kg per tick
+                            yTickStep = 500f,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -915,10 +852,7 @@ fun StatsCard(
                 StatsRange.MONTH -> {
                     if (mode == GraphMode.HOURS) {
                         val monthLabels = last6MonthlyHours.map {
-                            it.yearMonth.month.getDisplayName(
-                                TextStyle.SHORT,
-                                Locale.getDefault()
-                            )
+                            it.yearMonth.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         }
 
                         PeriodBarChart(
@@ -929,22 +863,18 @@ fun StatsCard(
                         )
                     } else {
                         val monthLabels = last6MonthlyVolume.map {
-                            it.yearMonth.month.getDisplayName(
-                                TextStyle.SHORT,
-                                Locale.getDefault()
-                            )
+                            it.yearMonth.month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
                         }
 
                         PeriodBarChart(
                             values = last6MonthlyVolume.map { it.volume },
                             labels = monthLabels,
                             xCaption = "Month",
-                            yTickStep = 500f, // 500 kg per tick
+                            yTickStep = 500f,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
-
             }
 
             Spacer(Modifier.height(16.dp))
@@ -955,7 +885,7 @@ fun StatsCard(
                 else
                     "Training balance (this month)",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(10.dp))
@@ -967,5 +897,3 @@ fun StatsCard(
         }
     }
 }
-
-

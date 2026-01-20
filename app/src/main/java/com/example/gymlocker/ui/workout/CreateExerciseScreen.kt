@@ -41,6 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.CreateExerciseViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,12 +87,13 @@ fun CreateExerciseScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Create Exercise") },
                 navigationIcon = {
                     IconButton(
                         onClick = {
                             viewModel.resetForm()
-                            navController.popBackStack()
+                            navController.popBackUnlessAtRoot()
                         }
                     ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -207,7 +212,7 @@ fun CreateExerciseScreen(
             Button(
                 onClick = {
                     viewModel.saveExercise {
-                        navController.popBackStack()
+                        navController.popBackUnlessAtRoot()
                     }
                 },
                 modifier = Modifier

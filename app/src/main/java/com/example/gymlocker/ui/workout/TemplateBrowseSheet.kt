@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.template.WorkoutTemplate
+import com.example.gymlocker.ui.theme.metalGloss
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -148,11 +150,18 @@ fun TemplateBrowseSheet(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(filtered) { t ->
+                    val cardShape = RoundedCornerShape(18.dp)
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .metalGloss(cardShape)
                             .clickable { onTemplateSelected(t.templateId) },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = cardShape,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                        ),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface,
                             contentColor = MaterialTheme.colorScheme.onSurface

@@ -1,7 +1,15 @@
 package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,13 +28,13 @@ import kotlin.math.roundToInt
 fun MuscleGroupDistributionPieChart(
     rows: List<MuscleGroupDistributionRow>,
     modifier: Modifier = Modifier,
-    maxSlices: Int = 6,            // antal “rigtige” slices før vi samler resten i "Other"
+    maxSlices: Int = 6,
     showLegend: Boolean = true,
     donut: Boolean = true
 ) {
     if (rows.isEmpty()) {
         Text(
-            "No data",
+            text = "No data",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -35,7 +43,7 @@ fun MuscleGroupDistributionPieChart(
 
     val total = rows.sumOf { it.completedSets }.coerceAtLeast(1)
 
-    // Sortér + tag top N, resten som "Other"
+    // Sort and take top N, group the rest as "Other"
     val sorted = remember(rows) { rows.sortedByDescending { it.completedSets } }
 
     val slices = remember(sorted, total, maxSlices) {
@@ -51,17 +59,22 @@ fun MuscleGroupDistributionPieChart(
 
     val cs = MaterialTheme.colorScheme
 
-    val colors = listOf(
-        cs.primary,                                  // Blå (primær)
-        cs.onSurface.copy(alpha = 0.85f),            // Mørk grå
-        cs.onSurface.copy(alpha = 0.65f),            // Grå
-        cs.onSurface.copy(alpha = 0.45f),            // Lys grå
-        cs.onSurfaceVariant.copy(alpha = 0.35f)      // Meget lys grå
-    )
+    // Peter Standard:
+    // - primary is reserved for CTAs / main emphasis
+    // - secondary is the highlight/accent (use it as the first slice)
+    // - other slices stay theme-safe via onSurface/onSurfaceVariant with alpha steps
+    val colors = remember(cs) {
+        listOf(
+            cs.secondary,                               // Accent / highlight
+            cs.primary.copy(alpha = 0.85f),             // Strong secondary accent (still theme-safe)
+            cs.onSurface.copy(alpha = 0.80f),
+            cs.onSurface.copy(alpha = 0.62f),
+            cs.onSurface.copy(alpha = 0.44f),
+            cs.onSurfaceVariant.copy(alpha = 0.32f),
+        )
+    }
 
     Column(modifier = modifier) {
-
-        // Pie / donut
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -69,9 +82,13 @@ fun MuscleGroupDistributionPieChart(
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.size(160.dp)) {
-                var startAngle = -90f // start øverst
+                var startAngle = -90f
 
-                val stroke = if (donut) Stroke(width = size.minDimension * 0.22f) else Stroke(width = 0f)
+                val stroke = if (donut) {
+                    Stroke(width = size.minDimension * 0.22f)
+                } else {
+                    Stroke(width = 0f)
+                }
 
                 slices.forEachIndexed { i, s ->
                     val sweep = (s.completedSets.toFloat() / total.toFloat()) * 360f
@@ -100,22 +117,13 @@ fun MuscleGroupDistributionPieChart(
                 }
             }
 
-            // Center label (valgfri)
             if (donut) {
-                val pctTop = (slices.first().completedSets * 100f / total).roundToInt()
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${total} sets",
+                        text = "$total sets",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    /*Text(
-                        text = "${slices.first().muscleGroupName} $pctTop%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )*/
                 }
             }
         }
@@ -124,7 +132,6 @@ fun MuscleGroupDistributionPieChart(
 
         Spacer(Modifier.height(8.dp))
 
-        // Legend (navn + sets + %)
         slices.forEachIndexed { i, s ->
             val color = colors[i % colors.size]
             val pct = ((s.completedSets * 100f) / total.toFloat()).roundToInt()
@@ -135,9 +142,13 @@ fun MuscleGroupDistributionPieChart(
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // lille farveprik
                 Canvas(modifier = Modifier.size(10.dp)) {
-                    drawArc(color = color, startAngle = 0f, sweepAngle = 360f, useCenter = true)
+                    drawArc(
+                        color = color,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = true
+                    )
                 }
 
                 Spacer(Modifier.width(10.dp))
@@ -159,13 +170,4 @@ fun MuscleGroupDistributionPieChart(
             }
         }
     }
-}
-
-fun Color.adjustBrightness(factor: Float): Color {
-    return Color(
-        red = (red * factor).coerceIn(0f, 1f),
-        green = (green * factor).coerceIn(0f, 1f),
-        blue = (blue * factor).coerceIn(0f, 1f),
-        alpha = alpha
-    )
 }

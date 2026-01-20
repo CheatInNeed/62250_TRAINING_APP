@@ -60,7 +60,8 @@ private fun lightCompactScheme(
     surfaceVariant = surfaceVariant,
     onSurfaceVariant = onSurfaceVariant,
 
-    outline = outline ?: onSurface.copy(alpha = 0.35f)
+    // Style guide update: outline matches primary in each theme
+    outline = outline ?: primary
 )
 
 private fun darkCompactScheme(
@@ -96,7 +97,8 @@ private fun darkCompactScheme(
     surfaceVariant = surfaceVariant,
     onSurfaceVariant = onSurfaceVariant,
 
-    outline = outline ?: onSurface.copy(alpha = 0.35f)
+    // Style guide update: outline matches primary in each theme
+    outline = outline ?: primary
 )
 
 // ---------- DEFAULT (your old fallback schemes) ----------
@@ -139,7 +141,7 @@ private val RedLight = lightCompactScheme(
     surfaceVariant = Color(0xFFD6D8DD),
     onSurfaceVariant = Color(0xFF2B2D30),
 
-    outline = Color(0xFF9AA0A6)
+    outline = Color(0xFF8B1E1A)
 )
 private val RedDark = darkCompactScheme(
     // Muted red highlight (still “red theme” but not neon)
@@ -166,7 +168,7 @@ private val RedDark = darkCompactScheme(
     surfaceVariant = Color(0xFF1E2125),
     onSurfaceVariant = Color(0xFFC9CDD3),
 
-    outline = Color(0xFF5E646B)
+    outline = Color(0xFFB83A35)
 )
 
 
@@ -190,7 +192,7 @@ private val BlueLight = lightCompactScheme(
     surfaceVariant = Color(0xFFDCE7EE),
     onSurfaceVariant = Color(0xFF0E1B24),
 
-    outline = Color(0xFF9FB2BE)
+    outline = Color(0xFF1565C0)
 )
 
 private val BlueDark = darkCompactScheme(
@@ -212,7 +214,7 @@ private val BlueDark = darkCompactScheme(
     surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFE7F2F5),
 
-    outline = Color(0xFF4B6776)
+    outline = Color(0xFF90CAF9)
 )
 
 // ---------- GREEN ----------
@@ -235,7 +237,7 @@ private val GreenLight = lightCompactScheme(
     surfaceVariant = Color(0xFFD3DED4),   // mossy slab / input fill
     onSurfaceVariant = Color(0xFF2B3B32),
 
-    outline = Color(0xFF6F8277)
+    outline = Color(0xFF1B7A4B)
 )
 
 private val GreenDark = darkCompactScheme(
@@ -257,7 +259,7 @@ private val GreenDark = darkCompactScheme(
     surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFE7F2F5),
 
-    outline = Color(0xFF4B6776)
+    outline = Color(0xFFA5D6A7)
 )
 
 // ---------- RETRO ----------
@@ -280,7 +282,7 @@ private val ArcadeLight = lightCompactScheme(
     surfaceVariant = Color(0xFFF0E8FF),
     onSurfaceVariant = Color(0xFF1B1024),
 
-    outline = Color(0xFFB9A6D6)
+    outline = Color(0xFFFF00E5)
 )
 
 private val ArcadeDark = darkCompactScheme(
@@ -302,7 +304,7 @@ private val ArcadeDark = darkCompactScheme(
     surfaceVariant = Color(0xFF151020),
     onSurfaceVariant = Color(0xFFF4EFFF),
 
-    outline = Color(0xFF6C5A83)
+    outline = Color(0xFFFF4DEB)
 )
 
 // ---------- SPONGEBOB (explicit) ----------
@@ -325,7 +327,7 @@ private val SpongeBobLight = lightColorScheme(
     surfaceVariant = Color(0xFFFFEDBF),
     onSurfaceVariant = Color(0xFF1F1B16),
 
-    outline = Color(0xFF2CB67D)
+    outline = Color(0xFFFFD400)
 )
 
 private val SpongeBobDark = darkColorScheme(
@@ -347,7 +349,7 @@ private val SpongeBobDark = darkColorScheme(
     surfaceVariant = Color(0xFF12313D),
     onSurfaceVariant = Color(0xFFFFF4D9),
 
-    outline = Color(0xFFFFD400)
+    outline = Color(0xFFFFE066)
 )
 
 // ---------- SPIDERMAN (explicit) ----------
@@ -370,7 +372,7 @@ private val SpiderManLight = lightColorScheme(
     surfaceVariant = Color(0xFFE7F2FF),
     onSurfaceVariant = Color(0xFF0B1220),
 
-    outline = Color(0xFF0B1220)
+    outline = Color(0xFFE53935)
 )
 
 private val SpiderManDark = darkColorScheme(
@@ -392,7 +394,7 @@ private val SpiderManDark = darkColorScheme(
     surfaceVariant = Color(0xFF122634),
     onSurfaceVariant = Color(0xFFECEFF1),
 
-    outline = Color(0xFFECEFF1)
+    outline = Color(0xFFFF4D4D)
 )
 
 // ---------- MATRIX (explicit special/semantic) ----------
@@ -440,7 +442,7 @@ val SwampLightColors = lightColorScheme(
     surfaceVariant = Color(0xFFD3DED4),   // mossy slab / input fill
     onSurfaceVariant = Color(0xFF2B3B32),
 
-    outline = Color(0xFF6F8277)
+    outline = Color(0xFF1B7A4B)
 )
 
 // ============================================================
@@ -467,26 +469,7 @@ val SwampDarkColors = darkColorScheme(
     surfaceVariant = Color(0xFF143125),   // input / chips base
     onSurfaceVariant = Color(0xFFBFD3C6),
 
-    outline = Color(0xFF496357)
-)
-
-// ---------- Shapes ----------
-private val DefaultShapes = Shapes()
-
-private val SpongeBobShapes = Shapes(
-    extraSmall = RoundedCornerShape(24.dp),
-    small = RoundedCornerShape(28.dp),
-    medium = RoundedCornerShape(32.dp),
-    large = RoundedCornerShape(36.dp),
-    extraLarge = RoundedCornerShape(40.dp),
-)
-
-private val SpiderManShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(14.dp),
-    large = RoundedCornerShape(18.dp),
-    extraLarge = RoundedCornerShape(22.dp),
+    outline = Color(0xFF38D987)
 )
 
 @Composable
@@ -497,12 +480,6 @@ fun GymLockerTheme(
 ) {
     val settings = com.example.gymlocker.ui.settings.LocalUserSettings.current
     val effectiveDarkTheme = settings.forceDarkMode || darkTheme
-
-    val shapes = when (settings.appTheme) {
-        AppTheme.SpongeBob -> SpongeBobShapes
-        AppTheme.SpiderMan -> SpiderManShapes
-        else -> DefaultShapes
-    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -536,18 +513,18 @@ fun GymLockerTheme(
         AppTheme.MATRIX -> MatrixDark
     }
 
-    // 2) Global safety net: if surface == background, promote surfaceVariant to surface
+    // 2) Global safety net:
+    // - If surface == background, promote surfaceVariant to surface
+    // - Force outline to match primary for every theme (including dynamic/default fallbacks)
     val scheme = baseScheme.copy(
         background = baseScheme.background,
-        surface = if (baseScheme.surface == baseScheme.background)
-            baseScheme.surfaceVariant
-        else baseScheme.surface
+        surface = if (baseScheme.surface == baseScheme.background) baseScheme.surfaceVariant else baseScheme.surface,
+        outline = baseScheme.primary
     )
 
     MaterialTheme(
         colorScheme = scheme,
         typography = Typography,
-        shapes = shapes,
         content = content
     )
 }
