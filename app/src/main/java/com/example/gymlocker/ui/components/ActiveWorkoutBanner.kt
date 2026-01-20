@@ -1,17 +1,18 @@
 package com.example.gymlocker.ui.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,13 +24,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import androidx.compose.material3.Icon
 
 @Composable
 fun ActiveWorkoutBanner(
@@ -39,10 +42,8 @@ fun ActiveWorkoutBanner(
     val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
     val elapsedTime by activeWorkoutViewModel.elapsedTime.collectAsState()
 
-    // Hide banner if not active
     if (!isWorkoutInProgress) return
 
-    // Hide banner on the actual active workout page
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     if (currentRoute == "activeWorkout") return
@@ -56,17 +57,23 @@ fun ActiveWorkoutBanner(
             title = { Text("Discard workout?") },
             text = { Text("Are you sure you want to discard this workout? All progress will be lost.") },
             confirmButton = {
-                TextButton(onClick = {
-                    activeWorkoutViewModel.discardWorkout()
-                    showDiscardDialog = false
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
-                        launchSingleTop = true
-                    }
-                }) { Text("Discard") }
+                TextButton(
+                    onClick = {
+                        activeWorkoutViewModel.discardWorkout()
+                        showDiscardDialog = false
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Discard") }
             },
             dismissButton = {
-                TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
+                TextButton(
+                    onClick = { showDiscardDialog = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                ) { Text("Cancel") }
             },
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -74,25 +81,27 @@ fun ActiveWorkoutBanner(
         )
     }
 
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(vertical = 12.dp, horizontal = 14.dp)
+            // Peter Standard: cards use metalGloss + outline, and keep shape consistent
+            .metalGloss()
+            .padding(vertical = 12.dp, horizontal = 14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // LEFT: big clickable area
+            // LEFT: resume (CTA)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .padding(vertical = 6.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    // treat as a "bar" surface inside card
+                    .metalGloss(TopBarShape)
                     .clickable {
                         navController.navigate("activeWorkout") { launchSingleTop = true }
                     }
@@ -106,7 +115,6 @@ fun ActiveWorkoutBanner(
                 )
             }
 
-            // CENTER: text
             Column(
                 modifier = Modifier.weight(2f),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -125,13 +133,13 @@ fun ActiveWorkoutBanner(
                 )
             }
 
-            // RIGHT: big clickable area
+            // RIGHT: discard (destructive)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .padding(vertical = 6.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.error)
+                    .metalGloss(BotBarShape)
+                    .alpha(0.98f)
                     .clickable { showDiscardDialog = true }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center

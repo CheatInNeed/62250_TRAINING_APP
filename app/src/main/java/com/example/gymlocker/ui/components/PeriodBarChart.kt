@@ -25,7 +25,7 @@ fun PeriodBarChart(
     values: List<Float>,
     labels: List<String>,
     xCaption: String,
-    yTickStep: Float? = null,  // if null => auto ticks
+    yTickStep: Float? = null,
     modifier: Modifier = Modifier
 ) {
     if (values.isEmpty()) {
@@ -37,24 +37,25 @@ fun PeriodBarChart(
         return
     }
 
+    // Peter Standard color roles:
+    // - secondary: highlights / accents (charts, indicators)
+    // - outline / outlineVariant: axes + helper text
     val axisColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
-    val labelColor: Color = MaterialTheme.colorScheme.outline
-    val barColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+    val barColor: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
 
     val maxValueRaw = values.maxOrNull() ?: 0f
     val maxValue = kotlin.math.max(1f, maxValueRaw)
 
     // --- Y-axis tick configuration ---
-    val maxTicks = 4 // at most 4 steps above zero
+    val maxTicks = 4
 
-    // 1) Start from either caller-provided step or an auto one
     var step = yTickStep ?: (maxValue / maxTicks).coerceAtLeast(1f)
-    var top = (kotlin.math.ceil(maxValue / step) * step).coerceAtLeast(step)
+    val topCeil = kotlin.math.ceil(maxValue / step) * step
+    var top = topCeil.coerceAtLeast(step)
 
-    // How many steps would that give?
     var stepsCount = (top / step).roundToInt().coerceAtLeast(1)
 
-    // 2) If that would give MORE than maxTicks, increase the step
     if (stepsCount > maxTicks) {
         stepsCount = maxTicks
         step = top / stepsCount
@@ -73,7 +74,7 @@ fun PeriodBarChart(
             val chartW = size.width - leftPad
             val chartH = size.height - bottomPad
 
-            // Y axis + X axis
+            // Axes
             drawLine(axisColor, Offset(leftPad, 0f), Offset(leftPad, chartH), 1.dp.toPx())
             drawLine(axisColor, Offset(leftPad, chartH), Offset(size.width, chartH), 1.dp.toPx())
 
@@ -81,7 +82,8 @@ fun PeriodBarChart(
             val paint = android.graphics.Paint().apply {
                 isAntiAlias = true
                 textSize = 11.dp.toPx()
-                color = android.graphics.Color.GRAY
+                // Use an on-surface-variant derived color (theme-safe) rather than hardcoded gray
+                color = labelColor.copy(alpha = 0.9f).toArgb()
             }
 
             for (i in 0..stepsCount) {
@@ -89,14 +91,14 @@ fun PeriodBarChart(
                 val ratio = if (top == 0f) 0f else (v / top)
                 val y = chartH - ratio * chartH
 
-                // tick line
+                // tick
                 drawLine(
                     axisColor,
                     Offset(leftPad - 6.dp.toPx(), y),
                     Offset(leftPad, y),
                     1.dp.toPx()
                 )
-                // grid line
+                // grid
                 drawLine(
                     axisColor.copy(alpha = 0.25f),
                     Offset(leftPad, y),
@@ -140,14 +142,7 @@ fun PeriodBarChart(
         // --- X labels ---
         val count = labels.size
 
-        // For Month view show all labels (e.g. 6 months),
-        // for others aim for ~5.
-        val desiredSlots = if (xCaption == "Month") {
-            count
-        } else {
-            5.coerceAtMost(count)
-        }
-
+        val desiredSlots = if (xCaption == "Month") count else 5.coerceAtMost(count)
         val slots = desiredSlots.coerceAtMost(count)
 
         val indices = if (slots <= 1) {
@@ -161,7 +156,7 @@ fun PeriodBarChart(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                // IMPORTANT: align labels with chart area, not with whole screen
+                // align labels with chart area, not full screen
                 .padding(start = 44.dp)
         ) {
             indices.forEach { idx ->
@@ -184,4 +179,14 @@ fun PeriodBarChart(
             color = labelColor
         )
     }
+}
+
+// local helper to convert Compose Color -> Android int
+private fun Color.toArgb(): Int {
+    return android.graphics.Color.argb(
+        (alpha * 255f).roundToInt(),
+        (red * 255f).roundToInt(),
+        (green * 255f).roundToInt(),
+        (blue * 255f).roundToInt()
+    )
 }

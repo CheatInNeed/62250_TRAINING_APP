@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.addexercise
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,19 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.Rowing
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.SportsGymnastics
-import androidx.compose.material.icons.filled.SportsMartialArts
 import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Rowing
@@ -42,7 +35,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -56,12 +48,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.Exercises
+import com.example.gymlocker.ui.theme.metalGloss
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -76,7 +71,7 @@ fun AddExerciseSheet(
     var selectedExercises by remember { mutableStateOf(setOf<Long>()) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
     val session = remember { SessionManager(context) }
 
@@ -95,7 +90,6 @@ fun AddExerciseSheet(
     }
 
     var searchQuery by remember { mutableStateOf("") }
-
     var filterMode by remember { mutableStateOf(ExerciseFilterMode.BY_NAME) }
 
     // multi-select filter
@@ -104,7 +98,7 @@ fun AddExerciseSheet(
     // recent
     var recentExercises by remember { mutableStateOf<List<Exercises>>(emptyList()) }
 
-    // Hent recent når vi har userId + når exercises-listen er loaded/ændrer sig
+    // Fetch recent once we have userId + exercises loaded
     LaunchedEffect(activeProfileUserId, allExercises) {
         val uid = activeProfileUserId
         if (uid == null || allExercises.isEmpty()) {
@@ -114,7 +108,6 @@ fun AddExerciseSheet(
 
         recentExercises = withContext(Dispatchers.IO) {
             val ids = db.performedSetDao().getRecentExerciseIdsForUser(uid, limit = 5)
-            // bevar rækkefølgen fra ids
             ids.mapNotNull { id -> allExercises.firstOrNull { it.exerciseId == id } }
         }
     }
@@ -131,11 +124,10 @@ fun AddExerciseSheet(
                     selectedMuscleGroupIds.isEmpty() || ex.muscleGroupId in selectedMuscleGroupIds
                 } else true
             }
-            // fjern duplicates fra normal-listen
+            // remove duplicates from the normal list
             .filterNot { it.exerciseId in recentIds }
     }
 
-    // bottom button: altid synlig
     val bottomEnabled = selectedExercises.isNotEmpty()
     val bottomText = when {
         selectedExercises.isEmpty() -> "Select exercises"
@@ -188,7 +180,6 @@ fun AddExerciseSheet(
                     )
                 }
 
-                // multi-select muscle group filter (chips)
                 if (filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP) {
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -233,8 +224,20 @@ fun AddExerciseSheet(
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
                         focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent,
+                        errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -243,10 +246,8 @@ fun AddExerciseSheet(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 96.dp) // plads til bottom button
+                        .padding(bottom = 96.dp)
                 ) {
-
-                    // RECENT først
                     if (recentExercises.isNotEmpty()) {
                         item {
                             Text(
@@ -281,7 +282,6 @@ fun AddExerciseSheet(
                         }
                     }
 
-                    // normal liste under (ALTID)
                     items(filtered, key = { it.exerciseId }) { exercise ->
                         val isSelected = selectedExercises.contains(exercise.exerciseId)
 
@@ -301,7 +301,6 @@ fun AddExerciseSheet(
                 }
             }
 
-            // Bottom button altid synlig (disabled hvis none selected)
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -324,7 +323,6 @@ fun AddExerciseSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -346,20 +344,26 @@ fun ExerciseListItem(
     onClick: () -> Unit,
     muscleGroupNameById: Map<Long, String>
 ) {
-    // “hele rækken bliver vores lyse themefarve”
-    // Brug primary med lav alpha = tydelig highlight uden at ødelægge tekst-contrast.
-    val container = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.50f)
-    else MaterialTheme.colorScheme.surface
+    val container =
+        if (selected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.14f)
+        else MaterialTheme.colorScheme.surface
 
     val content = MaterialTheme.colorScheme.onSurface
     val mgName = muscleGroupNameById[exercise.muscleGroupId] ?: "Other"
     val (icon, iconDesc) = iconForMuscleGroupName(mgName)
 
+    val cardBorder = BorderStroke(
+        1.dp,
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .clickable(onClick = onClick),
+            .clickable(onClick = onClick)
+            .metalGloss(),
+        border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = container,
             contentColor = content
@@ -385,9 +389,9 @@ fun ExerciseListItem(
     }
 }
 
+
 /**
- * Bedre ikon visning (ikke samme ikon).
- * (Deterministisk mapping via muscleGroupId — kan senere mappes via mg.name)
+ * Deterministic mapping via muscle group name.
  */
 private fun iconForMuscleGroupName(name: String): Pair<ImageVector, String> {
     return when (name.trim().lowercase()) {

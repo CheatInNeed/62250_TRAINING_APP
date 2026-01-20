@@ -30,6 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.BotBarShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +123,7 @@ fun FinishWorkoutSummarySheet(
                     supportingText = {
                         val txt = when {
                             blank -> "Name cannot be empty"
-                            tooLong -> "Max $maxNameLength tegn."
+                            tooLong -> "Max $maxNameLength characters."
                             else -> "${trimmed.length} / $maxNameLength"
                         }
                         Text(
@@ -179,7 +182,6 @@ fun FinishWorkoutSummarySheet(
                         Checkbox(
                             checked = markUnfinishedAsDone,
                             onCheckedChange = { checked ->
-                                // Just remember the choice; actual marking happens on finish
                                 markUnfinishedAsDone = checked
                             }
                         )
@@ -218,11 +220,13 @@ fun FinishWorkoutSummarySheet(
                 Spacer(Modifier.height(90.dp))
             }
 
+            // Peter Standard: top/bottom bars use metalGloss(TopBarShape/BotBarShape)
             SlideToFinish(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 28.dp)
-                    .width(260.dp),
+                    .width(260.dp)
+                    .metalGloss(BotBarShape),
                 enabled = canSave,
                 text = "Slide to finish",
                 onFinished = {

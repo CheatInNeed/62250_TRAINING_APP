@@ -27,7 +27,7 @@ fun MuscleGroupDistributionChart(
 ) {
     if (rows.isEmpty()) {
         Text(
-            "No data in range",
+            text = "No data in range",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -38,15 +38,18 @@ fun MuscleGroupDistributionChart(
     val totalSets = shown.sumOf { it.completedSets }.coerceAtLeast(1)
     val maxValue = shown.maxOf { it.completedSets }.coerceAtLeast(1)
 
-    // Theme-safe roles
-    val barColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    // Peter Standard color roles:
+    // - primary: main/CTA emphasis
+    // - secondary: highlights/accent (useful for chart fills)
+    // - onSurface/onSurfaceVariant: text
+    val barColor: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
     val labelColor: Color = MaterialTheme.colorScheme.onSurface
     val subColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 
     Column(modifier = modifier) {
         shown.forEach { r ->
-            val pct = ((r.completedSets * 100f) / totalSets)
-            val pctText = "${pct.toInt()}%" // integer percent
+            val pct = (r.completedSets * 100f) / totalSets
+            val pctText = "${pct.toInt()}%"
 
             Row(
                 modifier = Modifier
@@ -85,7 +88,7 @@ fun MuscleGroupDistributionChart(
                     )
                 }
 
-                // Percentage label on the right
+                // Right percent
                 Text(
                     text = pctText,
                     modifier = Modifier.width(40.dp),
