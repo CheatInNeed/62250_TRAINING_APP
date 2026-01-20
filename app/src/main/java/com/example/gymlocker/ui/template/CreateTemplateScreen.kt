@@ -1,10 +1,12 @@
 package com.example.gymlocker.ui.template
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -29,9 +32,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -43,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,10 +57,17 @@ import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.TemplateExerciseState
 import com.example.gymlocker.viewmodel.TemplateSetState
+import com.example.gymlocker.data.entity.WeightUnit
+
+private val TemplateCardShape: Shape = RoundedCornerShape(16.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +86,35 @@ fun CreateTemplateScreen(
 
     val maxLen = CreateTemplateViewModel.MAX_TEMPLATE_NAME_LENGTH
 
+    val unit = LocalUserSettings.current.weightUnit
+
+    val primaryOutline = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+
+    // Shared TextField palette for this screen (reduce duplication + stay consistent)
+    val textFieldColors: TextFieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+        errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+        errorLabelColor = MaterialTheme.colorScheme.error,
+
+        cursorColor = MaterialTheme.colorScheme.primary
+    )
+
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -82,7 +124,7 @@ fun CreateTemplateScreen(
                 TextButton(onClick = {
                     viewModel.updateTemplateName("")
                     showDiscardDialog = false
-                    navController.navigateUp()
+                    navController.popBackUnlessAtRoot()
                 }) { Text("Discard") }
             },
             dismissButton = {
@@ -94,17 +136,15 @@ fun CreateTemplateScreen(
         )
     }
 
-    val unit = LocalUserSettings.current.weightUnit
-
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Create Template") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -113,9 +153,7 @@ fun CreateTemplateScreen(
                     }
                 },
                 actions = {
-                    TextButton(
-                        onClick = { showDiscardDialog = true }
-                    ) {
+                    TextButton(onClick = { showDiscardDialog = true }) {
                         Text(
                             "Discard",
                             color = MaterialTheme.colorScheme.onSurface
@@ -125,7 +163,7 @@ fun CreateTemplateScreen(
                     Button(
                         onClick = {
                             viewModel.saveTemplate()
-                            navController.navigateUp()
+                            navController.popBackUnlessAtRoot()
                         },
                         enabled = templateName.isNotBlank() &&
                                 templateExercises.isNotEmpty() &&
@@ -151,9 +189,15 @@ fun CreateTemplateScreen(
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -163,6 +207,7 @@ fun CreateTemplateScreen(
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
+            // Header
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -201,35 +246,22 @@ fun CreateTemplateScreen(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                        errorTextColor = MaterialTheme.colorScheme.onSurface,
-
-                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                        errorIndicatorColor = MaterialTheme.colorScheme.error,
-
-                        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                        errorLabelColor = MaterialTheme.colorScheme.error,
-
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
+                    colors = textFieldColors
                 )
             }
 
             if (templateExercises.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Empty state: padded column so CTA aligns with screen rhythm
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text(
                             "No exercises added yet.",
                             color = MaterialTheme.colorScheme.onBackground
@@ -241,6 +273,10 @@ fun CreateTemplateScreen(
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { showAddExerciseSheet = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = TemplateCardShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -252,7 +288,8 @@ fun CreateTemplateScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(templateExercises) { exercise ->
                         TemplateExerciseItem(
@@ -270,16 +307,21 @@ fun CreateTemplateScreen(
                             onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
-                            }
+                            },
+                            cardShape = TemplateCardShape,
+                            cardBorder = primaryOutline,
+                            textFieldColors = textFieldColors
                         )
-                        Spacer(Modifier.height(16.dp))
                     }
 
                     item {
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(4.dp))
                         Button(
                             onClick = { showAddExerciseSheet = true },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = TemplateCardShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -296,7 +338,6 @@ fun CreateTemplateScreen(
         AddExerciseSheet(
             onDismiss = { showAddExerciseSheet = false },
             onExerciseSelected = { ex ->
-                // ✅ FIX: pass ID (Long), not the entity
                 viewModel.addExercise(ex.exerciseId)
                 showAddExerciseSheet = false
             }
@@ -312,7 +353,10 @@ fun TemplateExerciseItem(
     onRepsChange: (setNumber: Int, newReps: String) -> Unit,
     onOpenExercise: (exerciseId: Long) -> Unit,
     onDeleteExercise: () -> Unit = {},
-    onDeleteSet: (setNumber: Int) -> Unit = {}
+    onDeleteSet: (setNumber: Int) -> Unit = {},
+    cardShape: Shape,
+    cardBorder: androidx.compose.ui.graphics.Color,
+    textFieldColors: TextFieldColors
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -341,14 +385,16 @@ fun TemplateExerciseItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .metalGloss(cardShape),
+        shape = cardShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
-        )
+        ),
+        border = BorderStroke(1.dp, cardBorder)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -358,7 +404,7 @@ fun TemplateExerciseItem(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .weight(1f)
                         .clickable { onOpenExercise(exercise.exerciseId) }
                         .padding(vertical = 2.dp)
                 )
@@ -374,8 +420,7 @@ fun TemplateExerciseItem(
 
                     DropdownMenu(
                         expanded = showMenu,
-                        onDismissRequest = { showMenu = false },
-                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
                             text = { Text("Delete exercise") },
@@ -432,7 +477,7 @@ fun TemplateExerciseItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -444,7 +489,7 @@ fun TemplateExerciseItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    "KG",
+                    if (LocalUserSettings.current.weightUnit == WeightUnit.LB) "LB" else "KG",
                     modifier = Modifier.weight(0.9f),
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.labelSmall,
@@ -470,14 +515,19 @@ fun TemplateExerciseItem(
                         if (exercise.sets.size <= 2) deleteSetsMode = false
                     },
                     onWeightChange = { onWeightChange(set.setNumber, it) },
-                    onRepsChange = { onRepsChange(set.setNumber, it) }
+                    onRepsChange = { onRepsChange(set.setNumber, it) },
+                    textFieldColors = textFieldColors
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
             Button(
                 onClick = onAddSet,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = cardShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -493,14 +543,13 @@ fun TemplateSetRow(
     deleteMode: Boolean,
     onDelete: () -> Unit,
     onWeightChange: (String) -> Unit,
-    onRepsChange: (String) -> Unit
+    onRepsChange: (String) -> Unit,
+    textFieldColors: TextFieldColors
 ) {
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp)
-
-    androidx.compose.foundation.layout.Row(
-        modifier = rowModifier,
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -523,24 +572,7 @@ fun TemplateSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    errorTextColor = MaterialTheme.colorScheme.onSurface,
-
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                    disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                    errorIndicatorColor = MaterialTheme.colorScheme.error,
-
-                    cursorColor = MaterialTheme.colorScheme.primary
-                )
+                colors = textFieldColors
             )
         }
 
@@ -556,24 +588,7 @@ fun TemplateSetRow(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    errorTextColor = MaterialTheme.colorScheme.onSurface,
-
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                    disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                    errorIndicatorColor = MaterialTheme.colorScheme.error,
-
-                    cursorColor = MaterialTheme.colorScheme.primary
-                )
+                colors = textFieldColors
             )
         }
 

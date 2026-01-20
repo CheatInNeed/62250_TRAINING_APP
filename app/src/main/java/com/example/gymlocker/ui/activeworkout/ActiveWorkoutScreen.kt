@@ -1069,8 +1069,6 @@ fun ExerciseSetRow(
     var isWeightFocused by remember { mutableStateOf(false) }
     var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
 
-    LaunchedEffect(set.weight, unit) {
-        if (!isWeightFocused) {
     // Sync display from canonical stored kg value when not focused or when numpad is visible
     LaunchedEffect(set.weight, unit, isNumpadVisible) {
         if (!isWeightFocused || isNumpadVisible) {
