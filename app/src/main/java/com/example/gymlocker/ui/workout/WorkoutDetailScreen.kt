@@ -81,6 +81,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.clickable
 
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
@@ -477,8 +478,13 @@ fun WorkoutDetailScreen(
                     Text(
                         text = log.exerciseName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                navController.navigate("exerciseDetail/${log.exerciseId}")
+                            }
+                            .padding(vertical = 2.dp)
                     )
 
                     Spacer(Modifier.height(8.dp))
