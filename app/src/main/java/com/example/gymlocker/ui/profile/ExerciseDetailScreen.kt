@@ -38,6 +38,10 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.roundToInt
+import kotlin.math.abs
 
 // --- NEW: segmented tabs (future-proof)
 private enum class ExerciseDetailTab(val title: String) {
@@ -88,6 +92,9 @@ fun ExerciseDetailScreen(
 
     // --- NEW: selected tab (default HISTORY so the screen "feels identical" when you open it)
     var selectedTab by rememberSaveable { mutableStateOf(ExerciseDetailTab.OVERVIEW) }
+
+    var selectedDayPoint by remember { mutableStateOf<DayPoint?>(null) }
+
 
     val barShape = remember { androidx.compose.foundation.shape.RoundedCornerShape(0.dp) }
     val cardShape = remember { androidx.compose.foundation.shape.RoundedCornerShape(18.dp) }
@@ -263,7 +270,14 @@ fun ExerciseDetailScreen(
                                 Spacer(Modifier.height(6.dp))
                                 KeyValueRow(label = "Last trained", value = lastTrainedText)
                                 Spacer(Modifier.height(6.dp))
-                                KeyValueRow(label = "Personal record", value = prText)
+                                val dateFmt = remember { java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH) }
+                                val unitLbl = weightUnitLabel(unit)
+
+                                val displayPRRowValue = selectedDayPoint?.let { p ->
+                                    "${formatWeight(p.weightShown, 0)} $unitLbl – ${p.day.format(dateFmt)}"
+                                } ?: prText
+
+                                KeyValueRow(label = "Personal record", value = displayPRRowValue)
                             }
                         }
                     }
@@ -282,7 +296,7 @@ fun ExerciseDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Heaviest weight per workout",
+                                    text = "Heaviest Weight",
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(Modifier.height(12.dp))
@@ -306,6 +320,9 @@ fun ExerciseDetailScreen(
                                         unitLabel = weightUnitLabel(unit),
                                         lineColor = primaryColor,
                                         axisColor = axisColor,
+                                        selected = selectedDayPoint,
+                                        onPointSelected = { selectedDayPoint = it },
+                                        onSelectionCleared = { selectedDayPoint = null },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(180.dp)
@@ -761,6 +778,9 @@ private fun HeaviestWeightLineChartWithDates(
     unitLabel: String,
     lineColor: Color,
     axisColor: Color,
+    selected: DayPoint?,
+    onPointSelected: (DayPoint) -> Unit,
+    onSelectionCleared: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (points.isEmpty()) return
@@ -771,12 +791,18 @@ private fun HeaviestWeightLineChartWithDates(
     val range = (max - min).takeIf { it > 0f } ?: 1f
 
     val topLabel = "${formatWeight(max.toDouble(), decimals = 0)} $unitLabel"
-    val dateFmt = remember { java.time.format.DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH) }
+    val dateFmtShort = remember { java.time.format.DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH) }
 
-    // Labels: start, mid (optional), end
+    // X-axis labels: start, mid (optional), end
     val start = points.first().day
     val end = points.last().day
     val mid = if (points.size >= 3) points[points.size / 2].day else null
+
+    // Helper to get selected index
+    val selectedIndex = selected?.let { sel ->
+        points.indexOfFirst { it.day == sel.day }
+            .takeIf { it >= 0 }
+    }
 
     Column(modifier = modifier) {
         Text(
@@ -786,16 +812,56 @@ private fun HeaviestWeightLineChartWithDates(
         )
         Spacer(Modifier.height(8.dp))
 
-        // Chart + x-axis labels
         Column(modifier = Modifier.fillMaxSize()) {
-            Canvas(modifier = Modifier.weight(1f).fillMaxWidth()) {
+
+            Canvas(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .pointerInput(points) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                // treat as selection
+                                val w = size.width
+                                val padX = 14f
+                                val usableW = (w - 2f * padX).coerceAtLeast(1f)
+                                val stepX = usableW / (weights.size - 1).coerceAtLeast(1)
+
+                                val x = offset.x.coerceIn(padX, w - padX)
+                                val idx = ((x - padX) / stepX).roundToInt()
+                                    .coerceIn(0, points.lastIndex)
+
+                                onPointSelected(points[idx])
+                            },
+                            onDrag = { change, _ ->
+                                val w = size.width
+                                val padX = 14f
+                                val usableW = (w - 2f * padX).coerceAtLeast(1f)
+                                val stepX = usableW / (weights.size - 1).coerceAtLeast(1)
+
+                                val x = change.position.x.coerceIn(padX, w - padX)
+                                val idx = ((x - padX) / stepX).roundToInt()
+                                    .coerceIn(0, points.lastIndex)
+
+                                onPointSelected(points[idx])
+                            },
+                            onDragEnd = {
+                                // keep selection after release (so the text stays)
+                            },
+                            onDragCancel = {
+                                // optional: clear selection on cancel
+                                // onSelectionCleared()
+                            }
+                        )
+                    }
+            ) {
                 val w = size.width
                 val h = size.height
 
                 val padX = 14f
                 val padY = 14f
 
-                // X axis
+                // Axis line
                 drawLine(
                     color = axisColor,
                     start = Offset(padX, h - padY),
@@ -803,13 +869,15 @@ private fun HeaviestWeightLineChartWithDates(
                     strokeWidth = 2f
                 )
 
-                val stepX = (w - 2f * padX) / (weights.size - 1).coerceAtLeast(1)
+                val usableW = (w - 2f * padX).coerceAtLeast(1f)
+                val stepX = usableW / (weights.size - 1).coerceAtLeast(1)
 
                 fun yFor(v: Float): Float {
                     val t = (v - min) / range
                     return (h - padY) - t * (h - 2f * padY)
                 }
 
+                // Line path
                 val path = Path()
                 weights.forEachIndexed { i, v ->
                     val x = padX + i * stepX
@@ -823,6 +891,7 @@ private fun HeaviestWeightLineChartWithDates(
                     style = Stroke(width = 6f, cap = StrokeCap.Round)
                 )
 
+                // Points
                 weights.forEachIndexed { i, v ->
                     val x = padX + i * stepX
                     val y = yFor(v)
@@ -832,33 +901,61 @@ private fun HeaviestWeightLineChartWithDates(
                         center = Offset(x, y)
                     )
                 }
+
+                // Selected marker (bigger circle + vertical guide)
+                selectedIndex?.let { idx ->
+                    val x = padX + idx * stepX
+                    val y = yFor(weights[idx])
+
+                    // guide line
+                    drawLine(
+                        color = axisColor,
+                        start = Offset(x, padY),
+                        end = Offset(x, h - padY),
+                        strokeWidth = 2f
+                    )
+                    // outer ring
+                    drawCircle(
+                        color = lineColor,
+                        radius = 12f,
+                        center = Offset(x, y),
+                        style = Stroke(width = 4f)
+                    )
+                    // inner dot
+                    drawCircle(
+                        color = lineColor,
+                        radius = 8f,
+                        center = Offset(x, y)
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // X-axis date labels row (start / mid / end)
+            // X-axis labels row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = start.format(dateFmt),
+                    text = start.format(dateFmtShort),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 Text(
-                    text = mid?.format(dateFmt) ?: "",
+                    text = mid?.format(dateFmtShort) ?: "",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 Text(
-                    text = end.format(dateFmt),
+                    text = end.format(dateFmtShort),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            // Optional: clear button (if you want)
+            // TextButton(onClick = onSelectionCleared) { Text("Clear") }
         }
     }
 }
