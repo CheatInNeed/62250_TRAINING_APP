@@ -32,6 +32,8 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -86,6 +88,10 @@ fun ExerciseDetailScreen(
 
     // --- NEW: selected tab (default HISTORY so the screen "feels identical" when you open it)
     var selectedTab by rememberSaveable { mutableStateOf(ExerciseDetailTab.OVERVIEW) }
+
+    val barShape = remember { androidx.compose.foundation.shape.RoundedCornerShape(0.dp) }
+    val cardShape = remember { androidx.compose.foundation.shape.RoundedCornerShape(18.dp) }
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
 
     LaunchedEffect(exerciseId, activeProfileUserId, unit) {
         if (activeProfileUserId == null) return@LaunchedEffect
@@ -174,19 +180,35 @@ fun ExerciseDetailScreen(
     // --- OLD Scaffold kept exactly (unchanged)
     Scaffold(
         topBar = {
+            val barShape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
+
             TopAppBar(
+                modifier = Modifier.metalGloss(barShape),
                 title = { Text(exerciseName) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            val barShape = androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
+
+            Surface(
+                modifier = Modifier.metalGloss(barShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -222,7 +244,17 @@ fun ExerciseDetailScreen(
                 ExerciseDetailTab.OVERVIEW -> {
                     // --- NEW OVERVIEW TAB (added)
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .metalGloss(cardShape),
+                            shape = cardShape,
+                            border = cardBorder,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text("Overview", style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.height(12.dp))
@@ -237,7 +269,17 @@ fun ExerciseDetailScreen(
                     }
 
                     item {
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .metalGloss(cardShape),
+                            shape = cardShape,
+                            border = cardBorder,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
                                     text = "Heaviest weight per workout",
@@ -245,29 +287,28 @@ fun ExerciseDetailScreen(
                                 )
                                 Spacer(Modifier.height(12.dp))
 
-                                val points3m = remember(workoutSessions, unit) {
-                                    buildHeaviestSeriesLast3Months(workoutSessions, unit)
+                                val dayPoints = remember(workoutSessions, unit) {
+                                    buildHeaviestPerDayLast3Months(workoutSessions, unit)
                                 }
 
-                                if (points3m.size < 2) {
+                                if (dayPoints.size < 2) {
                                     Text(
                                         text = "Not enough data to show a trend yet.",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.outline
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 } else {
-                                    // IMPORTANT: theme colors outside Canvas
                                     val primaryColor = MaterialTheme.colorScheme.primary
                                     val axisColor = MaterialTheme.colorScheme.outlineVariant
 
-                                    HeaviestWeightLineChart(
-                                        points = points3m.map { it.toFloat() },
+                                    HeaviestWeightLineChartWithDates(
+                                        points = dayPoints,
                                         unitLabel = weightUnitLabel(unit),
                                         lineColor = primaryColor,
                                         axisColor = axisColor,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(160.dp)
+                                            .height(180.dp)
                                     )
                                 }
                             }
@@ -375,10 +416,25 @@ private fun ExerciseDetailSegmentedTabs(
     selected: ExerciseDetailTab,
     onSelected: (ExerciseDetailTab) -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    val cardShape = remember { androidx.compose.foundation.shape.RoundedCornerShape(18.dp) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(cardShape),
+        shape = cardShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
         val tabs = remember { ExerciseDetailTab.entries }
+
         TabRow(
             selectedTabIndex = tabs.indexOf(selected),
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
             indicator = { /* no underline -> segmented feel */ },
             divider = { /* no divider */ }
         ) {
@@ -391,7 +447,7 @@ private fun ExerciseDetailSegmentedTabs(
                         Text(
                             text = tab.title,
                             color = if (isSelected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outline
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 )
@@ -598,17 +654,35 @@ private fun parseDateOrNull(raw: String): LocalDateTime? {
     }
 }
 
-private fun buildHeaviestSeriesLast3Months(
+private data class DayPoint(
+    val day: java.time.LocalDate,
+    val weightShown: Double
+)
+
+private fun buildHeaviestPerDayLast3Months(
     sessions: List<WorkoutSessionData>,
     unit: WeightUnit
-): List<Double> {
+): List<DayPoint> {
     val cutoff = LocalDateTime.now().minusMonths(3)
-    return sessions.mapNotNull { s ->
+
+    // 1) Filtrer til sidste 3 måneder
+    val recent = sessions.mapNotNull { s ->
         val dt = parseDateOrNull(s.workoutDate) ?: return@mapNotNull null
         if (dt.isBefore(cutoff)) return@mapNotNull null
+        val day = dt.toLocalDate()
         val shown = displayWeightFromKg(s.maxWeight.toDouble(), unit)
-        shown
-    }.sorted()
+        day to shown
+    }
+
+    // 2) Group by day og tag max weight per day
+    val byDayMax = recent
+        .groupBy({ it.first }, { it.second })
+        .mapValues { (_, weights) -> weights.maxOrNull() ?: 0.0 }
+
+    // 3) Sorter efter dato
+    return byDayMax.entries
+        .sortedBy { it.key }
+        .map { DayPoint(day = it.key, weightShown = it.value) }
 }
 
 @Composable
@@ -680,3 +754,112 @@ private fun HeaviestWeightLineChart(
         }
     }
 }
+
+@Composable
+private fun HeaviestWeightLineChartWithDates(
+    points: List<DayPoint>,
+    unitLabel: String,
+    lineColor: Color,
+    axisColor: Color,
+    modifier: Modifier = Modifier
+) {
+    if (points.isEmpty()) return
+
+    val weights = points.map { it.weightShown.toFloat() }
+    val max = weights.maxOrNull()?.takeIf { it > 0f } ?: 1f
+    val min = weights.minOrNull() ?: 0f
+    val range = (max - min).takeIf { it > 0f } ?: 1f
+
+    val topLabel = "${formatWeight(max.toDouble(), decimals = 0)} $unitLabel"
+    val dateFmt = remember { java.time.format.DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH) }
+
+    // Labels: start, mid (optional), end
+    val start = points.first().day
+    val end = points.last().day
+    val mid = if (points.size >= 3) points[points.size / 2].day else null
+
+    Column(modifier = modifier) {
+        Text(
+            text = topLabel,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(8.dp))
+
+        // Chart + x-axis labels
+        Column(modifier = Modifier.fillMaxSize()) {
+            Canvas(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                val w = size.width
+                val h = size.height
+
+                val padX = 14f
+                val padY = 14f
+
+                // X axis
+                drawLine(
+                    color = axisColor,
+                    start = Offset(padX, h - padY),
+                    end = Offset(w - padX, h - padY),
+                    strokeWidth = 2f
+                )
+
+                val stepX = (w - 2f * padX) / (weights.size - 1).coerceAtLeast(1)
+
+                fun yFor(v: Float): Float {
+                    val t = (v - min) / range
+                    return (h - padY) - t * (h - 2f * padY)
+                }
+
+                val path = Path()
+                weights.forEachIndexed { i, v ->
+                    val x = padX + i * stepX
+                    val y = yFor(v)
+                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+
+                drawPath(
+                    path = path,
+                    color = lineColor,
+                    style = Stroke(width = 6f, cap = StrokeCap.Round)
+                )
+
+                weights.forEachIndexed { i, v ->
+                    val x = padX + i * stepX
+                    val y = yFor(v)
+                    drawCircle(
+                        color = lineColor,
+                        radius = 7f,
+                        center = Offset(x, y)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // X-axis date labels row (start / mid / end)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = start.format(dateFmt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = mid?.format(dateFmt) ?: "",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Text(
+                    text = end.format(dateFmt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
