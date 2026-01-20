@@ -52,7 +52,8 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
-import com.example.gymlocker.ui.theme.BarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import kotlinx.coroutines.Dispatchers
@@ -80,7 +81,7 @@ fun WorkoutScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.metalGloss(BarShape),
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Workout") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -92,7 +93,7 @@ fun WorkoutScreen(
         },
         bottomBar = {
             Surface(
-                modifier = Modifier.metalGloss(BarShape),
+                modifier = Modifier.metalGloss(BotBarShape),
                 color = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface
             ) {
