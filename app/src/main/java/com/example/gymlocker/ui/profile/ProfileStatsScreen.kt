@@ -511,6 +511,7 @@ private fun WeeklyProgressCard(
     weeklyVolume: List<com.example.gymlocker.viewmodel.WeekVolumeUi>
 ) {
     var mode by remember { mutableStateOf(ChartMode.HOURS) }
+    var selectedBarIndex by remember { mutableStateOf<Int?>(null) }
 
     Card(
         modifier = Modifier
@@ -541,7 +542,10 @@ private fun WeeklyProgressCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = mode == ChartMode.HOURS,
-                        onClick = { mode = ChartMode.HOURS },
+                        onClick = {
+                            mode = ChartMode.HOURS
+                            selectedBarIndex = null
+                        },
                         label = { Text("Hours") },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -552,7 +556,10 @@ private fun WeeklyProgressCard(
                     )
                     FilterChip(
                         selected = mode == ChartMode.VOLUME,
-                        onClick = { mode = ChartMode.VOLUME },
+                        onClick = {
+                            mode = ChartMode.VOLUME
+                            selectedBarIndex = null
+                        },
                         label = { Text("Volume") },
                         colors = FilterChipDefaults.filterChipColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -585,6 +592,10 @@ private fun WeeklyProgressCard(
                     values = weeklyHours.map { it.hours },
                     labels = weekLabels,
                     xCaption = "Week",
+                    selectedIndex = selectedBarIndex,
+                    onBarClick = { index ->
+                        selectedBarIndex = if (selectedBarIndex == index) null else index
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             } else {
@@ -593,8 +604,107 @@ private fun WeeklyProgressCard(
                     labels = weekLabels,
                     xCaption = "Week",
                     yTickStep = 500f, // 500 kg per tick
+                    selectedIndex = selectedBarIndex,
+                    onBarClick = { index ->
+                        selectedBarIndex = if (selectedBarIndex == index) null else index
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+
+            // Display selected bar information
+            selectedBarIndex?.let { index ->
+                if (mode == ChartMode.HOURS && index in weeklyHours.indices) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val infoCardShape = RoundedCornerShape(8.dp)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .metalGloss(infoCardShape),
+                        shape = infoCardShape,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                        ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Week ${weekLabels[index]}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = weeklyHours[index].weekStart.format(
+                                        DateTimeFormatter.ofPattern("MMM dd, yyyy")
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                            Text(
+                                text = String.format(Locale.US, "%.1f hours", weeklyHours[index].hours),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                } else if (mode == ChartMode.VOLUME && index in weeklyVolume.indices) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val infoCardShape = RoundedCornerShape(8.dp)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .metalGloss(infoCardShape),
+                        shape = infoCardShape,
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                        ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "Week ${weekLabels[index]}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = weeklyVolume[index].weekStart.format(
+                                        DateTimeFormatter.ofPattern("MMM dd, yyyy")
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                            Text(
+                                text = String.format(Locale.US, "%.0f kg", weeklyVolume[index].volume),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
         }
     }
