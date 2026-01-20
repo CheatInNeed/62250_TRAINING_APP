@@ -117,6 +117,13 @@ import androidx.compose.ui.text.PlatformTextStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.time.YearMonth
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 
 private enum class CalendarZoom {
     WEEK,   // din “collapsed” uge-strip
@@ -289,6 +296,7 @@ fun HomeScreen(
         var calendarZoom by rememberSaveable { mutableStateOf(CalendarZoom.WEEK) }
         var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now()) }
         var currentMonth by rememberSaveable { mutableStateOf(YearMonth.now()) }
+        var yearCursor by rememberSaveable { mutableStateOf(currentMonth.year) }
 
         // Auto-collapse når man scroller i feedet
         LaunchedEffect(listState) {
@@ -313,9 +321,14 @@ fun HomeScreen(
                     workoutsPerDay = workoutsPerDay,
                     selectedDate = selectedDate,
                     currentMonth = currentMonth,
+                    yearCursor = yearCursor,
                     zoom = calendarZoom,
-                    onZoomChange = { calendarZoom = it },
+                    onZoomChange = { newZoom ->
+                        if (newZoom == CalendarZoom.YEAR) yearCursor = currentMonth.year
+                        calendarZoom = newZoom
+                    },
                     onMonthChange = { currentMonth = it },
+                    onYearChange = { yearCursor = it },
                     onDateSelected = { date ->
                         selectedDate = date
                         currentMonth = YearMonth.from(date)
@@ -910,9 +923,11 @@ private fun ExpandableHomeCalendarHeader(
     workoutsPerDay: Map<LocalDate, Int>,
     selectedDate: LocalDate,
     currentMonth: YearMonth,
+    yearCursor: Int,
     zoom: CalendarZoom,
     onZoomChange: (CalendarZoom) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
+    onYearChange: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit
 ) {
     // Uge baseret på selectedDate (så den “følger” hvad man klikker)
@@ -943,64 +958,13 @@ private fun ExpandableHomeCalendarHeader(
             }
     ) {
         // Month title row (klik for expand/collapse)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 14.dp, vertical = 0.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val title = when (zoom) {
-                CalendarZoom.YEAR -> "${currentMonth.year}"
-                else -> "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
-            }
-
-            val iconButtonSize = 48.dp
-            Spacer(modifier = Modifier.width(iconButtonSize))
-
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .clickable {
-                        when (zoom) {
-                            CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)
-                            CalendarZoom.MONTH -> onZoomChange(CalendarZoom.YEAR)
-                            CalendarZoom.YEAR -> onZoomChange(CalendarZoom.MONTH)
-                        }
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    when (zoom) {
-                        CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH)   // valgfrit
-                        CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK)   // collapse
-                        CalendarZoom.YEAR -> onZoomChange(CalendarZoom.WEEK)    // fuld collapse
-                    }
-                },
-                modifier = Modifier.size(iconButtonSize)
-            ) {
-                Icon(
-                    imageVector = if (zoom == CalendarZoom.WEEK)
-                        Icons.Default.KeyboardArrowDown
-                    else
-                        Icons.Default.KeyboardArrowUp,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+        MonthYearSwitchHeader(
+            currentMonth = currentMonth,
+            yearCursor = yearCursor,
+            zoom = zoom,
+            onZoomChange = onZoomChange,
+            onYearChange = onYearChange
+        )
 
 
         Spacer(Modifier.height(10.dp))
@@ -1079,16 +1043,14 @@ private fun ExpandableHomeCalendarHeader(
             exit = shrinkVertically()
         ) {
             HomeYearGrid(
-                year = currentMonth.year,
+                year = yearCursor,
                 workoutsPerDay = workoutsPerDay,
-                onPrevYear = { onMonthChange(currentMonth.minusYears(1)) },
-                onNextYear = { onMonthChange(currentMonth.plusYears(1)) },
+                onPrevYear = { onYearChange(yearCursor - 1) },
+                onNextYear = { onYearChange(yearCursor + 1) },
                 onMonthSelected = { ym ->
                     onMonthChange(ym)
-                    // valgfrit: behold selectedDate hvis den ligger i samme måned,
-                    // ellers hop til 1. i måneden:
                     onDateSelected(ym.atDay(1))
-                    onZoomChange(CalendarZoom.MONTH) // zoom ind på valgt måned
+                    onZoomChange(CalendarZoom.MONTH)
                 }
             )
         }
@@ -1348,5 +1310,149 @@ private fun MonthMini(
             month = month,
             workoutsPerDay = workoutsPerDay
         )
+    }
+}
+
+@OptIn(ExperimentalAnimationApi::class)
+@Composable
+private fun MonthYearSwitchHeader(
+    currentMonth: YearMonth,
+    yearCursor: Int,
+    zoom: CalendarZoom,
+    onZoomChange: (CalendarZoom) -> Unit,
+    onYearChange: (Int) -> Unit
+) {
+    val monthText =
+        "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+
+    val yearTextForLeft = currentMonth.year.toString()   // vises i WEEK/MONTH (faded venstre)
+    val yearTextForCenter = yearCursor.toString()        // vises i YEAR (center)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 14.dp),
+    ) {
+        // ---- SWITCH-AREA (venstre/center/højre labels) ----
+        AnimatedContent(
+            targetState = zoom,
+            modifier = Modifier
+                .fillMaxSize(),
+                // reserver plads til chevronen så centeren ikke skubbes
+                //.padding(end = 40.dp),
+            transitionSpec = {
+                if (
+                    (initialState == CalendarZoom.MONTH && targetState == CalendarZoom.YEAR) ||
+                    (initialState == CalendarZoom.WEEK  && targetState == CalendarZoom.YEAR)
+                ) {
+                    (slideInHorizontally { w -> -w / 2 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { w ->  w / 2 } + fadeOut())
+                } else if (
+                    (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.MONTH) ||
+                    (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.WEEK)
+                ) {
+                    (slideInHorizontally { w ->  w / 2 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { w -> -w / 2 } + fadeOut())
+                } else {
+                    fadeIn() togetherWith fadeOut()
+                }
+            },
+            label = "MonthYearSwitch"
+        ) { state ->
+            // ✅ vigtig: BoxScope så align virker rigtigt + klikflader bliver stabile
+            Box(modifier = Modifier.fillMaxSize()) {
+
+                // ✅ Year er synlig HELE tiden (i WEEK og MONTH som faded venstre)
+                if (state == CalendarZoom.WEEK || state == CalendarZoom.MONTH) {
+                    Text(
+                        text = yearTextForLeft,
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .clickable {
+                                onYearChange(currentMonth.year)
+                                onZoomChange(CalendarZoom.YEAR)
+                            }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    )
+                }
+
+                when (state) {
+                    CalendarZoom.WEEK -> {
+                        // ✅ CENTER monthText (klik -> MONTH)
+                        Text(
+                            text = monthText,
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .clickable { onZoomChange(CalendarZoom.MONTH) }
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    CalendarZoom.MONTH -> {
+                        // ✅ CENTER monthText (normal)
+                        Text(
+                            text = monthText,
+                            modifier = Modifier.align(Alignment.Center),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    CalendarZoom.YEAR -> {
+                        // ✅ CENTER year (normal)
+                        Text(
+                            text = yearTextForCenter,
+                            modifier = Modifier.align(Alignment.Center),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        // ✅ RIGHT faded month (klik -> MONTH)
+                        Text(
+                            text = monthText,
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .clickable { onZoomChange(CalendarZoom.MONTH) }
+                                .padding(start = 4.dp, end = 44.dp, top = 6.dp, bottom = 6.dp),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // ---- Chevron: WEEK <-> MONTH, og MONTH/YEAR -> WEEK ----
+        IconButton(
+            onClick = {
+                when (zoom) {
+                    CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH) // ✅ expand
+                    CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK) // ✅ collapse
+                    CalendarZoom.YEAR -> onZoomChange(CalendarZoom.WEEK)  // ✅ collapse helt
+                }
+            },
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Icon(
+                imageVector = if (zoom == CalendarZoom.WEEK)
+                    Icons.Default.KeyboardArrowDown
+                else
+                    Icons.Default.KeyboardArrowUp,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
