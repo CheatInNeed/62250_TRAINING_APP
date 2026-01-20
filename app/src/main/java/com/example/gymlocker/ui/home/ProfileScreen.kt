@@ -101,7 +101,8 @@ import kotlinx.coroutines.withContext
 import com.example.gymlocker.ui.components.ProfileAvatarIcon
 import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.ui.theme.metalGloss
-import com.example.gymlocker.ui.theme.BarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -393,7 +394,7 @@ fun ProfileScreen(
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                modifier = Modifier.metalGloss(BarShape),
+                modifier = Modifier.metalGloss(TopBarShape),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -580,7 +581,7 @@ fun ProfileScreen(
         },
         bottomBar = {
             Surface(
-                modifier = Modifier.metalGloss(BarShape),
+                modifier = Modifier.metalGloss(BotBarShape),
                 color = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface
             ) {

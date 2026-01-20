@@ -82,7 +82,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.gymlocker.ui.theme.BarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
@@ -285,7 +286,7 @@ fun WorkoutDetailScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                modifier = Modifier.metalGloss(BarShape),
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Workout Details") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
@@ -378,7 +379,7 @@ fun WorkoutDetailScreen(
         },
         bottomBar = {
             Surface(
-                modifier = Modifier.metalGloss(BarShape),
+                modifier = Modifier.metalGloss(BotBarShape),
                 color = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface
             ) {
