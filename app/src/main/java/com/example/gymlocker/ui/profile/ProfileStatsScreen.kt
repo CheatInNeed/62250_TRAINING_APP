@@ -3,12 +3,14 @@ package com.example.gymlocker.ui.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -33,7 +35,9 @@ import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.platform.LocalContext
+
+// Shared shape for all stats cards (PS-120: shape must match border + metalGloss)
+private val StatsCardShape = RoundedCornerShape(18.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,7 +197,8 @@ fun ProfileStatsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .metalGloss(),
+                        .metalGloss(StatsCardShape),
+                    shape = StatsCardShape,
                     border = BorderStroke(
                         1.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -254,7 +259,8 @@ fun ProfileStatsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .metalGloss(),
+                        .metalGloss(StatsCardShape),
+                    shape = StatsCardShape,
                     border = BorderStroke(
                         1.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -302,7 +308,8 @@ fun ProfileStatsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .metalGloss(),
+                        .metalGloss(StatsCardShape),
+                    shape = StatsCardShape,
                     border = BorderStroke(
                         1.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -328,12 +335,24 @@ fun ProfileStatsScreen(
                                 FilterChip(
                                     selected = statsRange == StatsRange.WEEK,
                                     onClick = { statViewModel.setStatsRange(StatsRange.WEEK) },
-                                    label = { Text("Week") }
+                                    label = { Text("Week") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                        selectedLabelColor = MaterialTheme.colorScheme.primary
+                                    )
                                 )
                                 FilterChip(
                                     selected = statsRange == StatsRange.MONTH,
                                     onClick = { statViewModel.setStatsRange(StatsRange.MONTH) },
-                                    label = { Text("Month") }
+                                    label = { Text("Month") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                        selectedLabelColor = MaterialTheme.colorScheme.primary
+                                    )
                                 )
                             }
                         }
@@ -363,7 +382,8 @@ fun ProfileStatsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .metalGloss(),
+                        .metalGloss(StatsCardShape),
+                    shape = StatsCardShape,
                     border = BorderStroke(
                         1.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -381,8 +401,10 @@ fun ProfileStatsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        val heightText = if (activeProfile!!.height == 0) "Not set" else "${activeProfile!!.height} cm"
-                        val weightText = if (activeProfile!!.weight == 0) "Not set" else "${activeProfile!!.weight} kg"
+                        val heightText =
+                            if (activeProfile!!.height == 0) "Not set" else "${activeProfile!!.height} cm"
+                        val weightText =
+                            if (activeProfile!!.weight == 0) "Not set" else "${activeProfile!!.weight} kg"
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -421,7 +443,8 @@ fun ProfileStatsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .metalGloss(),
+                        .metalGloss(StatsCardShape),
+                    shape = StatsCardShape,
                     border = BorderStroke(
                         1.dp,
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -492,7 +515,8 @@ private fun WeeklyProgressCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .metalGloss(),
+            .metalGloss(StatsCardShape),
+        shape = StatsCardShape,
         border = BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
@@ -518,12 +542,24 @@ private fun WeeklyProgressCard(
                     FilterChip(
                         selected = mode == ChartMode.HOURS,
                         onClick = { mode = ChartMode.HOURS },
-                        label = { Text("Hours") }
+                        label = { Text("Hours") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
+                        )
                     )
                     FilterChip(
                         selected = mode == ChartMode.VOLUME,
                         onClick = { mode = ChartMode.VOLUME },
-                        label = { Text("Volume") }
+                        label = { Text("Volume") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
+                        )
                     )
                 }
             }

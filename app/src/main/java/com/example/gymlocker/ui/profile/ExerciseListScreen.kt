@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Search
@@ -24,6 +25,7 @@ import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.BotBarShape
 import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlinx.coroutines.launch
@@ -39,6 +41,9 @@ data class ExerciseStatsData(
     val totalSets: Int,
     val totalVolume: Double
 )
+
+// Shared card shape for all exercise cards (PS-120: shape must match border + metalGloss)
+private val ExerciseCardShape = RoundedCornerShape(18.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,7 +168,7 @@ fun ExerciseListScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -233,7 +238,8 @@ fun ExerciseListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .metalGloss(),
+                    .metalGloss(ExerciseCardShape),
+                shape = ExerciseCardShape,
                 border = cardBorder,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface,
@@ -252,7 +258,13 @@ fun ExerciseListScreen(
                     FilterChip(
                         selected = selectedMuscleGroupId == null,
                         onClick = { selectedMuscleGroupId = null },
-                        label = { Text("All") }
+                        label = { Text("All") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
+                        )
                     )
 
                     Box {
@@ -264,7 +276,13 @@ fun ExerciseListScreen(
                                     .firstOrNull { it.muscleGroupId == selectedMuscleGroupId }
                                     ?.name
                                 Text(selectedName ?: "Muscle Group")
-                            }
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            )
                         )
 
                         DropdownMenu(
@@ -274,7 +292,12 @@ fun ExerciseListScreen(
                         ) {
                             allMuscleGroups.forEach { mg ->
                                 DropdownMenuItem(
-                                    text = { Text(mg.name, color = MaterialTheme.colorScheme.onSurface) },
+                                    text = {
+                                        Text(
+                                            mg.name,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
                                     onClick = {
                                         selectedMuscleGroupId = mg.muscleGroupId
                                         showMuscleGroupMenu = false
@@ -361,8 +384,9 @@ private fun ExerciseStatsCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .metalGloss()
+            .metalGloss(ExerciseCardShape)
             .clickable(onClick = onClick),
+        shape = ExerciseCardShape,
         border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -439,7 +463,10 @@ private fun formatDateRelative(dateString: String): String {
         val date = LocalDateTime.parse(dateString, formatter)
         val now = LocalDateTime.now()
 
-        val daysBetween = java.time.temporal.ChronoUnit.DAYS.between(date.toLocalDate(), now.toLocalDate())
+        val daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+            date.toLocalDate(),
+            now.toLocalDate()
+        )
 
         when {
             daysBetween == 0L -> "Today"
