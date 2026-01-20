@@ -1340,15 +1340,21 @@ private fun MonthYearSwitchHeader(
         AnimatedContent(
             targetState = zoom,
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxSize(),
                 // reserver plads til chevronen så centeren ikke skubbes
-                .padding(end = 40.dp),
+                //.padding(end = 40.dp),
             transitionSpec = {
-                if (initialState == CalendarZoom.MONTH && targetState == CalendarZoom.YEAR) {
+                if (
+                    (initialState == CalendarZoom.MONTH && targetState == CalendarZoom.YEAR) ||
+                    (initialState == CalendarZoom.WEEK  && targetState == CalendarZoom.YEAR)
+                ) {
                     (slideInHorizontally { w -> -w / 2 } + fadeIn()) togetherWith
-                            (slideOutHorizontally { w -> w / 2 } + fadeOut())
-                } else if (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.MONTH) {
-                    (slideInHorizontally { w -> w / 2 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { w ->  w / 2 } + fadeOut())
+                } else if (
+                    (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.MONTH) ||
+                    (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.WEEK)
+                ) {
+                    (slideInHorizontally { w ->  w / 2 } + fadeIn()) togetherWith
                             (slideOutHorizontally { w -> -w / 2 } + fadeOut())
                 } else {
                     fadeIn() togetherWith fadeOut()
@@ -1366,10 +1372,10 @@ private fun MonthYearSwitchHeader(
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .clickable {
-                                onYearChange(currentMonth.year)   // 🔑 synk YEAR cursor
-                                onZoomChange(CalendarZoom.YEAR)   // 🔄 skift view
+                                onYearChange(currentMonth.year)
+                                onZoomChange(CalendarZoom.YEAR)
                             }
-                            .padding(horizontal = 4.dp, vertical = 6.dp),   // større touch target
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
@@ -1418,7 +1424,7 @@ private fun MonthYearSwitchHeader(
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
                                 .clickable { onZoomChange(CalendarZoom.MONTH) }
-                                .padding(horizontal = 4.dp, vertical = 6.dp),
+                                .padding(start = 4.dp, end = 44.dp, top = 6.dp, bottom = 6.dp),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
