@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 data class WorkoutLogDetail(
+    val exerciseId: Long,
     val exerciseName: String,
     val muscleGroupId: Long,
     val sets: List<PerformedSet>
@@ -62,7 +63,12 @@ class WorkoutHistoryViewModel(private val appContext: Context) : ViewModel() {
                 val setsFlow = performedSetDao.observeSetsForLog(log.id)
 
                 combine(exerciseFlow, setsFlow) { (name, mgId), sets ->
-                    WorkoutLogDetail(name, mgId, sets)
+                    WorkoutLogDetail(
+                        exerciseId = log.exerciseId,
+                        exerciseName = name,
+                        muscleGroupId = mgId,
+                        sets = sets
+                    )
                 }
             }
             combine(flows) { it.toList() }

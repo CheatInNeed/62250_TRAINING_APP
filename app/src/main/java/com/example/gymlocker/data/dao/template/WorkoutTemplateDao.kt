@@ -34,6 +34,9 @@ interface WorkoutTemplateDao {
     @Query("SELECT COUNT(*) FROM workout_templates WHERE userId = :userId")
     suspend fun countTemplatesByUserId(userId: Long): Int
 
+    @Query("SELECT name FROM workout_templates WHERE userId = :userId")
+    suspend fun getTemplateNamesForUser(userId: Long): List<String>
+
     @Query("UPDATE workout_templates SET isFavorite = NOT isFavorite WHERE templateId = :templateId")
     suspend fun toggleFavorite(templateId: Long)
 }

@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.template
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -397,6 +398,9 @@ fun TemplateDetailScreen(
                             onRequestDelete = {
                                 pendingDeleteTemplateExerciseId.value = exerciseWithSets.templateExercise.id
                                 showDeleteConfirm.value = true
+                            },
+                            onOpenExercise = { exerciseId ->
+                                navController.navigate("exerciseDetail/$exerciseId")
                             }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -424,6 +428,7 @@ fun TemplateDetailScreen(
 fun ExerciseCard(
     exerciseWithSets: TemplateExerciseWithSets,
     onRequestDelete: () -> Unit,
+    onOpenExercise: (Long) -> Unit,
     exerciseName: String = "Unknown Exercise"
 ) {
     val settings = LocalUserSettings.current
@@ -462,7 +467,11 @@ fun ExerciseCard(
                 Text(
                     text = fetchedExerciseName.value,
                     style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            onOpenExercise(exerciseWithSets.templateExercise.exerciseId)
+                        },
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 IconButton(onClick = onRequestDelete) {

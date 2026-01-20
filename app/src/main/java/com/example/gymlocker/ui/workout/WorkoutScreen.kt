@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -152,7 +151,7 @@ fun WorkoutScreen(
             Spacer(Modifier.height(16.dp))
 
             // Favorite template boxes
-            val favoriteTemplates = templates.filter { it.isFavorite }.take(3)
+            val favoriteTemplates = templates.filter { it.isFavorite }
             val templateSummaries = remember { mutableStateMapOf<Long, String>() }
 
             LaunchedEffect(favoriteTemplates) {
@@ -211,11 +210,10 @@ fun WorkoutScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                userScrollEnabled = false
+                userScrollEnabled = true
             ) {
                 items(favoriteTemplates) { t ->
                     val templateCardShape = RoundedCornerShape(18.dp)
@@ -286,8 +284,8 @@ fun WorkoutScreen(
                 templates = templates,
                 onDismiss = { showBrowseTemplatesSheet = false },
                 onTemplateSelected = { templateId ->
-                    showBrowseTemplatesSheet = false
                     navController.navigate("templateDetail/$templateId")
+                    showBrowseTemplatesSheet = false
                 }
             )
         }

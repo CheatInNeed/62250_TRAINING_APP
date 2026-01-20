@@ -48,6 +48,7 @@ import com.example.gymlocker.ui.theme.BotBarShape
 import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.EditTemplateViewModel
 
@@ -275,6 +276,9 @@ fun EditTemplateScreen(
                                 onRepsChange = { setNumber, text ->
                                     viewModel.updateSetReps(exercise.exerciseId, setNumber, text)
                                 },
+                                onOpenExercise = { exerciseId ->
+                                    navController.navigate("exerciseDetail/$exerciseId")
+                                },
                                 onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
                                 onDeleteSet = { setNumber ->
                                     viewModel.removeSet(exercise.exerciseId, setNumber)
@@ -284,6 +288,7 @@ fun EditTemplateScreen(
                                 textFieldColors = textFieldColors
                             )
                         }
+
 
                         item {
                             Spacer(Modifier.height(4.dp))

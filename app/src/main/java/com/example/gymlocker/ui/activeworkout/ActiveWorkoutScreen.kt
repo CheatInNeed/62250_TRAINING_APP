@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -82,6 +83,7 @@ import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.RestTimerBar
 import com.example.gymlocker.ui.components.RestTimerBottomSheet
 import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
+import com.example.gymlocker.ui.components.RestTimerInputDialog
 import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.ui.theme.metalGloss
@@ -114,7 +116,6 @@ fun ActiveWorkoutScreen(
     val activeExercises by viewModel.activeExercises.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
 
     // finish sheet
     var showFinishSummarySheet by remember { mutableStateOf(false) }
@@ -189,7 +190,6 @@ fun ActiveWorkoutScreen(
         showAddExerciseSheet = false
         showDiscardDialog = false
         showFinishSummarySheet = false
-        detailExercise = null
     }
 
     if (showDiscardDialog) {
@@ -684,7 +684,13 @@ fun ActiveWorkoutScreen(
                             exercise = exercise,
                             exerciseIndex = exerciseIndex,
                             cursorPosition = cursorPosition,
-                            onCursorChange = { newPos -> cursorPosition = newPos },
+                            onCursorChange = { newPos ->
+                                cursorPosition = newPos
+                                // Show numpad when weight or reps field is selected
+                                if (newPos != null && (newPos.field == FieldType.WEIGHT || newPos.field == FieldType.REPS)) {
+                                    isNumpadVisible = true
+                                }
+                            },
                             viewModel = viewModel,
                             onAddSet = { viewModel.addSet(exercise.exerciseId) },
                             onMarkAllSetsDone = { viewModel.markAllSetsDone(exercise.exerciseId) },
@@ -701,7 +707,7 @@ fun ActiveWorkoutScreen(
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
                             },
-                            onOpenDetails = { detailExercise = exercise },
+                            onOpenDetails = { navController.navigate("exerciseDetail/${exercise.exerciseId}") },
                             isNumpadVisible = isNumpadVisible
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -738,16 +744,6 @@ fun ActiveWorkoutScreen(
                 }
             }
         }
-    }
-
-    detailExercise?.let { ex ->
-        ExerciseDetailsDialog(
-            exerciseId = ex.exerciseId,
-            exerciseName = ex.exerciseName,
-            muscleGroupId = ex.muscleGroupId,
-            viewModel = viewModel,
-            onDismiss = { detailExercise = null }
-        )
     }
 
     if (showAddExerciseSheet) {
@@ -1050,8 +1046,6 @@ fun ExerciseSetRow(
     isNumpadVisible: Boolean = false
 ) {
     val alphaContainer = 0.15f
-    val selectedAlpha = 0.4f
-    val selectedBorderColor = Color(0xFF3A82F7)
 
     val isWeightPrefilled = set.isWeightPrefilled
     val isRepsPrefilled = set.isRepsPrefilled
@@ -1071,11 +1065,15 @@ fun ExerciseSetRow(
     }
     val unit = LocalUserSettings.current.weightUnit
 
+    // Track focus state and keep editable string for display
     var isWeightFocused by remember { mutableStateOf(false) }
     var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
 
     LaunchedEffect(set.weight, unit) {
         if (!isWeightFocused) {
+    // Sync display from canonical stored kg value when not focused or when numpad is visible
+    LaunchedEffect(set.weight, unit, isNumpadVisible) {
+        if (!isWeightFocused || isNumpadVisible) {
             weightText =
                 if (set.weight == 0) ""
                 else formatWeight(displayWeightFromKg(set.weight.toDouble(), unit), decimals = 0)
@@ -1107,9 +1105,10 @@ fun ExerciseSetRow(
                 .padding(horizontal = 4.dp)
                 .then(
                     if (selectedField == FieldType.WEIGHT) {
-                        Modifier.background(
-                            selectedBorderColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(8.dp)
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
                         )
                     } else Modifier
                 )
@@ -1124,23 +1123,22 @@ fun ExerciseSetRow(
                         onWeightChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,
+                readOnly = isNumpadVisible,  // Read-only when numpad is visible
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
-                    .onFocusChanged { isWeightFocused = it.isFocused },
+                    .onFocusChanged { focusState ->
+                        isWeightFocused = focusState.isFocused
+                        if (focusState.isFocused) {
+                            onFieldSelected(FieldType.WEIGHT)
+                        }
+                    },
                 placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor =
-                        if (selectedField == FieldType.WEIGHT) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
-                    focusedContainerColor =
-                        if (selectedField == FieldType.WEIGHT) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
 
@@ -1154,7 +1152,7 @@ fun ExerciseSetRow(
                     disabledIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
 
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    cursorColor = Color.Transparent  // Hide cursor
                 )
             )
         }
@@ -1165,9 +1163,10 @@ fun ExerciseSetRow(
                 .padding(horizontal = 4.dp)
                 .then(
                     if (selectedField == FieldType.REPS) {
-                        Modifier.background(
-                            selectedBorderColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(8.dp)
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
                         )
                     } else Modifier
                 )
@@ -1181,21 +1180,21 @@ fun ExerciseSetRow(
                         onRepsChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,
+                readOnly = isNumpadVisible,  // Read-only when numpad is visible
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(.9f),
+                modifier = Modifier
+                    .fillMaxWidth(.9f)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            onFieldSelected(FieldType.REPS)
+                        }
+                    },
                 placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor =
-                        if (selectedField == FieldType.REPS) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
-                    focusedContainerColor =
-                        if (selectedField == FieldType.REPS) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
 
@@ -1209,7 +1208,7 @@ fun ExerciseSetRow(
                     disabledIndicatorColor = Color.Transparent,
                     errorIndicatorColor = Color.Transparent,
 
-                    cursorColor = MaterialTheme.colorScheme.primary
+                    cursorColor = Color.Transparent  // Hide cursor
                 )
             )
         }
@@ -1219,9 +1218,10 @@ fun ExerciseSetRow(
                 .weight(0.4f)
                 .then(
                     if (selectedField == FieldType.DONE) {
-                        Modifier.background(
-                            selectedBorderColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(8.dp)
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
                         )
                     } else Modifier
                 )
