@@ -131,14 +131,14 @@ fun ActiveWorkoutBanner(
                     .weight(1f)
                     .padding(vertical = 6.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.error)
+                    .background(MaterialTheme.colorScheme.secondary)
                     .clickable { showDiscardDialog = true }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
-                    tint = MaterialTheme.colorScheme.onError,
+                    tint = MaterialTheme.colorScheme.onSecondary,
                     contentDescription = "Discard workout"
                 )
             }

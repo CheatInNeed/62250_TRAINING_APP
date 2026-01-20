@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,7 +36,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.gymlocker.data.entity.WeightUnit
 import com.example.gymlocker.ui.settings.LocalUserSettings
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.util.displayWeightFromKg
 import com.example.gymlocker.util.formatWeight
 import com.example.gymlocker.util.storageKgFromInput
@@ -61,28 +64,98 @@ fun EditProfileScreen(
     var heightText by remember { mutableStateOf("") }
     var weightText by remember { mutableStateOf("") }
 
+    // VM/server error message (keep current behavior)
     var error by remember { mutableStateOf<String?>(null) }
     var showResetConfirm by remember { mutableStateOf(false) }
 
-    // Display text for weight in the chosen unit (UI)
-    val initialWeightText =
-        if (activeProfile?.weight == 0) ""
-        else formatWeight(displayWeightFromKg(activeProfile!!.weight.toDouble(), unit), decimals = 0)
+    // Live field errors
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var heightError by remember { mutableStateOf<String?>(null) }
+    var weightError by remember { mutableStateOf<String?>(null) }
 
-    var weight by remember { mutableStateOf(initialWeightText) }
+    fun validateName(text: String): String? {
+        val clean = text.trim()
+        if (clean.isEmpty()) return "Name is required."
+        if (clean.length > 40) return "Name must be 1–40 characters."
+        return null
+    }
 
-    // Load current values into editable fields
+    fun validateHeight(text: String): String? {
+        val raw = text.trim()
+        if (raw.isEmpty()) return null
+        val v = raw.toIntOrNull() ?: return "Height must be a whole number."
+        if (v !in 1..250) return "Height must be 1–250 cm."
+        return null
+    }
+
+    fun validateWeight(text: String): String? {
+        val raw = text.trim()
+        if (raw.isEmpty()) return null
+
+        val v = raw.toDoubleOrNull() ?: return "Weight must be a number."
+        if (v <= 0.0) return "Weight must be greater than 0."
+
+        // storage range is ALWAYS 1..400 kg
+        val minKg = 1.0
+        val maxKg = 400.0
+
+        // convert allowed range to the current input unit
+        val (minAllowed, maxAllowed) = when (unit) {
+            WeightUnit.KG -> minKg to maxKg
+            WeightUnit.LB -> {
+                // kg -> lb
+                (minKg) to (maxKg * 2.5)
+            }
+        }
+
+        if (v !in minAllowed..maxAllowed) {
+            val label = weightUnitLabel(unit)
+
+            // show nice rounded values for readability
+            val minTxt = if (unit == WeightUnit.LB) minAllowed.toInt().toString() else minAllowed.toInt().toString()
+            val maxTxt = if (unit == WeightUnit.LB) maxAllowed.toInt().toString() else maxAllowed.toInt().toString()
+
+            return "Weight must be $minTxt–$maxTxt $label."
+        }
+
+        return null
+    }
+
+
+    // Inputs: surfaceVariant + onSurfaceVariant labels + outline borders
+    val tfColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+
+        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+
+        focusedBorderColor = MaterialTheme.colorScheme.outline,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+
+        cursorColor = MaterialTheme.colorScheme.primary,
+
+        errorBorderColor = MaterialTheme.colorScheme.error,
+        errorLabelColor = MaterialTheme.colorScheme.error,
+        errorCursorColor = MaterialTheme.colorScheme.error
+    )
+
     LaunchedEffect(activeProfile?.userId, unit) {
         val p = activeProfile ?: return@LaunchedEffect
+
         name = p.name
         heightText = if (p.height == 0) "" else p.height.toString()
-
-        // Keep weight text in current unit
         weightText =
             if (p.weight == 0) ""
             else formatWeight(displayWeightFromKg(p.weight.toDouble(), unit), decimals = 0)
 
-        weight = weightText
+        nameError = validateName(name)
+        heightError = validateHeight(heightText)
+        weightError = validateWeight(weightText)
+
         error = null
     }
 
@@ -92,18 +165,8 @@ fun EditProfileScreen(
             containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            title = {
-                Text(
-                    text = "Reset profile?",
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            },
-            text = {
-                Text(
-                    text = "This resets name/height/weight. Workouts will NOT be deleted.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
+            title = { Text("Reset profile?") },
+            text = { Text("This resets name/height/weight. Workouts will NOT be deleted.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -112,20 +175,10 @@ fun EditProfileScreen(
                             navController.popBackUnlessAtRoot()
                         }
                     }
-                ) {
-                    Text(
-                        text = "Reset",
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                ) { Text("Reset") }
             },
             dismissButton = {
-                TextButton(onClick = { showResetConfirm = false }) {
-                    Text(
-                        text = "Cancel",
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                TextButton(onClick = { showResetConfirm = false }) { Text("Cancel") }
             }
         )
     }
@@ -183,21 +236,43 @@ fun EditProfileScreen(
 
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it; error = null },
+                onValueChange = {
+                    name = it
+                    nameError = validateName(it)
+                    error = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Display name") },
-                singleLine = true
+                singleLine = true,
+                isError = nameError != null,
+                supportingText = {
+                    nameError?.let { msg ->
+                        Text(text = msg, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                colors = tfColors
             )
 
             Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = heightText,
-                onValueChange = { heightText = it; error = null },
+                onValueChange = {
+                    heightText = it
+                    heightError = validateHeight(it)
+                    error = null
+                },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Height (cm) — leave empty for Not set") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = heightError != null,
+                supportingText = {
+                    heightError?.let { msg ->
+                        Text(text = msg, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                colors = tfColors
             )
 
             Spacer(Modifier.height(12.dp))
@@ -206,13 +281,20 @@ fun EditProfileScreen(
                 value = weightText,
                 onValueChange = { input ->
                     weightText = input
-                    weight = input
+                    weightError = validateWeight(input)
                     error = null
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Weight (${weightUnitLabel(unit)})") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = weightError != null,
+                supportingText = {
+                    weightError?.let { msg ->
+                        Text(text = msg, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                colors = tfColors
             )
 
             Spacer(Modifier.height(12.dp))
@@ -228,28 +310,24 @@ fun EditProfileScreen(
 
             Button(
                 onClick = {
-                    // numeric validation: do NOT silently treat "abc" as Not set
+                    val nErr = validateName(name)
+                    val hErr = validateHeight(heightText)
+                    val wErr = validateWeight(weightText)
+
+                    nameError = nErr
+                    heightError = hErr
+                    weightError = wErr
+
+                    if (nErr != null || hErr != null || wErr != null) return@Button
+
                     val hRaw = heightText.trim()
                     val wRaw = weightText.trim()
 
                     val heightInt: Int? = if (hRaw.isEmpty()) null else hRaw.toIntOrNull()
-                    val weightInt: Int? = if (wRaw.isEmpty()) null else wRaw.toIntOrNull()
-
-                    if (hRaw.isNotEmpty() && heightInt == null) {
-                        error = "Height must be a number."
-                        return@Button
-                    }
-                    if (wRaw.isNotEmpty() && weightInt == null) {
-                        error = "Weight must be a number."
-                        return@Button
-                    }
-
-                    val wKg = weight.toDoubleOrNull()
-                        ?.let { storageKgFromInput(it, unit).roundToInt() }
-                        ?: 0
+                    val wKg = if (wRaw.isEmpty()) 0 else storageKgFromInput(wRaw.toDouble(), unit).roundToInt()
 
                     profileViewModel.saveProfileEdits(
-                        name = name,
+                        name = name.trim(),
                         height = heightInt,
                         weight = wKg,
                         onError = { error = it },
@@ -261,7 +339,9 @@ fun EditProfileScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 )
-            ) { Text("Save") }
+            ) {
+                Text("Save")
+            }
 
             Spacer(Modifier.height(10.dp))
 
@@ -269,10 +349,7 @@ fun EditProfileScreen(
                 onClick = { showResetConfirm = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Reset profile",
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text("Reset profile")
             }
 
             Spacer(Modifier.height(10.dp))

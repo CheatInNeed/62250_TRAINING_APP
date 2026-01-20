@@ -9,9 +9,6 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.auth.HeightUnit
 import com.example.gymlocker.data.auth.WeightUnit
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import com.example.gymlocker.data.entity.User
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +20,7 @@ import kotlinx.coroutines.launch
 
 data class ProfileWorkoutSummaryUi(
     val totalWorkouts: Int = 0,
+    val mostRecentWorkoutId: Long? = null,
     val mostRecentName: String? = null,
     val mostRecentDate: String? = null
 )
@@ -77,6 +75,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
                         val mostRecent = list.first()
                         ProfileWorkoutSummaryUi(
                             totalWorkouts = list.size,
+                            mostRecentWorkoutId = mostRecent.workoutId, // ✅ NEW
                             mostRecentName = mostRecent.name,
                             mostRecentDate = mostRecent.date
                         )
@@ -88,6 +87,7 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
     fun setActiveProfile(userId: Long) {
         viewModelScope.launch { session.setActiveProfile(userId) }
     }
+
     fun setWeightUnit(unit: WeightUnit) {
         viewModelScope.launch { session.setWeightUnit(unit) }
     }
@@ -96,10 +96,10 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
         viewModelScope.launch { session.setHeightUnit(unit) }
     }
 
-
     fun clearActiveProfile() {
         viewModelScope.launch { session.clearActiveProfile() }
     }
+
     fun setActiveProfilePhoto(uri: String) {
         viewModelScope.launch {
             val userId = activeProfileUserId.value ?: return@launch
@@ -113,7 +113,6 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
             session.clearProfilePhotoUri(userId)
         }
     }
-
 
     fun createProfile(
         name: String,
@@ -177,10 +176,6 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
         }
     }
 
-    /**
-     * ✅ NEW: Delete a profile AND all its data (workouts/templates cascade).
-     * We manually delete rest preferences because that table has no FK.
-     */
     fun deleteProfile(
         userIdToDelete: Long,
         onError: (String) -> Unit = {},
@@ -192,22 +187,17 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
                 return@launch
             }
 
-            // Safety: don’t allow deleting someone else’s profile
             if (userDao.belongsToAuth(userIdToDelete, aId) <= 0) {
                 onError("That profile doesn’t belong to the logged-in account")
                 return@launch
             }
 
             db.withTransaction {
-                // 1) manual cleanup (no FK)
                 restPrefDao.deleteAllForUser(userIdToDelete)
                 db.userSettingsDao().deleteForUser(userIdToDelete)
-
-                // 2) delete the user (cascades handle workouts/templates + children)
                 userDao.deleteById(userIdToDelete)
             }
 
-            // 3) If we deleted the active profile, pick another or clear it
             val active = activeProfileUserId.value
             if (active == userIdToDelete) {
                 val remaining = userDao.listProfilesForAuth(aId)
