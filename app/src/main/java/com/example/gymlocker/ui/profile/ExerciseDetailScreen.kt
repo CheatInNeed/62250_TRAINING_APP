@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +18,9 @@ import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.PerformedSet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlinx.coroutines.launch
@@ -56,6 +60,8 @@ fun ExerciseDetailScreen(
     var workoutSessions by remember { mutableStateOf<List<WorkoutSessionData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+
     LaunchedEffect(exerciseId, activeProfileUserId) {
         if (activeProfileUserId == null) return@LaunchedEffect
 
@@ -65,7 +71,8 @@ fun ExerciseDetailScreen(
             // Get exercise details
             val exercise = db.exerciseDao().getById(exerciseId)
             exerciseName = exercise?.name ?: "Unknown Exercise"
-            muscleGroupName = db.muscleGroupDao().getNameById(exercise?.muscleGroupId ?: 0) ?: ""
+            muscleGroupName = db.muscleGroupDao()
+                .getNameById(exercise?.muscleGroupId ?: 0) ?: ""
 
             // Get PR
             val prSet = db.performedSetDao().getPersonalRecordSetForExerciseExcludingWorkout(
@@ -126,20 +133,34 @@ fun ExerciseDetailScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text(exerciseName) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -150,7 +171,7 @@ fun ExerciseDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
             return@Scaffold
         }
@@ -165,9 +186,22 @@ fun ExerciseDetailScreen(
         ) {
             // Header Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = cardBorder,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(exerciseName, style = MaterialTheme.typography.headlineMedium)
+                        Text(
+                            exerciseName,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = muscleGroupName,
@@ -180,7 +214,16 @@ fun ExerciseDetailScreen(
 
             // Stats Summary Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = cardBorder,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Overall Statistics", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(12.dp))
@@ -213,13 +256,23 @@ fun ExerciseDetailScreen(
                 Text(
                     "Workout History",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
             if (workoutSessions.isEmpty()) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .metalGloss(),
+                        border = cardBorder,
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -237,7 +290,10 @@ fun ExerciseDetailScreen(
                 }
             } else {
                 items(workoutSessions, key = { it.workoutId }) { session ->
-                    WorkoutSessionCard(session = session)
+                    WorkoutSessionCard(
+                        session = session,
+                        cardBorder = cardBorder
+                    )
                 }
             }
         }
@@ -245,8 +301,20 @@ fun ExerciseDetailScreen(
 }
 
 @Composable
-private fun WorkoutSessionCard(session: WorkoutSessionData) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun WorkoutSessionCard(
+    session: WorkoutSessionData,
+    cardBorder: BorderStroke
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(),
+        border = cardBorder,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -256,7 +324,8 @@ private fun WorkoutSessionCard(session: WorkoutSessionData) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = session.workoutName,
-                        style = MaterialTheme.typography.titleSmall
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = formatDate(session.workoutDate),
@@ -321,7 +390,8 @@ private fun WorkoutSessionCard(session: WorkoutSessionData) {
                             text = "Set ${index + 1}",
                             modifier = Modifier.weight(0.8f),
                             textAlign = TextAlign.Start,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = set.weight.toInt().toString(),
@@ -406,4 +476,3 @@ private fun formatVolume(volume: Double): String {
         else -> String.format(Locale.US, "%.0f", volume)
     }
 }
-

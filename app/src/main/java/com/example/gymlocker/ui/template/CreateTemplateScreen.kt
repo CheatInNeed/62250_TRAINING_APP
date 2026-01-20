@@ -1,5 +1,6 @@
 package com.example.gymlocker.ui.template
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -53,6 +55,15 @@ import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.TemplateExerciseState
 import com.example.gymlocker.viewmodel.TemplateSetState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +91,7 @@ fun CreateTemplateScreen(
                 TextButton(onClick = {
                     viewModel.updateTemplateName("")
                     showDiscardDialog = false
-                    navController.navigateUp()
+                    navController.popBackUnlessAtRoot()
                 }) { Text("Discard") }
             },
             dismissButton = {
@@ -97,9 +108,10 @@ fun CreateTemplateScreen(
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Create Template") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -120,7 +132,7 @@ fun CreateTemplateScreen(
                     Button(
                         onClick = {
                             viewModel.saveTemplate()
-                            navController.navigateUp()
+                            navController.popBackUnlessAtRoot()
                         },
                         enabled = templateName.isNotBlank() &&
                                 templateExercises.isNotEmpty() &&
@@ -146,9 +158,15 @@ fun CreateTemplateScreen(
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -236,6 +254,10 @@ fun CreateTemplateScreen(
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { showAddExerciseSheet = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -271,7 +293,10 @@ fun CreateTemplateScreen(
                         Spacer(Modifier.height(16.dp))
                         Button(
                             onClick = { showAddExerciseSheet = true },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -288,7 +313,7 @@ fun CreateTemplateScreen(
         AddExerciseSheet(
             onDismiss = { showAddExerciseSheet = false },
             onExerciseSelected = { ex ->
-                // ✅ FIX: pass ID (Long), not the entity
+                // pass ID (Long), not the entity
                 viewModel.addExercise(ex.exerciseId)
                 showAddExerciseSheet = false
             }
@@ -336,10 +361,14 @@ fun TemplateExerciseItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
         )
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -419,7 +448,7 @@ fun TemplateExerciseItem(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            androidx.compose.foundation.layout.Row(
+            Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -464,7 +493,10 @@ fun TemplateExerciseItem(
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = onAddSet,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -486,7 +518,7 @@ fun TemplateSetRow(
         .fillMaxWidth()
         .padding(vertical = 4.dp)
 
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = rowModifier,
         verticalAlignment = Alignment.CenterVertically
     ) {

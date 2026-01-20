@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -39,6 +41,11 @@ import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.EditTemplateViewModel
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,9 +72,10 @@ fun EditTemplateScreen(
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Edit Template") },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -80,9 +88,11 @@ fun EditTemplateScreen(
                         onClick = {
                             viewModel.saveTemplate()
                             // Set flag to reload template on detail screen
-                            navController.previousBackStackEntry?.savedStateHandle?.set("shouldReloadTemplate", true)
-                            // Give a moment for save to complete, then go back
-                            navController.popBackStack()
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("shouldReloadTemplate", true)
+                            // Go back after save
+                            navController.popBackUnlessAtRoot()
                         },
                         enabled = templateName.isNotBlank() &&
                                 templateExercises.isNotEmpty() &&
@@ -109,9 +119,15 @@ fun EditTemplateScreen(
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -238,7 +254,10 @@ fun EditTemplateScreen(
                                 onClick = { showAddExerciseSheet = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 16.dp),
+                                    .padding(vertical = 16.dp)
+                                    .padding(bottom = 8.dp)
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                     contentColor = MaterialTheme.colorScheme.onPrimary

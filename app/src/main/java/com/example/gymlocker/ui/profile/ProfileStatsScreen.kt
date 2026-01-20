@@ -1,35 +1,39 @@
 package com.example.gymlocker.ui.profile
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.PeriodBarChart
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.viewmodel.StatsRange
 import java.time.DayOfWeek
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +62,7 @@ fun ProfileStatsScreen(
     // Database access for additional stats
     val db = remember { AppDatabase.getDatabase(context) }
     val exerciseLogDao = remember { db.exerciseLogDao() }
-    val workoutDao = remember { db.workoutDao() }
+    val workoutDao = remember { db.workoutDao() } // kept if used elsewhere later
 
     // Stats data
     val userId = activeProfileUserId
@@ -100,31 +104,52 @@ fun ProfileStatsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("${activeProfile?.name ?: "Profile"} Statistics") },
+                modifier = Modifier.metalGloss(TopBarShape),
+                title = {
+                    Text("${activeProfile?.name ?: "Profile"} Statistics")
+                },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) { innerPadding ->
         if (activeProfile == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding),
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(innerPadding)
+                    .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(20.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "No profile selected",
@@ -138,7 +163,15 @@ fun ProfileStatsScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { navController.navigate("profile") }) {
+                    Button(
+                        onClick = { navController.navigate("profile") },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
                         Text("Go to Profile")
                     }
                 }
@@ -149,6 +182,7 @@ fun ProfileStatsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -156,9 +190,25 @@ fun ProfileStatsScreen(
         ) {
             // Overview Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Overview", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Overview",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
@@ -201,9 +251,25 @@ fun ProfileStatsScreen(
 
             // Weekly Averages Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("3-Month Averages", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "3-Month Averages",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Row(
@@ -233,14 +299,30 @@ fun ProfileStatsScreen(
 
             // Muscle Group Distribution
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Training Balance", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Training Balance",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(
@@ -278,9 +360,25 @@ fun ProfileStatsScreen(
 
             // Profile Info Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Profile Info", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Profile Info",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
 
                         val heightText = if (activeProfile!!.height == 0) "Not set" else "${activeProfile!!.height} cm"
@@ -304,7 +402,13 @@ fun ProfileStatsScreen(
 
                         Button(
                             onClick = { navController.navigate("editProfile") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         ) {
                             Text("Edit Profile")
                         }
@@ -314,9 +418,25 @@ fun ProfileStatsScreen(
 
             // Exercise List Card
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .metalGloss(),
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Exercise Statistics", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Exercise Statistics",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "View detailed statistics for each exercise including personal records, progression, and total volume",
@@ -369,14 +489,30 @@ private fun WeeklyProgressCard(
 ) {
     var mode by remember { mutableStateOf(ChartMode.HOURS) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(),
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Weekly Progress", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Weekly Progress",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
@@ -404,7 +540,6 @@ private fun WeeklyProgressCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Use PeriodBarChart instead of the old WeeklyBarChart
             val weekLabels = weeklyHours.map {
                 it.weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()).toString()
             }

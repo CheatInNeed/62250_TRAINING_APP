@@ -1,5 +1,7 @@
 package com.example.gymlocker.ui.profile
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,6 +21,9 @@ import com.example.gymlocker.data.database.AppDatabase
 import com.example.gymlocker.data.entity.Exercises
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
+import com.example.gymlocker.ui.theme.TopBarShape
+import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.viewmodel.ProfileViewModel
 import kotlinx.coroutines.launch
@@ -46,6 +51,8 @@ fun ExerciseListScreen(
     val db = remember { AppDatabase.getDatabase(context) }
     val scope = rememberCoroutineScope()
 
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
+
     val activeProfileUserId by profileViewModel.activeProfileUserId.collectAsState()
     val activeProfile by profileViewModel.activeProfile.collectAsState()
 
@@ -54,15 +61,12 @@ fun ExerciseListScreen(
     var showMuscleGroupMenu by remember { mutableStateOf(false) }
     var showSearchBar by remember { mutableStateOf(false) }
 
-    // Load all exercises and muscle groups
     val allExercises by db.exerciseDao().getAllExercises().collectAsState(initial = emptyList())
     val allMuscleGroups by db.muscleGroupDao().getAllMuscleGroups().collectAsState(initial = emptyList())
 
-    // Exercise stats data
     var exerciseStatsMap by remember { mutableStateOf<Map<Long, ExerciseStatsData>>(emptyMap()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    // Load stats for all exercises
     LaunchedEffect(activeProfileUserId, allExercises) {
         if (activeProfileUserId == null) {
             isLoading = false
@@ -74,9 +78,9 @@ fun ExerciseListScreen(
             val statsMap = mutableMapOf<Long, ExerciseStatsData>()
 
             allExercises.forEach { exercise ->
-                val muscleGroupName = db.muscleGroupDao().getNameById(exercise.muscleGroupId) ?: "Unknown"
+                val muscleGroupName =
+                    db.muscleGroupDao().getNameById(exercise.muscleGroupId) ?: "Unknown"
 
-                // Get PR
                 val prSet = db.performedSetDao().getPersonalRecordSetForExerciseExcludingWorkout(
                     exerciseId = exercise.exerciseId,
                     excludeWorkoutId = null
@@ -89,18 +93,12 @@ fun ExerciseListScreen(
                     "No data"
                 }
 
-                // Get last trained date
                 val lastDate = db.performedSetDao().getLastTrainedDateForExerciseExcludingWorkout(
                     exerciseId = exercise.exerciseId,
                     excludeWorkoutId = null
                 )
-                val lastTrainedText = if (lastDate != null) {
-                    formatDateRelative(lastDate)
-                } else {
-                    "Never trained"
-                }
+                val lastTrainedText = if (lastDate != null) formatDateRelative(lastDate) else "Never trained"
 
-                // Get total sets and volume for this exercise (user-scoped)
                 val totalSets = db.performedSetDao().getTotalSetsForExercise(
                     userId = activeProfileUserId!!,
                     exerciseId = exercise.exerciseId
@@ -110,7 +108,6 @@ fun ExerciseListScreen(
                     exerciseId = exercise.exerciseId
                 )
 
-                // Only include exercises that have been performed at least once
                 if (totalSets > 0) {
                     statsMap[exercise.exerciseId] = ExerciseStatsData(
                         exercise = exercise,
@@ -128,20 +125,21 @@ fun ExerciseListScreen(
         }
     }
 
-    // Filter exercises
     val filteredExercises = exerciseStatsMap.values
         .filter { stats ->
             val matchesSearch = searchQuery.isBlank() ||
-                stats.exercise.name.contains(searchQuery, ignoreCase = true)
+                    stats.exercise.name.contains(searchQuery, ignoreCase = true)
             val matchesMuscleGroup = selectedMuscleGroupId == null ||
-                stats.exercise.muscleGroupId == selectedMuscleGroupId
+                    stats.exercise.muscleGroupId == selectedMuscleGroupId
             matchesSearch && matchesMuscleGroup
         }
-        .sortedByDescending { it.totalVolume } // Sort by total volume (most used first)
+        .sortedByDescending { it.totalVolume }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = {
                     if (showSearchBar) {
                         OutlinedTextField(
@@ -149,7 +147,16 @@ fun ExerciseListScreen(
                             onValueChange = { searchQuery = it },
                             placeholder = { Text("Search exercises...") },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            )
                         )
                     } else {
                         Text("Exercise Statistics")
@@ -164,13 +171,25 @@ fun ExerciseListScreen(
                     IconButton(onClick = { showSearchBar = !showSearchBar }) {
                         Icon(Icons.Filled.Search, contentDescription = "Search")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape),
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -210,11 +229,16 @@ fun ExerciseListScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Muscle group filter
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .metalGloss(),
+                border = cardBorder,
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
             ) {
                 Row(
                     modifier = Modifier
@@ -245,11 +269,12 @@ fun ExerciseListScreen(
 
                         DropdownMenu(
                             expanded = showMuscleGroupMenu,
-                            onDismissRequest = { showMuscleGroupMenu = false }
+                            onDismissRequest = { showMuscleGroupMenu = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             allMuscleGroups.forEach { mg ->
                                 DropdownMenuItem(
-                                    text = { Text(mg.name) },
+                                    text = { Text(mg.name, color = MaterialTheme.colorScheme.onSurface) },
                                     onClick = {
                                         selectedMuscleGroupId = mg.muscleGroupId
                                         showMuscleGroupMenu = false
@@ -267,7 +292,7 @@ fun ExerciseListScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
                 }
                 filteredExercises.isEmpty() -> {
@@ -314,6 +339,7 @@ fun ExerciseListScreen(
                         items(filteredExercises, key = { it.exercise.exerciseId }) { stats ->
                             ExerciseStatsCard(
                                 stats = stats,
+                                cardBorder = cardBorder,
                                 onClick = {
                                     navController.navigate("exerciseDetail/${stats.exercise.exerciseId}")
                                 }
@@ -329,12 +355,19 @@ fun ExerciseListScreen(
 @Composable
 private fun ExerciseStatsCard(
     stats: ExerciseStatsData,
+    cardBorder: BorderStroke,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .metalGloss()
+            .clickable(onClick = onClick),
+        border = cardBorder,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -345,7 +378,8 @@ private fun ExerciseStatsCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stats.exercise.name,
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
@@ -364,18 +398,9 @@ private fun ExerciseStatsCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatColumn(
-                    label = "Personal Best",
-                    value = stats.personalRecord
-                )
-                StatColumn(
-                    label = "Total Sets",
-                    value = stats.totalSets.toString()
-                )
-                StatColumn(
-                    label = "Total Volume",
-                    value = formatVolume(stats.totalVolume)
-                )
+                StatColumn(label = "Personal Best", value = stats.personalRecord)
+                StatColumn(label = "Total Sets", value = stats.totalSets.toString())
+                StatColumn(label = "Total Volume", value = formatVolume(stats.totalVolume))
             }
 
             Spacer(Modifier.height(8.dp))
@@ -436,4 +461,3 @@ private fun formatVolume(volume: Double): String {
         else -> String.format(Locale.US, "%.0f", volume)
     }
 }
-
