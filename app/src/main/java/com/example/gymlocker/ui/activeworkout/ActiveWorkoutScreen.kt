@@ -1082,8 +1082,9 @@ fun ExerciseSetRow(
     var weightText by rememberSaveable(set.setNumber, unit) { mutableStateOf("") }
 
     // When NOT editing, sync display from canonical stored kg value
-    LaunchedEffect(set.weight, unit) {
-        if (!isWeightFocused) {
+    // Also sync when numpad is visible to ensure navigation bar input works correctly
+    LaunchedEffect(set.weight, unit, isNumpadVisible) {
+        if (!isWeightFocused || isNumpadVisible) {
             weightText =
                 if (set.weight == 0) ""
                 else formatWeight(displayWeightFromKg(set.weight.toDouble(), unit), decimals = 0)
