@@ -296,6 +296,7 @@ fun HomeScreen(
         var calendarZoom by rememberSaveable { mutableStateOf(CalendarZoom.WEEK) }
         var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now()) }
         var currentMonth by rememberSaveable { mutableStateOf(YearMonth.now()) }
+        var yearCursor by rememberSaveable { mutableStateOf(currentMonth.year) }
 
         // Auto-collapse når man scroller i feedet
         LaunchedEffect(listState) {
@@ -320,9 +321,14 @@ fun HomeScreen(
                     workoutsPerDay = workoutsPerDay,
                     selectedDate = selectedDate,
                     currentMonth = currentMonth,
+                    yearCursor = yearCursor,
                     zoom = calendarZoom,
-                    onZoomChange = { calendarZoom = it },
+                    onZoomChange = { newZoom ->
+                        if (newZoom == CalendarZoom.YEAR) yearCursor = currentMonth.year
+                        calendarZoom = newZoom
+                    },
                     onMonthChange = { currentMonth = it },
+                    onYearChange = { yearCursor = it },
                     onDateSelected = { date ->
                         selectedDate = date
                         currentMonth = YearMonth.from(date)
@@ -917,9 +923,11 @@ private fun ExpandableHomeCalendarHeader(
     workoutsPerDay: Map<LocalDate, Int>,
     selectedDate: LocalDate,
     currentMonth: YearMonth,
+    yearCursor: Int,
     zoom: CalendarZoom,
     onZoomChange: (CalendarZoom) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
+    onYearChange: (Int) -> Unit,
     onDateSelected: (LocalDate) -> Unit
 ) {
     // Uge baseret på selectedDate (så den “følger” hvad man klikker)
@@ -952,8 +960,10 @@ private fun ExpandableHomeCalendarHeader(
         // Month title row (klik for expand/collapse)
         MonthYearSwitchHeader(
             currentMonth = currentMonth,
+            yearCursor = yearCursor,
             zoom = zoom,
-            onZoomChange = onZoomChange
+            onZoomChange = onZoomChange,
+            onYearChange = onYearChange
         )
 
 
@@ -1033,16 +1043,14 @@ private fun ExpandableHomeCalendarHeader(
             exit = shrinkVertically()
         ) {
             HomeYearGrid(
-                year = currentMonth.year,
+                year = yearCursor,
                 workoutsPerDay = workoutsPerDay,
-                onPrevYear = { onMonthChange(currentMonth.minusYears(1)) },
-                onNextYear = { onMonthChange(currentMonth.plusYears(1)) },
+                onPrevYear = { onYearChange(yearCursor - 1) },
+                onNextYear = { onYearChange(yearCursor + 1) },
                 onMonthSelected = { ym ->
                     onMonthChange(ym)
-                    // valgfrit: behold selectedDate hvis den ligger i samme måned,
-                    // ellers hop til 1. i måneden:
                     onDateSelected(ym.atDay(1))
-                    onZoomChange(CalendarZoom.MONTH) // zoom ind på valgt måned
+                    onZoomChange(CalendarZoom.MONTH)
                 }
             )
         }
@@ -1309,12 +1317,16 @@ private fun MonthMini(
 @Composable
 private fun MonthYearSwitchHeader(
     currentMonth: YearMonth,
+    yearCursor: Int,
     zoom: CalendarZoom,
-    onZoomChange: (CalendarZoom) -> Unit
+    onZoomChange: (CalendarZoom) -> Unit,
+    onYearChange: (Int) -> Unit
 ) {
-    val yearText = currentMonth.year.toString()
     val monthText =
         "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+
+    val yearTextForLeft = currentMonth.year.toString()   // vises i WEEK/MONTH (faded venstre)
+    val yearTextForCenter = yearCursor.toString()        // vises i YEAR (center)
 
     Box(
         modifier = Modifier
@@ -1350,10 +1362,13 @@ private fun MonthYearSwitchHeader(
                 // ✅ Year er synlig HELE tiden (i WEEK og MONTH som faded venstre)
                 if (state == CalendarZoom.WEEK || state == CalendarZoom.MONTH) {
                     Text(
-                        text = yearText,
+                        text = yearTextForLeft,
                         modifier = Modifier
                             .align(Alignment.CenterStart)
-                            .clickable { onZoomChange(CalendarZoom.YEAR) }  // klik year -> YEAR
+                            .clickable {
+                                onYearChange(currentMonth.year)   // 🔑 synk YEAR cursor
+                                onZoomChange(CalendarZoom.YEAR)   // 🔄 skift view
+                            }
                             .padding(horizontal = 4.dp, vertical = 6.dp),   // større touch target
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
@@ -1390,7 +1405,7 @@ private fun MonthYearSwitchHeader(
                     CalendarZoom.YEAR -> {
                         // ✅ CENTER year (normal)
                         Text(
-                            text = yearText,
+                            text = yearTextForCenter,
                             modifier = Modifier.align(Alignment.Center),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
