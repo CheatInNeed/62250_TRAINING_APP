@@ -1313,7 +1313,8 @@ private fun MonthYearSwitchHeader(
     onZoomChange: (CalendarZoom) -> Unit
 ) {
     val yearText = currentMonth.year.toString()
-    val monthText = "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
+    val monthText =
+        "${currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${currentMonth.year}"
 
     Box(
         modifier = Modifier
@@ -1328,35 +1329,55 @@ private fun MonthYearSwitchHeader(
             targetState = zoom,
             modifier = Modifier
                 .fillMaxSize()
+                // reserver plads til chevronen så centeren ikke skubbes
                 .padding(end = 40.dp),
             transitionSpec = {
                 if (initialState == CalendarZoom.MONTH && targetState == CalendarZoom.YEAR) {
-                    (slideInHorizontally { w -> -w / 3 } + fadeIn()) togetherWith
-                            (slideOutHorizontally { w -> w / 3 } + fadeOut())
+                    (slideInHorizontally { w -> -w / 2 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { w -> w / 2 } + fadeOut())
                 } else if (initialState == CalendarZoom.YEAR && targetState == CalendarZoom.MONTH) {
-                    (slideInHorizontally { w -> w / 3 } + fadeIn()) togetherWith
-                            (slideOutHorizontally { w -> -w / 3 } + fadeOut())
+                    (slideInHorizontally { w -> w / 2 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { w -> -w / 2 } + fadeOut())
                 } else {
                     fadeIn() togetherWith fadeOut()
                 }
             },
             label = "MonthYearSwitch"
         ) { state ->
-            // ✅ VIGTIGT: BoxScope så align virker korrekt
+            // ✅ vigtig: BoxScope så align virker rigtigt + klikflader bliver stabile
             Box(modifier = Modifier.fillMaxSize()) {
+
+                // ✅ Year er synlig HELE tiden (i WEEK og MONTH som faded venstre)
+                if (state == CalendarZoom.WEEK || state == CalendarZoom.MONTH) {
+                    Text(
+                        text = yearText,
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .clickable { onZoomChange(CalendarZoom.YEAR) }  // klik year -> YEAR
+                            .padding(horizontal = 4.dp, vertical = 6.dp),   // større touch target
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    )
+                }
+
                 when (state) {
-                    CalendarZoom.MONTH -> {
+                    CalendarZoom.WEEK -> {
+                        // ✅ CENTER monthText (klik -> MONTH)
                         Text(
-                            text = yearText,
+                            text = monthText,
                             modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .clickable { onZoomChange(CalendarZoom.YEAR) }
-                                .padding(horizontal = 4.dp, vertical = 6.dp), // større touch
+                                .align(Alignment.Center)
+                                .clickable { onZoomChange(CalendarZoom.MONTH) }
+                                .padding(horizontal = 6.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
+                    }
 
+                    CalendarZoom.MONTH -> {
+                        // ✅ CENTER monthText (normal)
                         Text(
                             text = monthText,
                             modifier = Modifier.align(Alignment.Center),
@@ -1367,6 +1388,7 @@ private fun MonthYearSwitchHeader(
                     }
 
                     CalendarZoom.YEAR -> {
+                        // ✅ CENTER year (normal)
                         Text(
                             text = yearText,
                             modifier = Modifier.align(Alignment.Center),
@@ -1375,34 +1397,31 @@ private fun MonthYearSwitchHeader(
                             color = MaterialTheme.colorScheme.onSurface
                         )
 
+                        // ✅ RIGHT faded month (klik -> MONTH)
                         Text(
                             text = monthText,
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
                                 .clickable { onZoomChange(CalendarZoom.MONTH) }
-                                .padding(horizontal = 4.dp, vertical = 6.dp), // større touch
+                                .padding(horizontal = 4.dp, vertical = 6.dp),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
-                        )
-                    }
-
-                    CalendarZoom.WEEK -> {
-                        Text(
-                            text = monthText,
-                            modifier = Modifier.align(Alignment.Center),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
             }
         }
 
-        // ---- Chevron (ALWAYS collapse fully to WEEK) ----
+        // ---- Chevron: WEEK <-> MONTH, og MONTH/YEAR -> WEEK ----
         IconButton(
-            onClick = { onZoomChange(CalendarZoom.WEEK) },
+            onClick = {
+                when (zoom) {
+                    CalendarZoom.WEEK -> onZoomChange(CalendarZoom.MONTH) // ✅ expand
+                    CalendarZoom.MONTH -> onZoomChange(CalendarZoom.WEEK) // ✅ collapse
+                    CalendarZoom.YEAR -> onZoomChange(CalendarZoom.WEEK)  // ✅ collapse helt
+                }
+            },
             modifier = Modifier.align(Alignment.CenterEnd)
         ) {
             Icon(
