@@ -2,6 +2,7 @@ package com.example.gymlocker.ui.activeworkout
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -1062,8 +1063,6 @@ fun ExerciseSetRow(
     isNumpadVisible: Boolean = false
 ) {
     val alphaContainer = 0.15f
-    val selectedAlpha = 0.4f
-    val selectedBorderColor = Color(0xFF3A82F7)
 
     val isWeightPrefilled = set.isWeightPrefilled
     val isRepsPrefilled = set.isRepsPrefilled
@@ -1121,9 +1120,10 @@ fun ExerciseSetRow(
                 .padding(horizontal = 4.dp)
                 .then(
                     if (selectedField == FieldType.WEIGHT) {
-                        Modifier.background(
-                            selectedBorderColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(8.dp)
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
                         )
                     } else Modifier
                 )
@@ -1153,14 +1153,8 @@ fun ExerciseSetRow(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor =
-                        if (selectedField == FieldType.WEIGHT) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
-                    focusedContainerColor =
-                        if (selectedField == FieldType.WEIGHT) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
 
@@ -1185,9 +1179,10 @@ fun ExerciseSetRow(
                 .padding(horizontal = 4.dp)
                 .then(
                     if (selectedField == FieldType.REPS) {
-                        Modifier.background(
-                            selectedBorderColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(8.dp)
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
                         )
                     } else Modifier
                 )
@@ -1214,14 +1209,8 @@ fun ExerciseSetRow(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor =
-                        if (selectedField == FieldType.REPS) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
-                    focusedContainerColor =
-                        if (selectedField == FieldType.REPS) selectedBorderColor.copy(alpha = selectedAlpha)
-                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
-
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
                     errorContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alphaContainer),
 
@@ -1247,9 +1236,10 @@ fun ExerciseSetRow(
                 .weight(0.4f)
                 .then(
                     if (selectedField == FieldType.DONE) {
-                        Modifier.background(
-                            selectedBorderColor.copy(alpha = 0.2f),
-                            RoundedCornerShape(8.dp)
+                        Modifier.border(
+                            width = 2.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(8.dp)
                         )
                     } else Modifier
                 )
