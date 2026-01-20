@@ -81,7 +81,6 @@ import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.components.RestTimerBar
 import com.example.gymlocker.ui.components.RestTimerInputDialog
-import com.example.gymlocker.ui.exercise.ExerciseDetailsDialog
 import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.ui.theme.GymLockerTheme
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
@@ -111,7 +110,6 @@ fun ActiveWorkoutScreen(
     val activeExercises by viewModel.activeExercises.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var detailExercise by remember { mutableStateOf<ActiveExerciseState?>(null) }
 
     // finish sheet
     var showFinishSummarySheet by remember { mutableStateOf(false) }
@@ -189,7 +187,6 @@ fun ActiveWorkoutScreen(
         showAddExerciseSheet = false
         showDiscardDialog = false
         showFinishSummarySheet = false
-        detailExercise = null
     }
 
     if (showDiscardDialog) {
@@ -716,7 +713,7 @@ fun ActiveWorkoutScreen(
                             onDeleteSet = { setNumber ->
                                 viewModel.removeSet(exercise.exerciseId, setNumber)
                             },
-                            onOpenDetails = { detailExercise = exercise },
+                            onOpenDetails = { navController.navigate("exerciseDetail/${exercise.exerciseId}") },
                             isNumpadVisible = isNumpadVisible
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -756,16 +753,6 @@ fun ActiveWorkoutScreen(
                 }
             }
         }
-    }
-
-    detailExercise?.let { ex ->
-        ExerciseDetailsDialog(
-            exerciseId = ex.exerciseId,
-            exerciseName = ex.exerciseName,
-            muscleGroupId = ex.muscleGroupId,
-            viewModel = viewModel,
-            onDismiss = { detailExercise = null }
-        )
     }
 
     if (showAddExerciseSheet) {
