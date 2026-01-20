@@ -3,6 +3,7 @@ package com.example.gymlocker.ui.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -34,12 +35,11 @@ import com.example.gymlocker.data.auth.SessionManager
 import com.example.gymlocker.data.entity.AppTheme
 import com.example.gymlocker.data.entity.WeightUnit
 import com.example.gymlocker.data.repo.SettingsRepository
-import kotlinx.coroutines.launch
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,7 +135,8 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                modifier = Modifier.metalGloss(BotBarShape),
+                // FIX: must use TopBarShape for top bar
+                modifier = Modifier.metalGloss(TopBarShape),
                 title = { Text("Settings") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
@@ -164,7 +165,9 @@ fun SettingsScreen(
 
             // --- Units ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
                 shape = cardShape,
                 border = cardBorder,
                 colors = CardDefaults.cardColors(
@@ -200,7 +203,9 @@ fun SettingsScreen(
 
             // --- Rest timer ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
                 shape = cardShape,
                 border = cardBorder,
                 colors = CardDefaults.cardColors(
@@ -239,7 +244,9 @@ fun SettingsScreen(
 
             // --- Dark mode ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
                 shape = cardShape,
                 border = cardBorder,
                 colors = CardDefaults.cardColors(
@@ -277,7 +284,9 @@ fun SettingsScreen(
 
             // --- Theme picker (keep it in a surface card; inputs use surfaceVariant) ---
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .metalGloss(cardShape),
                 shape = cardShape,
                 border = cardBorder,
                 colors = CardDefaults.cardColors(
