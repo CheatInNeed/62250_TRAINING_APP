@@ -1,14 +1,17 @@
 package com.example.gymlocker.ui.template
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -22,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -33,19 +37,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.gymlocker.ui.addexercise.AddExerciseSheet
 import com.example.gymlocker.ui.components.ActiveWorkoutBanner
 import com.example.gymlocker.ui.components.AppBottomBar
 import com.example.gymlocker.ui.settings.LocalUserSettings
-import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
-import com.example.gymlocker.viewmodel.EditTemplateViewModel
-import androidx.compose.foundation.shape.RoundedCornerShape
-import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.BotBarShape
+import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
+import com.example.gymlocker.viewmodel.EditTemplateViewModel
+
+private val TemplateCardShape: Shape = RoundedCornerShape(16.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,8 +70,34 @@ fun EditTemplateScreen(
     val isSaving by viewModel.isSaving.collectAsState()
 
     val maxLen = EditTemplateViewModel.MAX_TEMPLATE_NAME_LENGTH
-
     val unit = LocalUserSettings.current.weightUnit
+
+    val primaryOutline = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+
+    // Shared TextField palette for this screen (match CreateTemplateScreen)
+    val textFieldColors: TextFieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+
+        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+        disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        errorTextColor = MaterialTheme.colorScheme.onSurface,
+
+        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+        disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+        errorIndicatorColor = MaterialTheme.colorScheme.error,
+
+        focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+        errorLabelColor = MaterialTheme.colorScheme.error,
+
+        cursorColor = MaterialTheme.colorScheme.primary
+    )
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -91,7 +123,6 @@ fun EditTemplateScreen(
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
                                 ?.set("shouldReloadTemplate", true)
-                            // Go back after save
                             navController.popBackUnlessAtRoot()
                         },
                         enabled = templateName.isNotBlank() &&
@@ -139,9 +170,7 @@ fun EditTemplateScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary
-                )
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             Column(
@@ -160,6 +189,7 @@ fun EditTemplateScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.height(8.dp))
 
                     TextField(
                         value = templateName,
@@ -187,35 +217,22 @@ fun EditTemplateScreen(
                             )
                         },
                         isError = templateNameError != null || templateName.isBlank(),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                            errorTextColor = MaterialTheme.colorScheme.onSurface,
-
-                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                            unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
-                            disabledIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
-                            errorIndicatorColor = MaterialTheme.colorScheme.error,
-
-                            focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                            errorLabelColor = MaterialTheme.colorScheme.error,
-
-                            cursorColor = MaterialTheme.colorScheme.primary
-                        )
+                        colors = textFieldColors
                     )
                 }
 
                 if (templateExercises.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // Empty state: match CreateTemplateScreen (padded column so it aligns with screen rhythm)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
                                 "No exercises added yet.",
                                 color = MaterialTheme.colorScheme.onBackground
@@ -224,13 +241,29 @@ fun EditTemplateScreen(
                                 "Start by adding your first exercise.",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(Modifier.height(16.dp))
+
+                            Button(
+                                onClick = { showAddExerciseSheet = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = TemplateCardShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text("Add Exercise")
+                            }
                         }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(templateExercises) { exercise ->
                             TemplateExerciseItem(
@@ -245,19 +278,21 @@ fun EditTemplateScreen(
                                 onDeleteExercise = { viewModel.removeExercise(exercise.exerciseId) },
                                 onDeleteSet = { setNumber ->
                                     viewModel.removeSet(exercise.exerciseId, setNumber)
-                                }
+                                },
+                                cardShape = TemplateCardShape,
+                                cardBorder = primaryOutline,
+                                textFieldColors = textFieldColors
                             )
                         }
 
                         item {
+                            Spacer(Modifier.height(4.dp))
                             Button(
                                 onClick = { showAddExerciseSheet = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 16.dp)
-                                    .padding(bottom = 8.dp)
                                     .height(56.dp),
-                                shape = RoundedCornerShape(16.dp),
+                                shape = TemplateCardShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
                                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -265,6 +300,7 @@ fun EditTemplateScreen(
                             ) {
                                 Text("Add Exercise")
                             }
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
@@ -276,6 +312,7 @@ fun EditTemplateScreen(
         AddExerciseSheet(
             onDismiss = { showAddExerciseSheet = false },
             onExerciseSelected = { ex ->
+                // keep existing behavior (your Edit VM likely expects the entity here)
                 viewModel.addExercise(ex)
                 showAddExerciseSheet = false
             }
