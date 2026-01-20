@@ -19,10 +19,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.gymlocker.data.dao.MuscleGroupDistributionRow
 
 @Composable
 fun MuscleGroupDistributionChart(
-    rows: List<com.example.gymlocker.data.dao.MuscleGroupDistributionRow>,
+    rows: List<MuscleGroupDistributionRow>,
     modifier: Modifier = Modifier
 ) {
     if (rows.isEmpty()) {
@@ -38,11 +39,9 @@ fun MuscleGroupDistributionChart(
     val totalSets = shown.sumOf { it.completedSets }.coerceAtLeast(1)
     val maxValue = shown.maxOf { it.completedSets }.coerceAtLeast(1)
 
-    // Peter Standard color roles:
-    // - primary: main/CTA emphasis
-    // - secondary: highlights/accent (useful for chart fills)
-    // - onSurface/onSurfaceVariant: text
-    val barColor: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
+    // Theme roles
+    val fillColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val trackColor: Color = MaterialTheme.colorScheme.surfaceVariant
     val labelColor: Color = MaterialTheme.colorScheme.onSurface
     val subColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -74,15 +73,23 @@ fun MuscleGroupDistributionChart(
                     )
                 }
 
-                // Bar
+                // Bar (track + fill)
                 Canvas(
                     modifier = Modifier
                         .height(18.dp)
                         .weight(1f)
                 ) {
+                    // Track
+                    drawRect(
+                        color = trackColor,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(size.width, size.height)
+                    )
+
+                    // Fill
                     val w = (r.completedSets.toFloat() / maxValue) * size.width
                     drawRect(
-                        color = barColor,
+                        color = fillColor,
                         topLeft = Offset(0f, 0f),
                         size = Size(w, size.height)
                     )

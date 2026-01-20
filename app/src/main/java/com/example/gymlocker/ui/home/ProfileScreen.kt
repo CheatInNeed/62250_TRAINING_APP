@@ -47,6 +47,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -716,7 +717,6 @@ private fun NoProfilesCard(
 }
 
 private enum class GraphMode { HOURS, VOLUME }
-
 @Composable
 fun StatsCard(
     weeklyHours: List<WeekHoursUi>,
@@ -732,7 +732,21 @@ fun StatsCard(
     val last6MonthlyHours = monthlyHours.takeLast(6)
     val last6MonthlyVolume = monthlyVolume.takeLast(6)
 
-    val statsCardShape = RoundedCornerShape(18.dp)
+    // Peter Standard: force 16.dp corners on cards
+    val statsCardShape = RoundedCornerShape(16.dp)
+
+    // Theme-colored chips (no custom border API)
+    // Selected: primary/onPrimary. Unselected: surfaceVariant/onSurfaceVariant.
+    val chipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 
     Card(
         modifier = Modifier
@@ -763,12 +777,14 @@ fun StatsCard(
                     FilterChip(
                         selected = statsRange == StatsRange.WEEK,
                         onClick = { onRangeChange(StatsRange.WEEK) },
-                        label = { Text("Week") }
+                        label = { Text("Week") },
+                        colors = chipColors
                     )
                     FilterChip(
                         selected = statsRange == StatsRange.MONTH,
                         onClick = { onRangeChange(StatsRange.MONTH) },
-                        label = { Text("Month") }
+                        label = { Text("Month") },
+                        colors = chipColors
                     )
                 }
 
@@ -776,12 +792,14 @@ fun StatsCard(
                     FilterChip(
                         selected = mode == GraphMode.HOURS,
                         onClick = { mode = GraphMode.HOURS },
-                        label = { Text("Hours") }
+                        label = { Text("Hours") },
+                        colors = chipColors
                     )
                     FilterChip(
                         selected = mode == GraphMode.VOLUME,
                         onClick = { mode = GraphMode.VOLUME },
-                        label = { Text("Volume") }
+                        label = { Text("Volume") },
+                        colors = chipColors
                     )
                 }
             }

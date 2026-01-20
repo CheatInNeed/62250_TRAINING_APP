@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Clear
@@ -32,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -116,9 +118,7 @@ fun AddExerciseSheet(
 
     val filtered = remember(allExercises, searchQuery, filterMode, selectedMuscleGroupIds, recentIds) {
         allExercises
-            .filter { ex ->
-                searchQuery.isBlank() || ex.name.contains(searchQuery, ignoreCase = true)
-            }
+            .filter { ex -> searchQuery.isBlank() || ex.name.contains(searchQuery, ignoreCase = true) }
             .filter { ex ->
                 if (filterMode == ExerciseFilterMode.BY_MUSCLE_GROUP) {
                     selectedMuscleGroupIds.isEmpty() || ex.muscleGroupId in selectedMuscleGroupIds
@@ -135,6 +135,19 @@ fun AddExerciseSheet(
         else -> "Add Exercises"
     }
 
+    // Theme-colored chips (Option A: NO custom border api usage)
+    // Selected: primary/onPrimary. Unselected: surfaceVariant/onSurfaceVariant.
+    val chipColors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.primary,
+        selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+        selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTrailingIconColor = MaterialTheme.colorScheme.onPrimary,
+
+        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -149,7 +162,7 @@ fun AddExerciseSheet(
                     .fillMaxHeight()
             ) {
                 Text(
-                    "Add Exercise",
+                    text = "Add Exercise",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -166,7 +179,8 @@ fun AddExerciseSheet(
                             filterMode = ExerciseFilterMode.BY_NAME
                             selectedMuscleGroupIds = emptySet()
                         },
-                        label = { Text("By name") }
+                        label = { Text("By name") },
+                        colors = chipColors
                     )
 
                     FilterChip(
@@ -176,7 +190,8 @@ fun AddExerciseSheet(
                             if (selectedMuscleGroupIds.isEmpty()) Text("By muscle group")
                             else Text("Muscles: ${selectedMuscleGroupIds.size}")
                         },
-                        leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null) }
+                        leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null) },
+                        colors = chipColors
                     )
                 }
 
@@ -189,7 +204,8 @@ fun AddExerciseSheet(
                                 selected = false,
                                 onClick = { selectedMuscleGroupIds = emptySet() },
                                 label = { Text("Clear") },
-                                leadingIcon = { Icon(Icons.Filled.Clear, contentDescription = null) }
+                                leadingIcon = { Icon(Icons.Filled.Clear, contentDescription = null) },
+                                colors = chipColors
                             )
                         }
 
@@ -204,11 +220,12 @@ fun AddExerciseSheet(
                                 },
                                 label = {
                                     Text(
-                                        mg.name,
+                                        text = mg.name,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                }
+                                },
+                                colors = chipColors
                             )
                         }
                     }
@@ -357,12 +374,16 @@ fun ExerciseListItem(
         MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
     )
 
+    // Force 16.dp corners on the cards
+    val cardShape = RoundedCornerShape(16.dp)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clickable(onClick = onClick)
-            .metalGloss(),
+            .metalGloss(cardShape),
+        shape = cardShape,
         border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = container,
@@ -388,7 +409,6 @@ fun ExerciseListItem(
         }
     }
 }
-
 
 /**
  * Deterministic mapping via muscle group name.

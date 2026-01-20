@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -124,6 +125,9 @@ fun HomeScreen(
     val startInclusive = startOfWeek.atStartOfDay().format(formatter)
     val endInclusive = endOfWeek.atTime(23, 59, 59, 999_000_000).format(formatter)
 
+    // Force 16.dp rounded corners on ALL cards in this file
+    val cardShape = remember { RoundedCornerShape(16.dp) }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -136,7 +140,8 @@ fun HomeScreen(
                 TopAppBar(
                     title = { Text("Workout Feed") },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
+                        // Match other topbars: use surface (not transparent / background)
+                        containerColor = MaterialTheme.colorScheme.surface,
                         titleContentColor = MaterialTheme.colorScheme.onSurface,
                         navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                         actionIconContentColor = MaterialTheme.colorScheme.onSurface
@@ -145,14 +150,15 @@ fun HomeScreen(
             }
         },
         bottomBar = {
-            // Peter Standard: bottom bar uses metalGloss(BotBarShape)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .metalGloss(BotBarShape)
+            Surface(
+                modifier = Modifier.metalGloss(BotBarShape), // ✅ required: metalGloss(BotBarShape)
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -276,7 +282,8 @@ fun HomeScreen(
                     onDateSelected = { date ->
                         selectedDate = date
                         currentMonth = YearMonth.from(date)
-                    }
+                    },
+                    cardShape = cardShape
                 )
             }
 
@@ -286,7 +293,8 @@ fun HomeScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .metalGloss(),
+                            .metalGloss(cardShape),
+                        shape = cardShape,
                         border = cardBorder,
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface,
@@ -340,7 +348,8 @@ fun HomeScreen(
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .metalGloss(),
+                                    .metalGloss(cardShape),
+                                shape = cardShape,
                                 border = cardBorder,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surface,
@@ -366,7 +375,8 @@ fun HomeScreen(
                             HomeWorkoutHistoryCard(
                                 workout = ws,
                                 dateTime = dt,
-                                onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
+                                onClick = { navController.navigate("workoutDetail/${ws.workoutId}") },
+                                cardShape = cardShape
                             )
                         }
                     }
@@ -397,7 +407,8 @@ fun HomeScreen(
                             HomeWorkoutHistoryCard(
                                 workout = ws,
                                 dateTime = dt,
-                                onClick = { navController.navigate("workoutDetail/${ws.workoutId}") }
+                                onClick = { navController.navigate("workoutDetail/${ws.workoutId}") },
+                                cardShape = cardShape
                             )
                         }
                     }
@@ -439,7 +450,8 @@ private fun homeSectionTitleForDate(date: LocalDate?): String {
 private fun HomeWorkoutHistoryCard(
     workout: WorkoutSummary,
     dateTime: LocalDateTime?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    cardShape: RoundedCornerShape
 ) {
     val timeText = remember(dateTime) { dateTime?.format(DateTimeFormatter.ofPattern("HH:mm")).orEmpty() }
 
@@ -457,7 +469,8 @@ private fun HomeWorkoutHistoryCard(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .metalGloss(),
+            .metalGloss(cardShape),
+        shape = cardShape,
         border = cardBorder,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
@@ -663,7 +676,8 @@ private fun ExpandableHomeCalendarHeader(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onMonthChange: (YearMonth) -> Unit,
-    onDateSelected: (LocalDate) -> Unit
+    onDateSelected: (LocalDate) -> Unit,
+    cardShape: RoundedCornerShape
 ) {
     val today = remember { LocalDate.now() }
     val weekDays = remember(today) { (6L downTo 0L).map { today.minusDays(it) } }
@@ -680,13 +694,14 @@ private fun ExpandableHomeCalendarHeader(
                 )
             }
     ) {
-        // Month title row (card-like): should be metalGloss + outline
+        // Month title row (card-like): should be metalGloss + outline + 16.dp shape
         val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f))
 
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .metalGloss(),
+                .metalGloss(cardShape),
+            shape = cardShape,
             border = cardBorder,
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface,
