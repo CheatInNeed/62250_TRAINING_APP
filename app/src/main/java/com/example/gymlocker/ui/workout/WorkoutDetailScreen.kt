@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -81,7 +82,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
+import com.example.gymlocker.ui.theme.metalGloss
 
 private const val MAX_TEMPLATE_NAME_LENGTH = 40
 
@@ -374,9 +375,14 @@ fun WorkoutDetailScreen(
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -466,14 +472,14 @@ fun WorkoutDetailScreen(
                     Spacer(Modifier.height(12.dp))
                 }
 
-                // 4) Exercise logs — HER er din store fejl: brug workoutDetails, ikke logs
+                // 4) Exercise logs
                 items(workoutDetails) { log ->
                     val headerBackground =
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
                     val rowBackground =
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
 
-                    // Exercise title (minimal)
+                    // Exercise title
                     Text(
                         text = log.exerciseName,
                         style = MaterialTheme.typography.titleMedium,
@@ -493,7 +499,7 @@ fun WorkoutDetailScreen(
                         bottomEnd = 6.dp
                     )
 
-                    // Column headers (like Active, but without PREVIOUS + ✓)
+                    // Column headers
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -514,9 +520,8 @@ fun WorkoutDetailScreen(
 
                     Spacer(Modifier.height(4.dp))
 
-                    // Set rows (minimal)
+                    // Set rows
                     log.sets.forEachIndexed { index, set ->
-                        val alpha = if (set.isCompleted) 1f else 0.45f
                         val shownW = displayWeightFromKg(set.weight.toDouble(), unit)
                         val wText = formatWeight(shownW, decimals = 0)
                         val isLast = index == log.sets.lastIndex
@@ -544,7 +549,6 @@ fun WorkoutDetailScreen(
                     }
 
                     Spacer(Modifier.height(10.dp))
-                    //HorizontalDivider()
                     Spacer(Modifier.height(14.dp))
                 }
             }

@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.FilterChip
 import com.example.gymlocker.ui.components.MuscleGroupDistributionChart
 import com.example.gymlocker.ui.components.PeriodBarChart
@@ -62,9 +63,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -97,6 +100,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
 import com.example.gymlocker.ui.components.ProfileAvatarIcon
 import com.example.gymlocker.data.auth.SessionManager
+import com.example.gymlocker.ui.theme.metalGloss
+import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -387,8 +392,14 @@ fun ProfileScreen(
         contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                ),
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { navController.popBackUnlessAtRoot() }) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "Back"
@@ -566,9 +577,14 @@ fun ProfileScreen(
             )
         },
         bottomBar = {
-            Column {
-                ActiveWorkoutBanner(navController, activeWorkoutViewModel)
-                AppBottomBar(navController)
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ) {
+                Column {
+                    ActiveWorkoutBanner(navController, activeWorkoutViewModel)
+                    AppBottomBar(navController)
+                }
             }
         }
     ) { innerPadding ->
@@ -593,10 +609,18 @@ fun ProfileScreen(
                         "${formatWeight(shown, decimals = 0)} ${weightUnitLabel(unit)}"
                     }
 
+                val activeProfileCardShape = RoundedCornerShape(18.dp)
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 14.dp),
+                        .padding(bottom = 14.dp)
+                        .metalGloss(activeProfileCardShape),
+                    shape = activeProfileCardShape,
+                    border = BorderStroke(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                    ),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface,
                         contentColor = MaterialTheme.colorScheme.onSurface
@@ -760,9 +784,17 @@ private fun ProfileAvatar(
 private fun NoProfilesCard(
     onCreateProfileClick: () -> Unit
 ) {
+    val noProfilesShape = RoundedCornerShape(18.dp)
+
     Card(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .metalGloss(noProfilesShape),
+        shape = noProfilesShape,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -799,6 +831,7 @@ private fun NoProfilesCard(
         }
     }
 }
+
 private enum class GraphMode { HOURS, VOLUME }
 
 @Composable
@@ -817,8 +850,17 @@ fun StatsCard(
     val last6MonthlyHours = monthlyHours.takeLast(6)
     val last6MonthlyVolume = monthlyVolume.takeLast(6)
 
+    val statsCardShape = RoundedCornerShape(18.dp)
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .metalGloss(statsCardShape),
+        shape = statsCardShape,
+        border = BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface
@@ -944,7 +986,6 @@ fun StatsCard(
                         )
                     }
                 }
-
             }
 
             Spacer(Modifier.height(16.dp))
@@ -967,5 +1008,3 @@ fun StatsCard(
         }
     }
 }
-
-
