@@ -35,7 +35,7 @@ import androidx.room.TypeConverters
         TemplateExercise::class,
         TemplateSet::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false)
 
 @TypeConverters(Converters::class)
@@ -71,7 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
          *
          * ❌ when false: none of the above happens.
          */
-        private const val DEBUG_WIPE_DB = false
+        private const val DEBUG_WIPE_DB = true
 
         @Volatile private var debugSeedJob: Job? = null
 

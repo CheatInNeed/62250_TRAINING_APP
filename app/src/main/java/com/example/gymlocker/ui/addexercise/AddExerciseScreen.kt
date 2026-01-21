@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import kotlinx.coroutines.flow.flowOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,9 +81,14 @@ fun AddExerciseSheet(
 
     val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
 
-    val allExercises by db.exerciseDao()
-        .getAllExercises()
-        .collectAsState(initial = emptyList())
+    val allExercises by remember(activeProfileUserId) {
+        if (activeProfileUserId != null) {
+            db.exerciseDao().getExercisesForUser(activeProfileUserId!!)
+        } else {
+            // no active profile -> no exercises
+            flowOf(emptyList())
+        }
+    }.collectAsState(initial = emptyList())
 
     val allMuscleGroups by db.muscleGroupDao()
         .getAllMuscleGroups()

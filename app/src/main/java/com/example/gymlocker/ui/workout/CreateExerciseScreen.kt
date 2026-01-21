@@ -46,6 +46,13 @@ import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.viewmodel.CreateExerciseViewModel
+import androidx.compose.ui.platform.LocalContext
+import com.example.gymlocker.data.auth.SessionManager
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +67,11 @@ fun CreateExerciseScreen(
     val startReps by viewModel.startReps.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
     val muscleGroups by viewModel.muscleGroups.collectAsState()
+
+    val context = LocalContext.current
+    val session = remember { SessionManager(context) }
+    val activeProfileUserId by session.activeProfileUserId.collectAsState(initial = null)
+
 
     var muscleGroupExpanded by remember { mutableStateOf(false) }
 
@@ -211,8 +223,14 @@ fun CreateExerciseScreen(
             // Save Button
             Button(
                 onClick = {
-                    viewModel.saveExercise {
-                        navController.popBackUnlessAtRoot()
+                    val uid = activeProfileUserId
+                    if (uid != null) {
+                        viewModel.saveExercise(ownerUserId = uid) {
+                            navController.popBackUnlessAtRoot()
+                        }
+                    } else {
+                        // Optional: handle case where there is no active profile
+                        // e.g. show a snackbar / toast or just silently ignore
                     }
                 },
                 modifier = Modifier
