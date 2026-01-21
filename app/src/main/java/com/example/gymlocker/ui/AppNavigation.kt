@@ -171,7 +171,9 @@ fun AppNavigation() {
             composable("createProfile") {
                 CreateProfileScreen(
                     navController = navController,
-                    profileViewModel = profileViewModel
+                    profileViewModel = profileViewModel,
+                    activeWorkoutViewModel = activeWorkoutViewModel
+
                 )
             }
             composable("editProfile") {
@@ -195,7 +197,8 @@ fun AppNavigation() {
         composable("createProfile") {
             CreateProfileScreen(
                 navController = navController,
-                profileViewModel = profileViewModel
+                profileViewModel = profileViewModel,
+                activeWorkoutViewModel = activeWorkoutViewModel
             )
         }
         composable("editProfile") {

@@ -144,6 +144,11 @@ fun ProfileScreen(
     var showPermissionDenied by remember { mutableStateOf(false) }
     var showRemoveConfirm by remember { mutableStateOf(false) }
 
+    // 🔹 NEW: workout + profile-switch gating state
+    val isWorkoutInProgress by activeWorkoutViewModel.isWorkoutInProgress.collectAsState()
+    var pendingProfileSwitchUserId by remember { mutableStateOf<Long?>(null) }
+    var showActiveWorkoutSwitchDialog by remember { mutableStateOf(false) }
+
     val permission = remember {
         if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES
         else Manifest.permission.READ_EXTERNAL_STORAGE
@@ -331,6 +336,57 @@ fun ProfileScreen(
         )
     }
 
+    // 🔹 NEW: block / confirm profile switch while workout is active
+    if (showActiveWorkoutSwitchDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showActiveWorkoutSwitchDialog = false
+                pendingProfileSwitchUserId = null
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            title = {
+                Text(
+                    text = "Active workout in progress",
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "You have an active workout running. Switching profile will discard this workout. Do you want to discard the workout and switch profile?",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val targetId = pendingProfileSwitchUserId
+                        showActiveWorkoutSwitchDialog = false
+                        pendingProfileSwitchUserId = null
+
+                        if (targetId != null) {
+                            activeWorkoutViewModel.discardWorkout()
+                            profileViewModel.setActiveProfile(targetId)
+                        }
+                    }
+                ) {
+                    Text(text = "Discard & switch", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showActiveWorkoutSwitchDialog = false
+                        pendingProfileSwitchUserId = null
+                    }
+                ) {
+                    Text(text = "Cancel", color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        )
+    }
+
     var isProfilePickerOpen by remember { mutableStateOf(false) }
     var isAvatarMenuOpen by remember { mutableStateOf(false) }
 
@@ -401,8 +457,23 @@ fun ProfileScreen(
                                         )
                                     },
                                     onClick = {
-                                        profileViewModel.setActiveProfile(profile.userId)
-                                        isProfilePickerOpen = false
+                                        when {
+                                            // Tapping the already-active profile -> just close
+                                            profile.userId == activeProfileUserId -> {
+                                                isProfilePickerOpen = false
+                                            }
+                                            // Workout in progress -> ask first
+                                            isWorkoutInProgress -> {
+                                                pendingProfileSwitchUserId = profile.userId
+                                                showActiveWorkoutSwitchDialog = true
+                                                isProfilePickerOpen = false
+                                            }
+                                            // No workout -> switch immediately
+                                            else -> {
+                                                profileViewModel.setActiveProfile(profile.userId)
+                                                isProfilePickerOpen = false
+                                            }
+                                        }
                                     }
                                 )
 
@@ -667,6 +738,7 @@ private fun ProfileAvatar(
     }
 }
 
+
 @Composable
 private fun NoProfilesCard(
     onCreateProfileClick: () -> Unit
@@ -718,6 +790,9 @@ private fun NoProfilesCard(
 }
 
 private enum class GraphMode { HOURS, VOLUME }
+
+// StatsCard stays unchanged…
+
 @Composable
 fun StatsCard(
     weeklyHours: List<WeekHoursUi>,
