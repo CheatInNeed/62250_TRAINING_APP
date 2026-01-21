@@ -99,6 +99,7 @@ import com.example.gymlocker.viewmodel.StatViewModel
 import com.example.gymlocker.viewmodel.StatsRange
 import com.example.gymlocker.viewmodel.WeekHoursUi
 import com.example.gymlocker.viewmodel.WeekVolumeUi
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -728,6 +729,7 @@ fun StatsCard(
     onRangeChange: (StatsRange) -> Unit
 ) {
     var mode by remember { mutableStateOf(GraphMode.HOURS) }
+    var selectedBarIndex by remember { mutableStateOf<Int?>(null) }
 
     val last6MonthlyHours = monthlyHours.takeLast(6)
     val last6MonthlyVolume = monthlyVolume.takeLast(6)
@@ -776,13 +778,19 @@ fun StatsCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = statsRange == StatsRange.WEEK,
-                        onClick = { onRangeChange(StatsRange.WEEK) },
+                        onClick = {
+                            onRangeChange(StatsRange.WEEK)
+                            selectedBarIndex = null
+                        },
                         label = { Text("Week") },
                         colors = chipColors
                     )
                     FilterChip(
                         selected = statsRange == StatsRange.MONTH,
-                        onClick = { onRangeChange(StatsRange.MONTH) },
+                        onClick = {
+                            onRangeChange(StatsRange.MONTH)
+                            selectedBarIndex = null
+                        },
                         label = { Text("Month") },
                         colors = chipColors
                     )
@@ -791,13 +799,19 @@ fun StatsCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = mode == GraphMode.HOURS,
-                        onClick = { mode = GraphMode.HOURS },
+                        onClick = {
+                            mode = GraphMode.HOURS
+                            selectedBarIndex = null
+                        },
                         label = { Text("Hours") },
                         colors = chipColors
                     )
                     FilterChip(
                         selected = mode == GraphMode.VOLUME,
-                        onClick = { mode = GraphMode.VOLUME },
+                        onClick = {
+                            mode = GraphMode.VOLUME
+                            selectedBarIndex = null
+                        },
                         label = { Text("Volume") },
                         colors = chipColors
                     )
@@ -836,6 +850,10 @@ fun StatsCard(
                             values = weeklyHours.map { it.hours },
                             labels = weekLabels,
                             xCaption = "Week",
+                            selectedIndex = selectedBarIndex,
+                            onBarClick = { index ->
+                                selectedBarIndex = if (selectedBarIndex == index) null else index
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
@@ -844,6 +862,10 @@ fun StatsCard(
                             labels = weekLabels,
                             xCaption = "Week",
                             yTickStep = 500f,
+                            selectedIndex = selectedBarIndex,
+                            onBarClick = { index ->
+                                selectedBarIndex = if (selectedBarIndex == index) null else index
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -859,6 +881,10 @@ fun StatsCard(
                             values = last6MonthlyHours.map { it.hours },
                             labels = monthLabels,
                             xCaption = "Month",
+                            selectedIndex = selectedBarIndex,
+                            onBarClick = { index ->
+                                selectedBarIndex = if (selectedBarIndex == index) null else index
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
@@ -871,8 +897,212 @@ fun StatsCard(
                             labels = monthLabels,
                             xCaption = "Month",
                             yTickStep = 500f,
+                            selectedIndex = selectedBarIndex,
+                            onBarClick = { index ->
+                                selectedBarIndex = if (selectedBarIndex == index) null else index
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
+                    }
+                }
+            }
+
+            // Display selected bar information
+            selectedBarIndex?.let { index ->
+                when (statsRange) {
+                    StatsRange.WEEK -> {
+                        if (mode == GraphMode.HOURS && index in weeklyHours.indices) {
+                            Spacer(Modifier.height(12.dp))
+                            val infoCardShape = RoundedCornerShape(8.dp)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .metalGloss(infoCardShape),
+                                shape = infoCardShape,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        val weekLabels = weeklyHours.map {
+                                            it.weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()).toString()
+                                        }
+                                        Text(
+                                            text = "Week ${weekLabels[index]}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = weeklyHours[index].weekStart.format(
+                                                DateTimeFormatter.ofPattern("MMM dd, yyyy")
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    Text(
+                                        text = String.format(Locale.US, "%.1f hours", weeklyHours[index].hours),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        } else if (mode == GraphMode.VOLUME && index in weeklyVolume.indices) {
+                            Spacer(Modifier.height(12.dp))
+                            val infoCardShape = RoundedCornerShape(8.dp)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .metalGloss(infoCardShape),
+                                shape = infoCardShape,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        val weekLabels = weeklyVolume.map {
+                                            it.weekStart.get(WeekFields.ISO.weekOfWeekBasedYear()).toString()
+                                        }
+                                        Text(
+                                            text = "Week ${weekLabels[index]}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = weeklyVolume[index].weekStart.format(
+                                                DateTimeFormatter.ofPattern("MMM dd, yyyy")
+                                            ),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    Text(
+                                        text = String.format(Locale.US, "%.0f kg", weeklyVolume[index].volume),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    StatsRange.MONTH -> {
+                        if (mode == GraphMode.HOURS && index in last6MonthlyHours.indices) {
+                            Spacer(Modifier.height(12.dp))
+                            val infoCardShape = RoundedCornerShape(8.dp)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .metalGloss(infoCardShape),
+                                shape = infoCardShape,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = last6MonthlyHours[index].yearMonth.month.getDisplayName(
+                                                TextStyle.FULL,
+                                                Locale.getDefault()
+                                            ),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = last6MonthlyHours[index].yearMonth.year.toString(),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    Text(
+                                        text = String.format(Locale.US, "%.1f hours", last6MonthlyHours[index].hours),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        } else if (mode == GraphMode.VOLUME && index in last6MonthlyVolume.indices) {
+                            Spacer(Modifier.height(12.dp))
+                            val infoCardShape = RoundedCornerShape(8.dp)
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .metalGloss(infoCardShape),
+                                shape = infoCardShape,
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = last6MonthlyVolume[index].yearMonth.month.getDisplayName(
+                                                TextStyle.FULL,
+                                                Locale.getDefault()
+                                            ),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = last6MonthlyVolume[index].yearMonth.year.toString(),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
+                                    Text(
+                                        text = String.format(Locale.US, "%.0f kg", last6MonthlyVolume[index].volume),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
