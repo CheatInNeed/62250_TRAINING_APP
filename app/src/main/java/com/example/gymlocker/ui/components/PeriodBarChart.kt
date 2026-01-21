@@ -1,6 +1,7 @@
 package com.example.gymlocker.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import java.util.Locale
@@ -26,6 +28,8 @@ fun PeriodBarChart(
     labels: List<String>,
     xCaption: String,
     yTickStep: Float? = null,
+    selectedIndex: Int? = null,
+    onBarClick: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (values.isEmpty()) {
@@ -43,6 +47,7 @@ fun PeriodBarChart(
     val axisColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
     val labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
     val barColor: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
+    val selectedBarColor: Color = MaterialTheme.colorScheme.primary
 
     val maxValueRaw = values.maxOrNull() ?: 0f
     val maxValue = kotlin.math.max(1f, maxValueRaw)
@@ -66,6 +71,33 @@ fun PeriodBarChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
+                .then(
+                    if (onBarClick != null) {
+                        Modifier.pointerInput(values.size) {
+                            detectTapGestures { offset ->
+                                val leftPad = 44.dp.toPx()
+                                val chartW = size.width - leftPad
+                                val n = values.size
+                                val gap = 6.dp.toPx()
+                                val totalGap = gap * (n - 1)
+                                val barW = ((chartW - totalGap) / n).coerceAtLeast(2f)
+
+                                // Find which bar was clicked
+                                val clickX = offset.x
+                                if (clickX >= leftPad) {
+                                    values.forEachIndexed { idx, _ ->
+                                        val barX = leftPad + idx * (barW + gap)
+                                        if (clickX >= barX && clickX <= barX + barW) {
+                                            onBarClick(idx)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             val leftPadDp = 44.dp
             val leftPad = leftPadDp.toPx()
@@ -129,8 +161,9 @@ fun PeriodBarChart(
             values.forEachIndexed { idx, v ->
                 val x = leftPad + idx * (barW + gap)
                 val h = if (top == 0f) 0f else (v / top) * chartH
+                val isSelected = selectedIndex == idx
                 drawRect(
-                    color = barColor,
+                    color = if (isSelected) selectedBarColor else barColor,
                     topLeft = Offset(x, chartH - h),
                     size = Size(barW, h)
                 )
