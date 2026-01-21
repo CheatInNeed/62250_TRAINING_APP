@@ -458,10 +458,22 @@ fun ActiveWorkoutScreen(
                             if (current == null) {
                                 cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
                             } else {
-                                cursorPosition = when (current.field) {
+                                val newPos = when (current.field) {
                                     FieldType.WEIGHT -> current
                                     FieldType.REPS -> current.copy(field = FieldType.WEIGHT)
                                     FieldType.DONE -> current.copy(field = FieldType.REPS)
+                                }
+                                cursorPosition = newPos
+
+                                // Set flag to clear on next digit if the field has any non-zero value
+                                val ex = activeExercises.getOrNull(newPos.exerciseIndex)
+                                val set = ex?.sets?.getOrNull(newPos.setIndex)
+                                if (set != null) {
+                                    shouldClearOnNextDigit = when (newPos.field) {
+                                        FieldType.WEIGHT -> set.weight > 0
+                                        FieldType.REPS -> set.reps > 0
+                                        else -> false
+                                    }
                                 }
                             }
                         },
@@ -471,10 +483,22 @@ fun ActiveWorkoutScreen(
                             if (current == null) {
                                 cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
                             } else {
-                                cursorPosition = when (current.field) {
+                                val newPos = when (current.field) {
                                     FieldType.WEIGHT -> current.copy(field = FieldType.REPS)
                                     FieldType.REPS -> current.copy(field = FieldType.DONE)
                                     FieldType.DONE -> current
+                                }
+                                cursorPosition = newPos
+
+                                // Set flag to clear on next digit if the field has any non-zero value
+                                val ex = activeExercises.getOrNull(newPos.exerciseIndex)
+                                val set = ex?.sets?.getOrNull(newPos.setIndex)
+                                if (set != null) {
+                                    shouldClearOnNextDigit = when (newPos.field) {
+                                        FieldType.WEIGHT -> set.weight > 0
+                                        FieldType.REPS -> set.reps > 0
+                                        else -> false
+                                    }
                                 }
                             }
                         },
@@ -561,17 +585,45 @@ fun ActiveWorkoutScreen(
                                 cursorPosition = CursorPosition(0, 0, FieldType.WEIGHT)
                             } else {
                                 when (current.field) {
-                                    FieldType.WEIGHT -> cursorPosition = current.copy(field = FieldType.REPS)
-                                    FieldType.REPS -> cursorPosition = current.copy(field = FieldType.DONE)
+                                    FieldType.WEIGHT -> {
+                                        val newPos = current.copy(field = FieldType.REPS)
+                                        cursorPosition = newPos
+
+                                        // Set flag to clear on next digit if the field has any non-zero value
+                                        val ex = activeExercises.getOrNull(newPos.exerciseIndex)
+                                        val set = ex?.sets?.getOrNull(newPos.setIndex)
+                                        if (set != null && set.reps > 0) {
+                                            shouldClearOnNextDigit = true
+                                        }
+                                    }
+                                    FieldType.REPS -> {
+                                        cursorPosition = current.copy(field = FieldType.DONE)
+                                        shouldClearOnNextDigit = false
+                                    }
                                     FieldType.DONE -> {
                                         val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
                                         val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
                                         viewModel.toggleSetDone(exercise.exerciseId, set.setNumber, true)
 
                                         if (current.setIndex < exercise.sets.size - 1) {
-                                            cursorPosition = current.copy(setIndex = current.setIndex + 1, field = FieldType.WEIGHT)
+                                            val newPos = current.copy(setIndex = current.setIndex + 1, field = FieldType.WEIGHT)
+                                            cursorPosition = newPos
+
+                                            // Set flag for the new set's weight field
+                                            val newSet = exercise.sets.getOrNull(newPos.setIndex)
+                                            if (newSet != null && newSet.weight > 0) {
+                                                shouldClearOnNextDigit = true
+                                            }
                                         } else if (current.exerciseIndex < activeExercises.size - 1) {
-                                            cursorPosition = current.copy(exerciseIndex = current.exerciseIndex + 1, setIndex = 0, field = FieldType.WEIGHT)
+                                            val newPos = current.copy(exerciseIndex = current.exerciseIndex + 1, setIndex = 0, field = FieldType.WEIGHT)
+                                            cursorPosition = newPos
+
+                                            // Set flag for the new exercise's first set weight field
+                                            val newEx = activeExercises.getOrNull(newPos.exerciseIndex)
+                                            val newSet = newEx?.sets?.getOrNull(0)
+                                            if (newSet != null && newSet.weight > 0) {
+                                                shouldClearOnNextDigit = true
+                                            }
                                         }
                                     }
                                 }
@@ -702,13 +754,13 @@ fun ActiveWorkoutScreen(
                                 // Show numpad when weight or reps field is selected
                                 if (newPos != null && (newPos.field == FieldType.WEIGHT || newPos.field == FieldType.REPS)) {
                                     isNumpadVisible = true
-                                    // Check if the selected field is prefilled
+                                    // Set flag to clear on next digit if the field has any non-zero value
                                     val ex = activeExercises.getOrNull(newPos.exerciseIndex)
                                     val set = ex?.sets?.getOrNull(newPos.setIndex)
                                     if (set != null) {
                                         shouldClearOnNextDigit = when (newPos.field) {
-                                            FieldType.WEIGHT -> set.isWeightPrefilled && set.weight > 0
-                                            FieldType.REPS -> set.isRepsPrefilled && set.reps > 0
+                                            FieldType.WEIGHT -> set.weight > 0
+                                            FieldType.REPS -> set.reps > 0
                                             else -> false
                                         }
                                     }
@@ -1144,7 +1196,7 @@ fun ExerciseSetRow(
                         onWeightChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,  // Read-only when numpad is visible
+                readOnly = true,  // Always read-only to suppress system keyboard
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
@@ -1208,7 +1260,7 @@ fun ExerciseSetRow(
                         onRepsChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,  // Read-only when numpad is visible
+                readOnly = true,  // Always read-only to suppress system keyboard
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
