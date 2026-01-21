@@ -1196,7 +1196,7 @@ fun ExerciseSetRow(
                         onWeightChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,  // Read-only when numpad is visible
+                readOnly = true,  // Always read-only to suppress system keyboard
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
@@ -1260,7 +1260,7 @@ fun ExerciseSetRow(
                         onRepsChange(newText)
                     }
                 },
-                readOnly = isNumpadVisible,  // Read-only when numpad is visible
+                readOnly = true,  // Always read-only to suppress system keyboard
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth(.9f)
