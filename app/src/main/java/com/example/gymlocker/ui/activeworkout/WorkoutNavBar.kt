@@ -176,7 +176,13 @@ fun WorkoutNumpadBar(
                             .height(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(buttonBackground)
-                            .clickable { onHide() },
+                            .clickable { onHide() }
+                            .padding(1.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                            .padding(1.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(buttonBackground),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -230,7 +236,13 @@ fun WorkoutNumpadBar(
                             .height(64.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(accentColor)
-                            .clickable { onNext() },
+                            .clickable { onNext() }
+                            .padding(1.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                            .padding(1.dp)
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(accentColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
@@ -274,7 +286,13 @@ private fun NumpadButton(
             .height(64.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .padding(1.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            .padding(1.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -304,7 +322,13 @@ private fun IconButton(
             .size(64.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(backgroundColor)
-            .clickable { onClick() },
+            .clickable { onClick() }
+            .padding(1.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            .padding(1.dp)
+            .clip(RoundedCornerShape(7.dp))
+            .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
         Icon(
