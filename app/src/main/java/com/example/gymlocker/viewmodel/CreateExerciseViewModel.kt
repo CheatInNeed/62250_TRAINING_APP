@@ -73,7 +73,7 @@ class CreateExerciseViewModel(private val appContext: Context) : ViewModel() {
                 _selectedMuscleGroupId.value != null
     }
 
-    fun saveExercise(onSuccess: () -> Unit) {
+    fun saveExercise(ownerUserId: Long, onSuccess: () -> Unit) {
         if (!canSave()) return
 
         viewModelScope.launch {
@@ -81,7 +81,13 @@ class CreateExerciseViewModel(private val appContext: Context) : ViewModel() {
             try {
                 val trimmedName = _exerciseName.value.trim()
 
-                if (exerciseDao.existsByNameIgnoreCase(trimmedName)) {
+                // NEW: use the user-aware + global-aware exists check
+                val exists = exerciseDao.existsByNameIgnoreCaseForUserOrGlobal(
+                    userId = ownerUserId,
+                    name = trimmedName
+                )
+
+                if (exists) {
                     _exerciseNameError.value = "Exercise with this name already exists"
                     return@launch
                 }
@@ -91,18 +97,22 @@ class CreateExerciseViewModel(private val appContext: Context) : ViewModel() {
                     startWeight = _startWeight.value,
                     startReps = _startReps.value,
                     isRecent = true,
-                    muscleGroupId = _selectedMuscleGroupId.value!!
+                    muscleGroupId = _selectedMuscleGroupId.value!!,
+                    ownerUserId = ownerUserId              // NEW: tie to active profile
                 )
+
                 exerciseDao.insert(exercise)
                 _saveSuccess.value = true
                 onSuccess()
             } catch (e: Exception) {
+                // keep the behaviour, but this now catches generic DB errors
                 _exerciseNameError.value = "Exercise with this name already exists"
             } finally {
                 _isSaving.value = false
             }
         }
     }
+
 
     fun resetForm() {
         _exerciseName.value = ""
