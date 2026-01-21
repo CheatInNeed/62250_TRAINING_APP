@@ -42,12 +42,13 @@ fun PeriodBarChart(
     }
 
     // Peter Standard color roles:
-    // - secondary: highlights / accents (charts, indicators)
+    // - primary: normal bars (swapped from secondary)
+    // - secondary: selected/highlighted bars (swapped from primary)
     // - outline / outlineVariant: axes + helper text
     val axisColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
     val labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
-    val barColor: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f)
-    val selectedBarColor: Color = MaterialTheme.colorScheme.primary
+    val barColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+    val selectedBarColor: Color = MaterialTheme.colorScheme.secondary
 
     val maxValueRaw = values.maxOrNull() ?: 0f
     val maxValue = kotlin.math.max(1f, maxValueRaw)
