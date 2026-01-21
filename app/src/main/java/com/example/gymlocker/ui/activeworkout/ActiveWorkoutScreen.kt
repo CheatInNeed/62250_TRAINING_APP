@@ -124,6 +124,7 @@ fun ActiveWorkoutScreen(
     // Numpad navigation state
     var isNumpadVisible by remember { mutableStateOf(false) }
     var cursorPosition by remember { mutableStateOf<CursorPosition?>(null) }
+    var shouldClearOnNextDigit by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     val scope = rememberCoroutineScope()
@@ -483,16 +484,26 @@ fun ActiveWorkoutScreen(
                             val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
                             when (current.field) {
                                 FieldType.WEIGHT -> {
-                                    val newValue = set.weight.toString().let {
-                                        if (it == "0") digit else it + digit
+                                    val newValue = if (shouldClearOnNextDigit) {
+                                        digit
+                                    } else {
+                                        set.weight.toString().let {
+                                            if (it == "0") digit else it + digit
+                                        }
                                     }
                                     viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, newValue)
+                                    shouldClearOnNextDigit = false
                                 }
                                 FieldType.REPS -> {
-                                    val newValue = set.reps.toString().let {
-                                        if (it == "0") digit else it + digit
+                                    val newValue = if (shouldClearOnNextDigit) {
+                                        digit
+                                    } else {
+                                        set.reps.toString().let {
+                                            if (it == "0") digit else it + digit
+                                        }
                                     }
                                     viewModel.updateSetReps(exercise.exerciseId, set.setNumber, newValue)
+                                    shouldClearOnNextDigit = false
                                 }
                                 FieldType.DONE -> { /* Numbers don't apply */ }
                             }
@@ -517,6 +528,7 @@ fun ActiveWorkoutScreen(
                             val current = cursorPosition ?: return@WorkoutNumpadBar
                             val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
                             val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                            shouldClearOnNextDigit = false  // Reset flag when using +/-
                             when (current.field) {
                                 FieldType.WEIGHT ->
                                     viewModel.updateSetWeight(exercise.exerciseId, set.setNumber, (set.weight + 1).toString())
@@ -529,6 +541,7 @@ fun ActiveWorkoutScreen(
                             val current = cursorPosition ?: return@WorkoutNumpadBar
                             val exercise = activeExercises.getOrNull(current.exerciseIndex) ?: return@WorkoutNumpadBar
                             val set = exercise.sets.getOrNull(current.setIndex) ?: return@WorkoutNumpadBar
+                            shouldClearOnNextDigit = false  // Reset flag when using +/-
                             when (current.field) {
                                 FieldType.WEIGHT -> {
                                     val newValue = (set.weight - 1).coerceAtLeast(0)
@@ -689,6 +702,16 @@ fun ActiveWorkoutScreen(
                                 // Show numpad when weight or reps field is selected
                                 if (newPos != null && (newPos.field == FieldType.WEIGHT || newPos.field == FieldType.REPS)) {
                                     isNumpadVisible = true
+                                    // Check if the selected field is prefilled
+                                    val ex = activeExercises.getOrNull(newPos.exerciseIndex)
+                                    val set = ex?.sets?.getOrNull(newPos.setIndex)
+                                    if (set != null) {
+                                        shouldClearOnNextDigit = when (newPos.field) {
+                                            FieldType.WEIGHT -> set.isWeightPrefilled && set.weight > 0
+                                            FieldType.REPS -> set.isRepsPrefilled && set.reps > 0
+                                            else -> false
+                                        }
+                                    }
                                 }
                             },
                             viewModel = viewModel,
