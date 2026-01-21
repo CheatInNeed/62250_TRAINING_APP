@@ -157,6 +157,7 @@ abstract class AppDatabase : RoomDatabase() {
     private suspend fun seedTestLoginAndProfile() {
         val authDao = authAccountDao()
         val userDao = userDao()
+        val settingsDao = userSettingsDao()
 
         val email = "test@test.dk"
         val password = "password"
@@ -184,6 +185,14 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             )
         }
+        // ✅ Seed default theme = "Blue" (only if missing; never overwrites user choice)
+        val existingSettings = settingsDao.getOnce(seededUserId)
+        settingsDao.upsert(
+            UserSettings(
+                userId = seededUserId,
+                appTheme = AppTheme.BLUE
+            )
+        )
     }
 
     private suspend fun seedMuscleGroupsAndExercisesIfEmpty(appContext: Context) {

@@ -41,6 +41,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -66,6 +68,8 @@ import com.example.gymlocker.viewmodel.CreateTemplateViewModel
 import com.example.gymlocker.viewmodel.TemplateExerciseState
 import com.example.gymlocker.viewmodel.TemplateSetState
 import com.example.gymlocker.data.entity.WeightUnit
+import com.example.gymlocker.util.displayWeightFromKg
+import com.example.gymlocker.util.formatWeight
 
 private val TemplateCardShape: Shape = RoundedCornerShape(16.dp)
 
@@ -546,6 +550,23 @@ fun TemplateSetRow(
     onRepsChange: (String) -> Unit,
     textFieldColors: TextFieldColors
 ) {
+    val unit = LocalUserSettings.current.weightUnit
+
+    var isWeightFocused by remember { mutableStateOf(false) }
+    var weightText by remember (set.setNumber, unit) { mutableStateOf("") }
+
+    // Sync display from canonical stored KG value when not focused
+    LaunchedEffect(set.weight, unit) {
+        if (!isWeightFocused) {
+            weightText =
+                if (set.weight == 0f) ""
+                else formatWeight(
+                    displayWeightFromKg(set.weight.toDouble(), unit),
+                    decimals = 0
+                )
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -567,10 +588,18 @@ fun TemplateSetRow(
             contentAlignment = Alignment.Center
         ) {
             TextField(
-                value = if (set.weight == 0f) "" else set.weight.toString(),
-                onValueChange = onWeightChange,
+                value = weightText,
+                onValueChange = { newText ->
+                    // match your “digits only” pattern
+                    if (newText.isEmpty() || newText.all { it.isDigit() }) {
+                        weightText = newText
+                        onWeightChange(newText)
+                    }
+                },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(0.9f),
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .onFocusChanged { fs -> isWeightFocused = fs.isFocused },
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = textFieldColors
             )
@@ -584,7 +613,11 @@ fun TemplateSetRow(
         ) {
             TextField(
                 value = if (set.reps == 0) "" else set.reps.toString(),
-                onValueChange = onRepsChange,
+                onValueChange = { newText ->
+                    if (newText.isEmpty() || newText.all { it.isDigit() }) {
+                        onRepsChange(newText)
+                    }
+                },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(0.9f),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
@@ -593,13 +626,11 @@ fun TemplateSetRow(
         }
 
         if (deleteMode) {
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Delete set",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
-            }
+            TextButton(
+                onClick = onDelete,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) { Text("Delete") }
         }
     }
 }
+
