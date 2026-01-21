@@ -1090,7 +1090,7 @@ fun ExerciseSetRow(
             style = MaterialTheme.typography.bodyMedium
         )
         Text(
-            text = set.previous ?: "-",
+            text = set.previous ?: "–",
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground,
@@ -1131,7 +1131,14 @@ fun ExerciseSetRow(
                             onFieldSelected(FieldType.WEIGHT)
                         }
                     },
-                placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                placeholder = {
+                    Text(
+                        "–",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
@@ -1187,7 +1194,14 @@ fun ExerciseSetRow(
                             onFieldSelected(FieldType.REPS)
                         }
                     },
-                placeholder = { Text("–", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                placeholder = {
+                    Text(
+                        "–",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 textStyle = TextStyle(textAlign = TextAlign.Center),
                 colors = TextFieldDefaults.colors(
