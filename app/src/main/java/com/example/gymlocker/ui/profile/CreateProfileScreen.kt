@@ -6,9 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,20 +36,25 @@ import com.example.gymlocker.ui.settings.LocalUserSettings
 import com.example.gymlocker.ui.theme.TopBarShape
 import com.example.gymlocker.ui.theme.metalGloss
 import com.example.gymlocker.ui.util.popBackUnlessAtRoot
-import com.example.gymlocker.ui.util.popBackUnlessAtRoot
 import com.example.gymlocker.util.storageKgFromInput
 import com.example.gymlocker.util.weightUnitLabel
 import com.example.gymlocker.viewmodel.ProfileViewModel
-import kotlin.math.roundToInt
+import com.example.gymlocker.viewmodel.ActiveWorkoutViewModel
 import com.example.gymlocker.data.entity.WeightUnit
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateProfileScreen(
     navController: NavController,
-    profileViewModel: ProfileViewModel
+    profileViewModel: ProfileViewModel,
+    activeWorkoutViewModel: ActiveWorkoutViewModel
 ) {
     val authId by profileViewModel.authId.collectAsState(initial = null)
+
+    // 🚫 Block profile creation when there is an active workout
+    val activeExercises by activeWorkoutViewModel.activeExercises.collectAsState()
+    val hasActiveWorkout = activeExercises.isNotEmpty()
 
     var name by remember { mutableStateOf("") }
     var height by remember { mutableStateOf("") }
@@ -94,7 +98,7 @@ fun CreateProfileScreen(
         val (minAllowed, maxAllowed) = when (unit) {
             WeightUnit.KG -> minKg to maxKg
             WeightUnit.LB -> {
-                // kg -> lb
+                // TODO: use real kg->lb conversion if/when added
                 (minKg) to (maxKg * 25)
             }
         }
@@ -102,9 +106,8 @@ fun CreateProfileScreen(
         if (v !in minAllowed..maxAllowed) {
             val label = weightUnitLabel(unit)
 
-            // show nice rounded values for readability
-            val minTxt = if (unit == WeightUnit.LB) minAllowed.toInt().toString() else minAllowed.toInt().toString()
-            val maxTxt = if (unit == WeightUnit.LB) maxAllowed.toInt().toString() else maxAllowed.toInt().toString()
+            val minTxt = minAllowed.toInt().toString()
+            val maxTxt = maxAllowed.toInt().toString()
 
             return "Weight must be $minTxt–$maxTxt $label."
         }
@@ -112,8 +115,6 @@ fun CreateProfileScreen(
         return null
     }
 
-
-    // Inputs: surfaceVariant + onSurfaceVariant labels + outline borders
     val tfColors = OutlinedTextFieldDefaults.colors(
         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -158,6 +159,43 @@ fun CreateProfileScreen(
             )
         }
     ) { innerPadding ->
+        // 🔒 If there is an active workout, show a guard instead of the form
+        if (hasActiveWorkout) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = "Active workout in progress",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "You can't create a new profile while a workout is active. Finish or discard your current workout first.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Button(
+                    onClick = { navController.popBackUnlessAtRoot() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("OK, go back")
+                }
+            }
+            return@Scaffold
+        }
+
+        // ✅ Normal "create profile" form when no active workout
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -259,7 +297,6 @@ fun CreateProfileScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                // keep current behavior (still clickable with name present)
                 enabled = authId != null && name.trim().isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
