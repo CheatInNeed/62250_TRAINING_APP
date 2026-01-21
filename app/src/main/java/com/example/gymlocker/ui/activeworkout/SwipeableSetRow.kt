@@ -129,7 +129,7 @@ fun SwipeableSetRow(
     val completeColor = accent
 
     // Persistent done background — subtle, theme-safe
-    val doneAlpha = if (isDark) 0.24f else 0.18f
+    val doneAlpha = if (isDark) 0.65f else 0.65f
     val doneColor = accent.copy(alpha = doneAlpha)
 
     val bgColor: Color = when {
@@ -153,6 +153,8 @@ fun SwipeableSetRow(
     } else {
         Modifier
     }
+
+
 
     Box(
         modifier = Modifier
