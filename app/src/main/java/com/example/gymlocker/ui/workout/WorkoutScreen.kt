@@ -1,5 +1,9 @@
 package com.example.gymlocker.ui.workout
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,11 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -44,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -108,56 +113,67 @@ fun WorkoutScreen(
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
-                .padding(16.dp)
         ) {
-            // Top controls: create template / exercise
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // Scrollable content
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
             ) {
-                OutlinedButton(
-                    onClick = { navController.navigate("createTemplate") },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    enabled = activeProfileUserId != null,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                // Top controls: create template / exercise
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Create Template")
+                    OutlinedButton(
+                        onClick = { navController.navigate("createTemplate") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        enabled = activeProfileUserId != null,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text("Create Template")
+                    }
+
+                    OutlinedButton(
+                        onClick = { navController.navigate("createExercise") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        enabled = activeProfileUserId != null,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Text("Create Exercise")
+                    }
                 }
 
-                OutlinedButton(
-                    onClick = { navController.navigate("createExercise") },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    enabled = activeProfileUserId != null,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Text("Create Exercise")
-                }
-            }
+                Spacer(Modifier.height(24.dp))
 
-            Spacer(Modifier.height(16.dp))
+                // Categorize templates
+                // Gymlocker templates are identified by "(Dummy)" in the name
+                val gymlockerTemplates = templates.filter { it.name.contains("(Dummy)", ignoreCase = true) }
+                val userCreatedTemplates = templates.filter { !it.name.contains("(Dummy)", ignoreCase = true) }
+                val favoriteTemplates = templates.filter { it.isFavorite }
+                val yourTemplates = userCreatedTemplates.filter { it.userId == activeProfileUserId }
 
-            // Favorite template boxes
-            val favoriteTemplates = templates.filter { it.isFavorite }
             val templateSummaries = remember { mutableStateMapOf<Long, String>() }
 
-            LaunchedEffect(favoriteTemplates) {
+            LaunchedEffect(templates) {
                 val db = AppDatabase.getDatabase(context)
                 withContext(Dispatchers.IO) {
-                    for (t in favoriteTemplates) {
+                    for (t in templates) {
                         if (templateSummaries.containsKey(t.templateId)) continue
 
                         val tpl = db.workoutTemplateDao().getTemplateWithExercises(t.templateId)
@@ -176,108 +192,82 @@ fun WorkoutScreen(
                 }
             }
 
-            Row(
+            // Browse all templates button
+            TextButton(
+                onClick = { showBrowseTemplatesSheet = true },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Favorite Templates",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                TextButton(
-                    onClick = { showBrowseTemplatesSheet = true },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.primary,
-                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Browse templates",
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text("Browse")
-                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Browse templates",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Browse All Templates")
             }
 
             Spacer(Modifier.height(12.dp))
 
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                userScrollEnabled = true
-            ) {
-                items(favoriteTemplates) { t ->
-                    val templateCardShape = RoundedCornerShape(18.dp)
+            // Expandable sections
+            ExpandableTemplateSection(
+                title = "Favorite Templates",
+                templates = favoriteTemplates,
+                templateSummaries = templateSummaries,
+                navController = navController,
+                initiallyExpanded = true
+            )
 
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(96.dp)
-                            .metalGloss(templateCardShape)
-                            .clickable { navController.navigate("templateDetail/${t.templateId}") },
-                        shape = templateCardShape,
-                        border = BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-                        ),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                    ) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(
-                                text = t.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 2,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            val summary = templateSummaries[t.templateId] ?: "Loading..."
+            Spacer(Modifier.height(8.dp))
 
-                            Text(
-                                text = summary,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 2
-                            )
-                        }
-                    }
-                }
-            }
+            ExpandableTemplateSection(
+                title = "Your Templates",
+                templates = yourTemplates,
+                templateSummaries = templateSummaries,
+                navController = navController,
+                initiallyExpanded = false
+            )
 
-            // Push main button to bottom
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(Modifier.height(8.dp))
 
-            Button(
-                onClick = {
-                    // Resume if in progress, otherwise start new (ActiveWorkoutScreen handles it)
-                    navController.navigate("activeWorkout")
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                enabled = activeProfileUserId != null,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) {
-                Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
-            }
+            ExpandableTemplateSection(
+                title = "Gymlocker's Templates",
+                templates = gymlockerTemplates,
+                templateSummaries = templateSummaries,
+                navController = navController,
+                initiallyExpanded = false
+            )
+
+            Spacer(Modifier.height(16.dp))
         }
+
+        // Fixed button at bottom
+        Button(
+            onClick = {
+                // Resume if in progress, otherwise start new (ActiveWorkoutScreen handles it)
+                navController.navigate("activeWorkout")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            enabled = activeProfileUserId != null,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            Text(if (isWorkoutInProgress) "Resume Workout" else "Start Empty Workout")
+        }
+    }
 
         if (showBrowseTemplatesSheet) {
             TemplateBrowseSheet(
@@ -288,6 +278,143 @@ fun WorkoutScreen(
                     showBrowseTemplatesSheet = false
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun ExpandableTemplateSection(
+    title: String,
+    templates: List<com.example.gymlocker.data.entity.template.WorkoutTemplate>,
+    templateSummaries: Map<Long, String>,
+    navController: NavController,
+    initiallyExpanded: Boolean = false
+) {
+    var isExpanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "arrow rotation"
+    )
+
+    Column {
+        // Header
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .metalGloss(RoundedCornerShape(12.dp))
+                .clickable { isExpanded = !isExpanded },
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+            border = BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "${templates.size} template${if (templates.size != 1) "s" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(rotationAngle),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Expandable content
+        AnimatedVisibility(
+            visible = isExpanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 12.dp)
+            ) {
+                if (templates.isEmpty()) {
+                    Text(
+                        text = "No templates",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    // Grid of template cards
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        templates.chunked(2).forEach { rowTemplates ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                rowTemplates.forEach { t ->
+                                    val templateCardShape = RoundedCornerShape(18.dp)
+
+                                    Card(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(96.dp)
+                                            .metalGloss(templateCardShape)
+                                            .clickable { navController.navigate("templateDetail/${t.templateId}") },
+                                        shape = templateCardShape,
+                                        border = BorderStroke(
+                                            1.dp,
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+                                        ),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    ) {
+                                        Column(Modifier.padding(14.dp)) {
+                                            Text(
+                                                text = t.name,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                maxLines = 2,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(Modifier.height(6.dp))
+                                            val summary = templateSummaries[t.templateId] ?: "Loading..."
+
+                                            Text(
+                                                text = summary,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 2
+                                            )
+                                        }
+                                    }
+                                }
+                                // Fill empty space if odd number of templates
+                                if (rowTemplates.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

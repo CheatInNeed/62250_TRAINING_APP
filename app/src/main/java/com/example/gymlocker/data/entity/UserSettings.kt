@@ -10,7 +10,7 @@ data class UserSettings(
     val userId: Long,
 
     // Personalization examples (adjust as you like)
-    val appTheme: AppTheme = AppTheme.DEFAULT,
+    val appTheme: AppTheme = AppTheme.BLUE,
     val themeMode: ThemeMode = ThemeMode.SYSTEM, // SYSTEM/LIGHT/DARK
     val weightUnit: WeightUnit = WeightUnit.KG,  // KG/LB
     val forceDarkMode: Boolean = false,  // ✅ NEW: if true => always dark

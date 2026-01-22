@@ -130,6 +130,9 @@ class ProfileViewModel(private val appContext: Context) : ViewModel() {
                     weight = weight
                 )
             )
+            // Seed dummy templates for the new profile
+            db.seedDummyTemplates(newUserId)
+
             session.setActiveProfile(newUserId)
             onDone?.invoke()
         }
