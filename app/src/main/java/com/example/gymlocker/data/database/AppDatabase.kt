@@ -213,7 +213,7 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 
-    private suspend fun seedDummyTemplates(userId: Long) {
+    suspend fun seedDummyTemplates(userId: Long) {
         try {
             val workoutTemplateDao = workoutTemplateDao()
             val existingCount = runCatching { workoutTemplateDao.countTemplatesByUserId(userId) }.getOrNull() ?: 0
