@@ -265,7 +265,10 @@ fun HomeScreen(
                 .map { (idx, off) -> idx > 0 || off > 0 }
                 .distinctUntilChanged()
                 .collect { isScrolling ->
-                    if (isScrolling) calendarZoom = CalendarZoom.WEEK
+                    // Only auto-collapse if we're NOT in the "single day filter" view
+                    if (isScrolling && calendarZoom != CalendarZoom.MONTH) {
+                        calendarZoom = CalendarZoom.WEEK
+                    }
                 }
         }
 
